@@ -10,7 +10,11 @@ import Foundation
 class AuthService {
     static let shared = AuthService()
     
-    private let baseURL = "https://tractile-trang-adaptively.ngrok-free.dev"
+   // private let baseURL = "https://tractile-trang-adaptively.ngrok-free.dev"
+   
+    private let baseURL = "https://accessorial-zaida-soggily.ngrok-free.dev"
+
+    
     // Note: localhost:3000 only works in iOS Simulator, not on physical devices
     // For physical devices, use your computer's IP address (e.g., "http://192.168.1.100:3000")
     // or use the ngrok URL if your backend is accessible via ngrok
