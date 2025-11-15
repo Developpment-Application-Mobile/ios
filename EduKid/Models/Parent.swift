@@ -15,4 +15,12 @@ struct parent: Identifiable {
     var children: [Child]
     var totalScore: Int
     let isActive: Bool
+    
+    
+    
+    
+    
 }
+
+
+

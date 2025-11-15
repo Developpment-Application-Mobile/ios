@@ -60,29 +60,31 @@ struct ParentSignUpScreen: View {
                     Spacer().frame(height: 32)
                     
                     // Full Name field
-                    TextField("", text: $fullName)
-                        .placeholder(when: fullName.isEmpty) {
-                            Text("Full Name")
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        .foregroundColor(.white)
+                    TextField(
+                        "",
+                        text: $fullName,
+                        prompt: Text("Full Name")
+                            .foregroundColor(Color.white.opacity(0.6))
+                    )
+                        .foregroundColor(Color.white)
                         .frame(height: 60)
                         .padding(.horizontal, 16)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(Color.white.opacity(0.5), lineWidth: 1)
                         )
-                        .autocapitalization(.words)
+                        .textInputAutocapitalization(.words)
                     
                     Spacer().frame(height: 16)
                     
                     // Email field
-                    TextField("", text: $email)
-                        .placeholder(when: email.isEmpty) {
-                            Text("Email")
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        .foregroundColor(.white)
+                    TextField(
+                        "",
+                        text: $email,
+                        prompt: Text("Email")
+                            .foregroundColor(Color.white.opacity(0.6))
+                    )
+                        .foregroundColor(Color.white)
                         .frame(height: 60)
                         .padding(.horizontal, 16)
                         .background(
@@ -90,24 +92,26 @@ struct ParentSignUpScreen: View {
                                 .stroke(Color.white.opacity(0.5), lineWidth: 1)
                         )
                         .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
+                        .textInputAutocapitalization(.never)
                     
                     Spacer().frame(height: 16)
                     
                     // Password field
                     HStack {
                         if passwordVisible {
-                            TextField("", text: $password)
-                                .placeholder(when: password.isEmpty) {
-                                    Text("Password")
-                                        .foregroundColor(.white.opacity(0.6))
-                                }
+                            TextField(
+                                "",
+                                text: $password,
+                                prompt: Text("Password")
+                                    .foregroundColor(Color.white.opacity(0.6))
+                            )
                         } else {
-                            SecureField("", text: $password)
-                                .placeholder(when: password.isEmpty) {
-                                    Text("Password")
-                                        .foregroundColor(.white.opacity(0.6))
-                                }
+                            SecureField(
+                                "",
+                                text: $password,
+                                prompt: Text("Password")
+                                    .foregroundColor(Color.white.opacity(0.6))
+                            )
                         }
                         
                         Button(action: { passwordVisible.toggle() }) {
@@ -128,17 +132,19 @@ struct ParentSignUpScreen: View {
                     // Confirm Password field
                     HStack {
                         if confirmPasswordVisible {
-                            TextField("", text: $confirmPassword)
-                                .placeholder(when: confirmPassword.isEmpty) {
-                                    Text("Confirm Password")
-                                        .foregroundColor(.white.opacity(0.6))
-                                }
+                            TextField(
+                                "",
+                                text: $confirmPassword,
+                                prompt: Text("Confirm Password")
+                                    .foregroundColor(Color.white.opacity(0.6))
+                            )
                         } else {
-                            SecureField("", text: $confirmPassword)
-                                .placeholder(when: confirmPassword.isEmpty) {
-                                    Text("Confirm Password")
-                                        .foregroundColor(.white.opacity(0.6))
-                                }
+                            SecureField(
+                                "",
+                                text: $confirmPassword,
+                                prompt: Text("Confirm Password")
+                                    .foregroundColor(Color.white.opacity(0.6))
+                            )
                         }
                         
                         Button(action: { confirmPasswordVisible.toggle() }) {
@@ -254,20 +260,6 @@ struct DecorativeElementsSignUp: View {
                 .frame(width: 45, height: 45)
                 .rotationEffect(.degrees(38.66))
                 .offset(x: -150, y: 360)
-        }
-    }
-}
-
-// MARK: - Placeholder Extension
-extension View {
-    func placeholder<Content: View>(
-        when shouldShow: Bool,
-        alignment: Alignment = .leading,
-        @ViewBuilder placeholder: () -> Content
-    ) -> some View {
-        ZStack(alignment: alignment) {
-            placeholder().opacity(shouldShow ? 1 : 0)
-            self
         }
     }
 }

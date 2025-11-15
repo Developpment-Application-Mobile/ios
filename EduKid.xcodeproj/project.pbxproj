@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0478BB172EC7F59300AB6E6D /* EditParentProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB162EC7F59000AB6E6D /* EditParentProfileScreen.swift */; };
+		0478BB192EC7F62300AB6E6D /* EditChildProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */; };
+		04ED24592EC635590047BA65 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */; };
 		594352312EBCE356002EA9EE /* ParentSignUpScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 594352302EBCE356002EA9EE /* ParentSignUpScreen.swift */; };
 		595695B82EBA2FBA005DBD2D /* EduKidApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595695B72EBA2FBA005DBD2D /* EduKidApp.swift */; };
 		595695BA2EBA2FBA005DBD2D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595695B92EBA2FBA005DBD2D /* ContentView.swift */; };
@@ -58,6 +61,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0478BB162EC7F59000AB6E6D /* EditParentProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditParentProfileScreen.swift; sourceTree = "<group>"; };
+		0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditChildProfileScreen.swift; sourceTree = "<group>"; };
+		04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
 		594352302EBCE356002EA9EE /* ParentSignUpScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentSignUpScreen.swift; sourceTree = "<group>"; };
 		595695B42EBA2FBA005DBD2D /* EduKid.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EduKid.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		595695B72EBA2FBA005DBD2D /* EduKidApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EduKidApp.swift; sourceTree = "<group>"; };
@@ -210,6 +216,9 @@
 		595695E82EBA3246005DBD2D /* VIews */ = {
 			isa = PBXGroup;
 			children = (
+				0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */,
+				0478BB162EC7F59000AB6E6D /* EditParentProfileScreen.swift */,
+				04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */,
 				595695F42EBA3BBA005DBD2D /* SplashView.swift */,
 				595696002EBA4FEB005DBD2D /* WelcomeScreenView.swift */,
 				594352302EBCE356002EA9EE /* ParentSignUpScreen.swift */,
@@ -378,6 +387,7 @@
 				595695F52EBA3BBA005DBD2D /* SplashView.swift in Sources */,
 				595695C42EBA2FBB005DBD2D /* EduKid.xcdatamodeld in Sources */,
 				59B8D3492EC3B05B004374A1 /* AuthService.swift in Sources */,
+				0478BB192EC7F62300AB6E6D /* EditChildProfileScreen.swift in Sources */,
 				594352312EBCE356002EA9EE /* ParentSignUpScreen.swift in Sources */,
 				59B85F832EBCE9BC007264C5 /* ChildQRLoginScreen.swift in Sources */,
 				59B85F892EBCEAF0007264C5 /* Parent.swift in Sources */,
@@ -385,10 +395,12 @@
 				59B85F7F2EBCE7BC007264C5 /* ParentSignInScreen.swift in Sources */,
 				595695F12EBA3B5B005DBD2D /* Child.swift in Sources */,
 				59B85F8B2EBCEBF0007264C5 /* Quizz.swift in Sources */,
+				04ED24592EC635590047BA65 /* ForgotPasswordScreen.swift in Sources */,
 				59B85F932EBCEF4D007264C5 /* AddChildScreen.swift in Sources */,
 				595696032EBA503E005DBD2D /* DecorationElementView.swift in Sources */,
 				59B85F872EBCEA17007264C5 /* ChildDetailScreen.swift in Sources */,
 				595696012EBA4FEB005DBD2D /* WelcomeScreenView.swift in Sources */,
+				0478BB172EC7F59300AB6E6D /* EditParentProfileScreen.swift in Sources */,
 				59B85F972EBCF3B2007264C5 /* MainNavigationView.swift in Sources */,
 				59B85F8D2EBCEC24007264C5 /* QuizType.swift in Sources */,
 				59B8D3472EC3AFD2004374A1 /* AuthViewModel.swift in Sources */,

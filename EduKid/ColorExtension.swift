@@ -5,20 +5,40 @@
 //  Created by Mac Mini 11 on 4/11/2025.
 //
 
-import Foundation
 import SwiftUI
 
 extension Color {
     init(hex: String) {
-        let scanner = Scanner(string: hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted))
-        var rgbValue: UInt64 = 0
+        let hex = hex.replacingOccurrences(of: "#", with: "")
+                     .trimmingCharacters(in: .alphanumerics.inverted)
+                     .uppercased()
         
-        scanner.scanHexInt64(&rgbValue)
+        var rgb: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&rgb)
         
-        let r = Double((rgbValue & 0xFF0000) >> 16) / 255.0
-        let g = Double((rgbValue & 0x00FF00) >> 8) / 255.0
-        let b = Double(rgbValue & 0x0000FF) / 255.0
+        var r: Double = 0, g: Double = 0, b: Double = 0, a: Double = 1.0
         
-        self.init(red: r, green: g, blue: b)
+        switch hex.count {
+        case 3: // #RGB
+            r = Double((rgb >> 8) & 0xF) * 17 / 255
+            g = Double((rgb >> 4) & 0xF) * 17 / 255
+            b = Double( rgb       & 0xF) * 17 / 255
+            
+        case 6: // #RRGGBB
+            r = Double((rgb >> 16) & 0xFF) / 255
+            g = Double((rgb >>  8) & 0xFF) / 255
+            b = Double( rgb        & 0xFF) / 255
+            
+        case 8: // #RRGGBBAA
+            a = Double((rgb >> 24) & 0xFF) / 255
+            r = Double((rgb >> 16) & 0xFF) / 255
+            g = Double((rgb >>  8) & 0xFF) / 255
+            b = Double( rgb        & 0xFF) / 255
+            
+        default:
+            r = 1.0; g = 1.0; b = 1.0 // fallback to white
+        }
+        
+        self.init(.sRGB, red: r, green: g, blue: b, opacity: a)
     }
 }

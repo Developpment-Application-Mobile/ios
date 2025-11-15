@@ -1,10 +1,3 @@
-//
-//  ChildDetailScreen.swift
-//  EduKid
-//
-//  Created by Mac Mini 11 on 6/11/2025.
-//
-
 import Foundation
 import SwiftUI
 
@@ -18,6 +11,7 @@ struct ChildDetailScreen: View {
     var onBackClick: () -> Void = {}
     var onAssignQuizClick: () -> Void = {}
     var onGenerateQRClick: () -> Void = {}
+    var onEditClick: () -> Void = {}
     
     var body: some View {
         ZStack {
@@ -53,6 +47,16 @@ struct ChildDetailScreen: View {
                         .foregroundColor(.white)
                     
                     Spacer()
+                    
+                    // Edit button
+                    Button(action: onEditClick) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                            .frame(width: 48, height: 48)
+                            .background(Color.white.opacity(0.2))
+                            .clipShape(Circle())
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 60)
@@ -62,8 +66,9 @@ struct ChildDetailScreen: View {
                 // Child info card
                 HStack(spacing: 16) {
                     // Avatar
-                    Text(child.avatarEmoji)
-                        .font(.system(size: 40))
+                    Image(child.avatarEmoji)
+                        .resizable()
+                        .scaledToFit()
                         .frame(width: 80, height: 80)
                         .background(Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.2))
                         .clipShape(Circle())
@@ -387,44 +392,5 @@ struct DecorativeElementsDetail: View {
                 .rotationEffect(.degrees(38.66))
                 .offset(x: -150, y: 360)
         }
-    }
-}
-
-
-
-// MARK: - Preview
-struct ChildDetailScreen_Previews: PreviewProvider {
-    static var previews: some View {
-        let sampleChild = Child(
-            name: "Emma",
-            age: 8,
-            level: "3",
-            avatarEmoji: "👧",
-            Score: 600,
-            quizzes: [], connectionToken: "String"
-        )
-        
-        let sampleResults = [
-            QuizResult(
-                id: "1",
-                quizName: "Math Basics",
-                category: "Mathematics",
-                score: 90,
-                totalQuestions: 10,
-                date: "Nov 4, 2025",
-                duration: "8 min"
-            ),
-            QuizResult(
-                id: "2",
-                quizName: "Animal Kingdom",
-                category: "Science",
-                score: 75,
-                totalQuestions: 15,
-                date: "Nov 3, 2025",
-                duration: "12 min"
-            )
-        ]
-        
-        ChildDetailScreen(child: sampleChild, quizResults: sampleResults)
     }
 }

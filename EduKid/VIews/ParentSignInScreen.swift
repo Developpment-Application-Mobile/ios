@@ -1,10 +1,3 @@
-//
-//  ParentSignInScreen.swift
-//  EduKid
-//
-//  Created by Mac Mini 11 on 6/11/2025.
-//
-
 import Foundation
 import SwiftUI
 
@@ -59,11 +52,12 @@ struct ParentSignInScreen: View {
                     Spacer().frame(height: 40)
                     
                     // Email field
-                    TextField("", text: $email)
-                        .placeholder(when: email.isEmpty) {
-                            Text("Email")
-                                .foregroundColor(.white.opacity(0.6))
-                        }
+                    TextField(
+                        "",
+                        text: $email,
+                        prompt: Text("Email")
+                            .foregroundColor(Color.white.opacity(0.6))
+                    )
                         .foregroundColor(.white)
                         .frame(height: 60)
                         .padding(.horizontal, 16)
@@ -72,28 +66,32 @@ struct ParentSignInScreen: View {
                                 .stroke(Color.white.opacity(0.5), lineWidth: 1)
                         )
                         .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                     
                     Spacer().frame(height: 16)
                     
                     // Password field
                     HStack {
                         if passwordVisible {
-                            TextField("", text: $password)
-                                .placeholder(when: password.isEmpty) {
-                                    Text("Password")
-                                        .foregroundColor(.white.opacity(0.6))
-                                }
+                            TextField(
+                                "",
+                                text: $password,
+                                prompt: Text("Password")
+                                    .foregroundColor(Color.white.opacity(0.6))
+                            )
                         } else {
-                            SecureField("", text: $password)
-                                .placeholder(when: password.isEmpty) {
-                                    Text("Password")
-                                        .foregroundColor(.white.opacity(0.6))
-                                }
+                            SecureField(
+                                "",
+                                text: $password,
+                                prompt: Text("Password")
+                                    .foregroundColor(Color.white.opacity(0.6))
+                            )
                         }
                         
                         Button(action: { passwordVisible.toggle() }) {
-                            Text(passwordVisible ? "👁️" : "👁️‍🗨️")
+                            Image(systemName: passwordVisible ? "eye.fill" : "eye.slash.fill")
+                                .foregroundColor(.white.opacity(0.7))
                                 .font(.system(size: 18))
                         }
                     }
@@ -107,7 +105,7 @@ struct ParentSignInScreen: View {
                     
                     Spacer().frame(height: 12)
                     
-                    // Remember Me checkbox
+                    // Remember Me and Forgot Password
                     HStack {
                         Button(action: { rememberMe.toggle() }) {
                             HStack(spacing: 8) {
@@ -119,9 +117,7 @@ struct ParentSignInScreen: View {
                                     .foregroundColor(.white.opacity(0.9))
                             }
                         }
-                        
                         Spacer()
-                        
                         Button(action: onForgotPasswordClick) {
                             Text("Forgot Password?")
                                 .font(.system(size: 14, weight: .medium))
@@ -181,13 +177,27 @@ struct ParentSignInScreen: View {
                     Spacer().frame(height: 100)
                 }
                 .padding(.horizontal, 20)
-                .onAppear {
-                    // Pre-fill email if "Remember Me" was previously checked
-                    if let savedEmail = AuthService.shared.getUserEmail() {
-                        email = savedEmail
-                        rememberMe = true
-                    }
-                }
+            }
+        }
+        .onAppear {
+            print("\n📱 SIGN IN SCREEN: onAppear called")
+            
+            // Check for saved credentials
+            let rememberMeState = AuthService.shared.getRememberMeState()
+            let savedEmail = AuthService.shared.getSavedEmail()
+            
+            print("📱 SIGN IN SCREEN: Remember Me State: \(rememberMeState)")
+            print("📱 SIGN IN SCREEN: Saved Email: \(savedEmail ?? "none")")
+            
+            // Only restore if remember me was checked
+            if rememberMeState, let savedEmail = savedEmail, !savedEmail.isEmpty {
+                print("📱 SIGN IN SCREEN: Restoring email: \(savedEmail)")
+                email = savedEmail
+                rememberMe = true
+            } else {
+                print("📱 SIGN IN SCREEN: No saved credentials to restore")
+                email = ""
+                rememberMe = false
             }
         }
     }

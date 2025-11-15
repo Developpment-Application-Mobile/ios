@@ -1,11 +1,3 @@
-//
-//  MainNavigationView.swift
-//  EduKid
-//
-//  Created by Mac Mini 11 on 6/11/2025.
-//
-
-// MainNavigationView.swift
 import SwiftUI
 
 struct MainNavigationView: View {
@@ -19,6 +11,10 @@ struct MainNavigationView: View {
     @ViewBuilder
     private var content: some View {
         switch authVM.authState {
+        
+        case .splash:
+            EmptyView()
+        
         case .welcome:
             WelcomeScreen(
                 onGetStartedClick: { authVM.authState = .parentSignUp },
@@ -41,9 +37,20 @@ struct MainNavigationView: View {
                     authVM.signIn(email: email, password: password, rememberMe: rememberMe)
                 },
                 onSignUpClick: { authVM.authState = .parentSignUp },
-                onForgotPasswordClick: { },
+                onForgotPasswordClick: { authVM.authState = .forgotPassword },
                 isLoading: authVM.isLoading,
                 errorMessage: authVM.errorMessage
+            )
+
+        case .forgotPassword:
+            ForgotPasswordScreen(
+                onResetPasswordClick: { email in
+                    authVM.requestPasswordReset(email: email)
+                },
+                onBackToSignInClick: { authVM.authState = .parentSignIn },
+                isLoading: authVM.isLoading,
+                errorMessage: authVM.errorMessage,
+                successMessage: authVM.successMessage
             )
 
         case .parentDashboard:
@@ -62,11 +69,14 @@ struct MainNavigationView: View {
         case .parentProfile:
             ParentProfileScreen()
                 .environmentObject(authVM)
+        
+        case .editParentProfile:
+            EditParentProfileScreen()
+                .environmentObject(authVM)
 
         case .addChild:
-            AddChildScreen { name, age, emoji in
-                authVM.addChild(name: name, age: age, avatarEmoji: emoji)
-            }
+            AddChildScreen()
+                .environmentObject(authVM)
 
         case .childDetail(let child):
             ChildDetailScreen(
@@ -74,8 +84,13 @@ struct MainNavigationView: View {
                 quizResults: mockQuizResults(for: child),
                 onBackClick: { authVM.authState = .parentDashboard },
                 onAssignQuizClick: { },
-                onGenerateQRClick: { authVM.showQRCode(for: child) }
+                onGenerateQRClick: { authVM.showQRCode(for: child) },
+                onEditClick: { authVM.authState = .editChildProfile(child) }
             )
+        
+        case .editChildProfile(let child):
+            EditChildProfileScreen(child: child)
+                .environmentObject(authVM)
 
         case .childQRLogin:
             ChildQRLoginScreen(
@@ -91,9 +106,6 @@ struct MainNavigationView: View {
         case .qrCodeDisplay(let child):
             QRScreenParentView(child: child)
                 .onAppear { authVM.selectedChild = child }
-
-        case .splash:
-            EmptyView()
         }
     }
 

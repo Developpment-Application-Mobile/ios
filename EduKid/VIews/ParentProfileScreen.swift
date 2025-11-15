@@ -1,10 +1,3 @@
-//
-//  ParentProfileScreen.swift
-//  EduKid
-//
-//  Created by Mac Mini 11 on 6/11/2025.
-//
-
 import Foundation
 import SwiftUI
 
@@ -21,6 +14,9 @@ struct ParentProfileScreen: View {
     @State private var showChangePassword = false
     @State private var showDeleteConfirmation = false
     @State private var activeSection: ProfileSection = .profile
+    @State private var errorMessage: String?
+    @State private var successMessage: String?
+    @State private var isLoading = false
     
     enum ProfileSection {
         case profile
@@ -78,7 +74,10 @@ struct ParentProfileScreen: View {
                     
                     // Section Selector
                     HStack(spacing: 0) {
-                        Button(action: { activeSection = .profile }) {
+                        Button(action: {
+                            activeSection = .profile
+                            clearMessages()
+                        }) {
                             Text("Profile")
                                 .font(.system(size: 16, weight: activeSection == .profile ? .bold : .regular))
                                 .foregroundColor(activeSection == .profile ? .white : .white.opacity(0.7))
@@ -87,7 +86,10 @@ struct ParentProfileScreen: View {
                                 .background(activeSection == .profile ? Color.white.opacity(0.2) : Color.clear)
                         }
                         
-                        Button(action: { activeSection = .password }) {
+                        Button(action: {
+                            activeSection = .password
+                            clearMessages()
+                        }) {
                             Text("Password")
                                 .font(.system(size: 16, weight: activeSection == .password ? .bold : .regular))
                                 .foregroundColor(activeSection == .password ? .white : .white.opacity(0.7))
@@ -122,7 +124,7 @@ struct ParentProfileScreen: View {
         .alert("Delete Account", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
-                authVM.deleteAccount()
+                handleDeleteAccount()
             }
         } message: {
             Text("Are you sure you want to delete your account? This action cannot be undone.")
@@ -138,19 +140,20 @@ struct ParentProfileScreen: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
                 
-                TextField("", text: $name)
-                    .placeholder(when: name.isEmpty) {
-                        Text("Enter your name")
-                            .foregroundColor(.white.opacity(0.6))
-                    }
-                    .foregroundColor(.white)
+                TextField(
+                    "",
+                    text: $name,
+                    prompt: Text("Enter your name")
+                        .foregroundColor(Color.white.opacity(0.6))
+                )
+                    .foregroundColor(Color.white)
                     .frame(height: 60)
                     .padding(.horizontal, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.white.opacity(0.5), lineWidth: 1)
                     )
-                    .autocapitalization(.words)
+                    .textInputAutocapitalization(.words)
             }
             .padding(.horizontal, 20)
             
@@ -162,12 +165,13 @@ struct ParentProfileScreen: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
                 
-                TextField("", text: $email)
-                    .placeholder(when: email.isEmpty) {
-                        Text("Enter your email")
-                            .foregroundColor(.white.opacity(0.6))
-                    }
-                    .foregroundColor(.white)
+                TextField(
+                    "",
+                    text: $email,
+                    prompt: Text("Enter your email")
+                        .foregroundColor(Color.white.opacity(0.6))
+                )
+                    .foregroundColor(Color.white)
                     .frame(height: 60)
                     .padding(.horizontal, 16)
                     .background(
@@ -175,45 +179,64 @@ struct ParentProfileScreen: View {
                             .stroke(Color.white.opacity(0.5), lineWidth: 1)
                     )
                     .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
+                    .textInputAutocapitalization(.never)
             }
             .padding(.horizontal, 20)
             
             Spacer().frame(height: 32)
             
+            // Success message
+            if let successMessage = successMessage {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text(successMessage)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.green.opacity(0.3))
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+            }
+            
             // Error message
-            if let errorMessage = authVM.errorMessage {
-                Text(errorMessage)
-                    .font(.system(size: 14))
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
+            if let errorMessage = errorMessage {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    Text(errorMessage)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.red.opacity(0.3))
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
             }
             
             // Update button
-            Button(action: {
-                authVM.updateProfile(
-                    name: name.trimmingCharacters(in: .whitespaces).isEmpty ? nil : name.trimmingCharacters(in: .whitespaces),
-                    email: email.trimmingCharacters(in: .whitespaces).isEmpty ? nil : email.trimmingCharacters(in: .whitespaces)
-                )
-            }) {
+            Button(action: handleUpdateProfile) {
                 HStack {
-                    if authVM.isLoading {
+                    if isLoading {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.18, green: 0.18, blue: 0.18)))
                             .scaleEffect(0.8)
                     }
-                    Text(authVM.isLoading ? "UPDATING..." : "UPDATE PROFILE")
+                    Text(isLoading ? "UPDATING..." : "UPDATE PROFILE")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 60)
-                .background(authVM.isLoading ? Color.white.opacity(0.7) : Color.white)
+                .background(isLoading ? Color.white.opacity(0.7) : Color.white)
                 .cornerRadius(30)
             }
-            .disabled(authVM.isLoading)
+            .disabled(isLoading)
             .padding(.horizontal, 20)
             
             Spacer().frame(height: 40)
@@ -245,25 +268,28 @@ struct ParentProfileScreen: View {
                 
                 HStack {
                     if passwordVisible {
-                        TextField("", text: $currentPassword)
-                            .placeholder(when: currentPassword.isEmpty) {
-                                Text("Enter current password")
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
+                        TextField(
+                            "",
+                            text: $currentPassword,
+                            prompt: Text("Enter current password")
+                                .foregroundColor(Color.white.opacity(0.6))
+                        )
                     } else {
-                        SecureField("", text: $currentPassword)
-                            .placeholder(when: currentPassword.isEmpty) {
-                                Text("Enter current password")
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
+                        SecureField(
+                            "",
+                            text: $currentPassword,
+                            prompt: Text("Enter current password")
+                                .foregroundColor(Color.white.opacity(0.6))
+                        )
                     }
                     
                     Button(action: { passwordVisible.toggle() }) {
-                        Text(passwordVisible ? "👁️" : "👁️‍🗨️")
+                        Image(systemName: passwordVisible ? "eye.fill" : "eye.slash.fill")
+                            .foregroundColor(.white.opacity(0.7))
                             .font(.system(size: 18))
                     }
                 }
-                .foregroundColor(.white)
+                .foregroundColor(Color.white)
                 .frame(height: 60)
                 .padding(.horizontal, 16)
                 .background(
@@ -283,25 +309,28 @@ struct ParentProfileScreen: View {
                 
                 HStack {
                     if newPasswordVisible {
-                        TextField("", text: $newPassword)
-                            .placeholder(when: newPassword.isEmpty) {
-                                Text("Enter new password")
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
+                        TextField(
+                            "",
+                            text: $newPassword,
+                            prompt: Text("Enter new password")
+                                .foregroundColor(Color.white.opacity(0.6))
+                        )
                     } else {
-                        SecureField("", text: $newPassword)
-                            .placeholder(when: newPassword.isEmpty) {
-                                Text("Enter new password")
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
+                        SecureField(
+                            "",
+                            text: $newPassword,
+                            prompt: Text("Enter new password")
+                                .foregroundColor(Color.white.opacity(0.6))
+                        )
                     }
                     
                     Button(action: { newPasswordVisible.toggle() }) {
-                        Text(newPasswordVisible ? "👁️" : "👁️‍🗨️")
+                        Image(systemName: newPasswordVisible ? "eye.fill" : "eye.slash.fill")
+                            .foregroundColor(.white.opacity(0.7))
                             .font(.system(size: 18))
                     }
                 }
-                .foregroundColor(.white)
+                .foregroundColor(Color.white)
                 .frame(height: 60)
                 .padding(.horizontal, 16)
                 .background(
@@ -321,25 +350,28 @@ struct ParentProfileScreen: View {
                 
                 HStack {
                     if confirmPasswordVisible {
-                        TextField("", text: $confirmPassword)
-                            .placeholder(when: confirmPassword.isEmpty) {
-                                Text("Confirm new password")
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
+                        TextField(
+                            "",
+                            text: $confirmPassword,
+                            prompt: Text("Confirm new password")
+                                .foregroundColor(Color.white.opacity(0.6))
+                        )
                     } else {
-                        SecureField("", text: $confirmPassword)
-                            .placeholder(when: confirmPassword.isEmpty) {
-                                Text("Confirm new password")
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
+                        SecureField(
+                            "",
+                            text: $confirmPassword,
+                            prompt: Text("Confirm new password")
+                                .foregroundColor(Color.white.opacity(0.6))
+                        )
                     }
                     
                     Button(action: { confirmPasswordVisible.toggle() }) {
-                        Text(confirmPasswordVisible ? "👁️" : "👁️‍🗨️")
+                        Image(systemName: confirmPasswordVisible ? "eye.fill" : "eye.slash.fill")
+                            .foregroundColor(.white.opacity(0.7))
                             .font(.system(size: 18))
                     }
                 }
-                .foregroundColor(.white)
+                .foregroundColor(Color.white)
                 .frame(height: 60)
                 .padding(.horizontal, 16)
                 .background(
@@ -351,41 +383,182 @@ struct ParentProfileScreen: View {
             
             Spacer().frame(height: 32)
             
+            // Success message
+            if let successMessage = successMessage {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text(successMessage)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.green.opacity(0.3))
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+            }
+            
             // Error message
-            if let errorMessage = authVM.errorMessage {
-                Text(errorMessage)
-                    .font(.system(size: 14))
-                    .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
+            if let errorMessage = errorMessage {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    Text(errorMessage)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.red.opacity(0.3))
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
             }
             
             // Change Password button
-            Button(action: {
-                authVM.changePassword(
-                    currentPassword: currentPassword,
-                    newPassword: newPassword,
-                    confirmPassword: confirmPassword
-                )
-            }) {
+            Button(action: handleChangePassword) {
                 HStack {
-                    if authVM.isLoading {
+                    if isLoading {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.18, green: 0.18, blue: 0.18)))
                             .scaleEffect(0.8)
                     }
-                    Text(authVM.isLoading ? "CHANGING..." : "CHANGE PASSWORD")
+                    Text(isLoading ? "CHANGING..." : "CHANGE PASSWORD")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 60)
-                .background(authVM.isLoading ? Color.white.opacity(0.7) : Color.white)
+                .background(isLoading ? Color.white.opacity(0.7) : Color.white)
                 .cornerRadius(30)
             }
-            .disabled(authVM.isLoading)
+            .disabled(isLoading)
             .padding(.horizontal, 20)
+        }
+    }
+    
+    // MARK: - Helper Functions
+    private func clearMessages() {
+        errorMessage = nil
+        successMessage = nil
+    }
+    
+    private func handleUpdateProfile() {
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else {
+            errorMessage = "Name cannot be empty"
+            return
+        }
+        
+        guard !email.trimmingCharacters(in: .whitespaces).isEmpty else {
+            errorMessage = "Email cannot be empty"
+            return
+        }
+        
+        clearMessages()
+        isLoading = true
+        
+        Task {
+            do {
+                try await authVM.updateProfile(
+                    name: name.trimmingCharacters(in: .whitespaces),
+                    email: email.trimmingCharacters(in: .whitespaces)
+                )
+                
+                await MainActor.run {
+                    isLoading = false
+                    successMessage = "Profile updated successfully!"
+                    
+                    // Update local state with new values
+                    if let parent = authVM.currentUser {
+                        name = parent.name
+                        email = parent.email
+                    }
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        successMessage = nil
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+    
+    private func handleChangePassword() {
+        guard !currentPassword.isEmpty else {
+            errorMessage = "Please enter your current password"
+            return
+        }
+        
+        guard !newPassword.isEmpty else {
+            errorMessage = "Please enter a new password"
+            return
+        }
+        
+        guard newPassword.count >= 6 else {
+            errorMessage = "Password must be at least 6 characters"
+            return
+        }
+        
+        guard newPassword == confirmPassword else {
+            errorMessage = "Passwords do not match"
+            return
+        }
+        
+        clearMessages()
+        isLoading = true
+        
+        Task {
+            do {
+                try await authVM.changePassword(
+                    currentPassword: currentPassword,
+                    newPassword: newPassword,
+                    confirmPassword: confirmPassword
+                )
+                
+                await MainActor.run {
+                    isLoading = false
+                    successMessage = "Password changed successfully!"
+                    
+                    // Clear password fields
+                    currentPassword = ""
+                    newPassword = ""
+                    confirmPassword = ""
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        successMessage = nil
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+    
+    private func handleDeleteAccount() {
+        isLoading = true
+        
+        Task {
+            do {
+                try await authVM.deleteAccount()
+                
+                await MainActor.run {
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = error.localizedDescription
+                }
+            }
         }
     }
 }
