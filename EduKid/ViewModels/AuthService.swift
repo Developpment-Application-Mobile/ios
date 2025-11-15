@@ -67,7 +67,7 @@ class AuthService {
                 switch urlError.code {
                 case .timedOut, .cannotConnectToHost, .networkConnectionLost:
                     print("Network error – keep session: \(error.localizedDescription)")
-                    return true  // ← KEEP SESSION
+                    return true
                 default:
                     break
                 }
@@ -82,16 +82,14 @@ class AuthService {
             }
 
             print("Other error – keep session: \(error.localizedDescription)")
-            return true  // ← KEEP SESSION
+            return true
         }
     }
+    
     func clearToken() {
         print("CLEAR TOKEN: Only removing token & remember-me")
         UserDefaults.standard.removeObject(forKey: tokenKey)
         UserDefaults.standard.removeObject(forKey: rememberMeKey)
-        // DO NOT REMOVE:
-        // - userEmailKey
-        // - parentIdKey
         UserDefaults.standard.synchronize()
         printCurrentSessionState()
     }
@@ -503,10 +501,8 @@ class AuthService {
             throw AuthError.serverError(msg)
         }
         
-        // ---- NEW: Decode the full parent and extract the new child ----
         let parentResponse = try JSONDecoder().decode(ParentFullResponse.self, from: data)
         
-        // The new child is the last one in the array (or find by name/age)
         guard let newChildDict = parentResponse.children.last else {
             throw AuthError.serverError("Child not found in response")
         }
@@ -592,9 +588,20 @@ class AuthService {
             throw AuthError.serverError(msg)
         }
         
-        // Decode full parent response and extract the updated child
-        let parentResponse = try JSONDecoder().decode(ParentFullResponse.self, from: data)
+        // Try to decode as single child first, fallback to parent response
+        if let childDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            return ChildResponse(
+                id: childDict["_id"] as? String ?? childDict["id"] as? String,
+                name: childDict["name"] as? String ?? "",
+                age: childDict["age"] as? Int ?? 0,
+                level: childDict["level"] as? String,
+                avatarEmoji: childDict["avatarEmoji"] as? String ?? "",
+                connectionToken: childDict["connectionToken"] as? String
+            )
+        }
         
+        // Fallback to parent response structure
+        let parentResponse = try JSONDecoder().decode(ParentFullResponse.self, from: data)
         guard let updatedChildDict = parentResponse.children.first(where: {
             $0.id == childId || $0._id == childId
         }) else {
@@ -609,6 +616,42 @@ class AuthService {
             avatarEmoji: updatedChildDict.avatarEmoji ?? "",
             connectionToken: updatedChildDict.connectionToken
         )
+    }
+
+    // MARK: - Delete Child (DELETE /parents/:id/kids/:kidId)
+    func deleteChild(childId: String) async throws {
+        guard let parentId = getParentId() else {
+            throw AuthError.serverError("Parent ID not found")
+        }
+        
+        guard let url = URL(string: "\(baseURL)/parents/\(parentId)/kids/\(childId)") else {
+            throw AuthError.invalidURL
+        }
+        
+        guard let token = getToken() else {
+            throw AuthError.serverError("No token")
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let raw = String(data: data, encoding: .utf8) {
+            print("DELETE CHILD RAW RESPONSE: \(raw)")
+        }
+        
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 || httpResponse.statusCode == 204 else {
+            let msg = (try? JSONDecoder().decode(ErrorResponse.self, from: data))?.message
+                      ?? "Failed to delete child – status \(statusCode)"
+            throw AuthError.serverError(msg)
+        }
+        
+        print("✅ Child deleted successfully")
     }
 
     // MARK: - Profile Management
@@ -720,66 +763,63 @@ class AuthService {
         
         clearToken()
     }
-} // ← End of AuthService class
-    
-    // MARK: - Models
-    struct SignUpRequest: Codable { let name: String; let email: String; let password: String }
-    struct SignUpResponse: Codable { let message: String?; let user: UserResponse?; let token: String? }
-    struct UserResponse: Codable { let id: String?; let name: String?; let email: String?; let profileImageUrl: String? }
-    struct SignInRequest: Codable { let email: String; let password: String }
-    struct SignInResponse: Codable { let token: String?; let user: UserResponse?; let message: String? }
-    struct ErrorResponse: Codable { let message: String?; let error: String? }
-    
-    struct ChildResponse: Codable {
-        let id: String?
-        let name: String
-        let age: Int
-        let level: String?
-        let avatarEmoji: String
-        let connectionToken: String?
-    }
-    
-    // MARK: - Helper models for parent response
-    private struct ParentFullResponse: Codable {
-        let _id: String
-        let name: String
-        let email: String
-        let children: [ChildInParent]
-        let totalScore: Int
-        let isActive: Bool
-        
-        private enum CodingKeys: String, CodingKey {
-            case _id, name, email, children, totalScore, isActive
-        }
-    }
-    
-    private struct ChildInParent: Codable {
-        let _id: String?
-        let id: String?
-        let name: String
-        let age: Int
-        let level: String?
-        let avatarEmoji: String?
-        let connectionToken: String?
-        let Score: Int?
-        
-        private enum CodingKeys: String, CodingKey {
-            case _id, id, name, age, level, avatarEmoji, connectionToken, Score
-            // quizzes is omitted → decoder skips it automatically
-        }
-    }
-    
-    enum AuthError: LocalizedError {
-        case invalidURL, encodingError, invalidResponse, networkError(String), serverError(String)
-        var errorDescription: String? {
-            switch self {
-            case .invalidURL: return "Invalid URL"
-            case .encodingError: return "Failed to encode request"
-            case .invalidResponse: return "Invalid response from server"
-            case .networkError(let msg): return "Network error: \(msg)"
-            case .serverError(let msg): return msg
-            }
-        }
-    }
-    
+}
 
+// MARK: - Models
+struct SignUpRequest: Codable { let name: String; let email: String; let password: String }
+struct SignUpResponse: Codable { let message: String?; let user: UserResponse?; let token: String? }
+struct UserResponse: Codable { let id: String?; let name: String?; let email: String?; let profileImageUrl: String? }
+struct SignInRequest: Codable { let email: String; let password: String }
+struct SignInResponse: Codable { let token: String?; let user: UserResponse?; let message: String? }
+struct ErrorResponse: Codable { let message: String?; let error: String? }
+
+struct ChildResponse: Codable {
+    let id: String?
+    let name: String
+    let age: Int
+    let level: String?
+    let avatarEmoji: String
+    let connectionToken: String?
+}
+
+// MARK: - Helper models for parent response
+private struct ParentFullResponse: Codable {
+    let _id: String
+    let name: String
+    let email: String
+    let children: [ChildInParent]
+    let totalScore: Int
+    let isActive: Bool
+    
+    private enum CodingKeys: String, CodingKey {
+        case _id, name, email, children, totalScore, isActive
+    }
+}
+
+private struct ChildInParent: Codable {
+    let _id: String?
+    let id: String?
+    let name: String
+    let age: Int
+    let level: String?
+    let avatarEmoji: String?
+    let connectionToken: String?
+    let Score: Int?
+    
+    private enum CodingKeys: String, CodingKey {
+        case _id, id, name, age, level, avatarEmoji, connectionToken, Score
+    }
+}
+
+enum AuthError: LocalizedError {
+    case invalidURL, encodingError, invalidResponse, networkError(String), serverError(String)
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL: return "Invalid URL"
+        case .encodingError: return "Failed to encode request"
+        case .invalidResponse: return "Invalid response from server"
+        case .networkError(let msg): return "Network error: \(msg)"
+        case .serverError(let msg): return msg
+        }
+    }
+}

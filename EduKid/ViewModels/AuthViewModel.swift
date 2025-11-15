@@ -95,7 +95,6 @@ class AuthViewModel: ObservableObject {
         } catch {
             print("API failed, but session exists – go to dashboard anyway")
             await MainActor.run {
-                // Use saved email & parent ID
                 let savedEmail = authService.getSavedEmail() ?? "parent@example.com"
                 let parent = Parent(
                     name: "Parent",
@@ -105,11 +104,12 @@ class AuthViewModel: ObservableObject {
                     isActive: true
                 )
                 self.currentUser = parent
-                self.authState = .parentDashboard  // ← FORCE DASHBOARD
+                self.authState = .parentDashboard
             }
-            await loadChildrenForCurrentUser()  // Will fail, but UI is up
+            await loadChildrenForCurrentUser()
         }
     }
+    
     // MARK: - Auth Actions
     func signUp(fullName: String, email: String, password: String, confirmPassword: String) {
         errorMessage = nil
@@ -147,7 +147,6 @@ class AuthViewModel: ObservableObject {
                 await MainActor.run {
                     isLoading = false
                     
-                    // Save token if present
                     if let token = response.token {
                         authService.saveToken(token, rememberMe: true)
                     }
@@ -161,8 +160,7 @@ class AuthViewModel: ObservableObject {
                         email: email.trimmingCharacters(in: .whitespaces).lowercased(),
                         children: [],
                         totalScore: 0,
-                        isActive: true,
-                       // profileImageUrl: response.user?.profileImageUrl
+                        isActive: true
                     )
                     currentUser = parent
                     errorMessage = nil
@@ -235,8 +233,7 @@ class AuthViewModel: ObservableObject {
                         email: parentEmail,
                         children: [],
                         totalScore: 0,
-                        isActive: true,
-                        //profileImageUrl: response.user?.profileImageUrl
+                        isActive: true
                     )
 
                     currentUser = parent
@@ -302,6 +299,19 @@ class AuthViewModel: ObservableObject {
     func addChild(name: String, age: Int, avatarEmoji: String) async throws {
         print("🧒 ADD CHILD: Starting...")
         
+        // Validate name is not empty
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty else {
+            throw AuthError.serverError("Please enter a valid name")
+        }
+        
+        // Check for duplicate name
+        if let existingChild = currentUser?.children.first(where: {
+            $0.name.lowercased() == trimmedName.lowercased()
+        }) {
+            throw AuthError.serverError("A child named '\(existingChild.name)' already exists")
+        }
+        
         await MainActor.run {
             isLoading = true
         }
@@ -312,7 +322,7 @@ class AuthViewModel: ObservableObject {
             }
         }
 
-        let childResponse = try await authService.addChild(name: name, age: age, avatarEmoji: avatarEmoji)
+        let childResponse = try await authService.addChild(name: trimmedName, age: age, avatarEmoji: avatarEmoji)
         
         print("🧒 ADD CHILD: Response received")
 
@@ -339,6 +349,19 @@ class AuthViewModel: ObservableObject {
     func updateChild(childId: String, name: String, age: Int, avatarEmoji: String) async throws {
         print("✏️ UPDATE CHILD: Starting...")
         
+        // Validate name is not empty
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty else {
+            throw AuthError.serverError("Please enter a valid name")
+        }
+        
+        // Check for duplicate name (excluding current child)
+        if let existingChild = currentUser?.children.first(where: {
+            $0.id != childId && $0.name.lowercased() == trimmedName.lowercased()
+        }) {
+            throw AuthError.serverError("A child named '\(existingChild.name)' already exists")
+        }
+        
         await MainActor.run {
             isLoading = true
         }
@@ -351,7 +374,7 @@ class AuthViewModel: ObservableObject {
         
         let childResponse = try await authService.updateChild(
             childId: childId,
-            name: name,
+            name: trimmedName,
             age: age,
             avatarEmoji: avatarEmoji
         )
@@ -379,10 +402,35 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    func deleteChild(childId: String) async throws {
+        print("🗑️ DELETE CHILD: Starting...")
+        
+        await MainActor.run {
+            isLoading = true
+        }
+        
+        defer {
+            Task { @MainActor in
+                isLoading = false
+            }
+        }
+        
+        try await authService.deleteChild(childId: childId)
+        
+        print("🗑️ DELETE CHILD: Response received")
+        
+        await MainActor.run {
+            currentUser?.children.removeAll { $0.id == childId }
+            if selectedChild?.id == childId {
+                selectedChild = nil
+            }
+            print("🗑️ DELETE CHILD: Child removed from current user")
+        }
+    }
+
     private func loadChildrenForCurrentUser() async {
         var parentId = authService.getParentId()
         
-        // If no parent ID, try to get current user to extract it
         if parentId == nil {
             print("⚠️ LOAD CHILDREN: No parent ID stored, attempting to fetch from /auth/me")
             do {
@@ -499,8 +547,7 @@ class AuthViewModel: ObservableObject {
                     email: updatedUser.email ?? existingUser.email,
                     children: existingUser.children,
                     totalScore: existingUser.totalScore,
-                    isActive: existingUser.isActive,
-                    //profileImageUrl: updatedUser.profileImageUrl ?? existingUser.profileImageUrl
+                    isActive: existingUser.isActive
                 )
             }
             errorMessage = nil

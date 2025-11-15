@@ -12,10 +12,13 @@ struct AddChildScreen: View {
     @State private var age = ""
     @State private var selectedAvatarIndex = 0
     @State private var errorMessage: String?
-    @State private var isAddingChild = false  // ← Loader
+    @State private var isAddingChild = false
 
     @Environment(\.dismiss) var dismiss
+    @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var authVM: AuthViewModel
+    
+    var onBackClick: (() -> Void)?
 
     // 42 avatars locaux
     private let avatars: [String] = (1...42).map { "avatar_\($0)" }
@@ -38,7 +41,14 @@ struct AddChildScreen: View {
                 VStack(spacing: 24) {
                     // Header avec bouton retour
                     HStack {
-                        Button(action: { dismiss() }) {
+                        Button(action: {
+                            if let onBackClick = onBackClick {
+                                onBackClick()
+                            } else {
+                                // Fallback: navigate back to dashboard
+                                authVM.authState = .parentDashboard
+                            }
+                        }) {
                             Image(systemName: "chevron.left")
                                 .font(.title2)
                                 .foregroundColor(.white)
@@ -94,8 +104,17 @@ struct AddChildScreen: View {
                             .foregroundColor(.white)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                                    .stroke(
+                                        name.isEmpty && errorMessage != nil ? Color.red : Color.white.opacity(0.5),
+                                        lineWidth: name.isEmpty && errorMessage != nil ? 2 : 1
+                                    )
                             )
+                            .onChange(of: name) { _, _ in
+                                // Clear error when user starts typing
+                                if errorMessage != nil {
+                                    errorMessage = nil
+                                }
+                            }
                     }
 
                     // Champ Âge
@@ -112,7 +131,10 @@ struct AddChildScreen: View {
                             .foregroundColor(.white)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                                    .stroke(
+                                        age.isEmpty && errorMessage != nil ? Color.red : Color.white.opacity(0.5),
+                                        lineWidth: age.isEmpty && errorMessage != nil ? 2 : 1
+                                    )
                             )
                             .onChange(of: age) { oldValue, newValue in
                                 let filtered = newValue.filter { "0123456789".contains($0) }
@@ -123,39 +145,50 @@ struct AddChildScreen: View {
                                 } else {
                                     age = String(filtered.prefix(2))
                                 }
+                                
+                                // Clear error when user starts typing
+                                if errorMessage != nil {
+                                    errorMessage = nil
+                                }
                             }
                     }
 
-                    // Message d’erreur
+                    // Message d'erreur
                     if let error = errorMessage {
-                        Text(error)
-                            .font(.system(size: 14))
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.red.opacity(0.9))
-                            .cornerRadius(12)
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.white)
+                            Text(error)
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.red.opacity(0.9))
+                        .cornerRadius(12)
                     }
 
                     // Bouton ADD CHILD
-                    Button("ADD CHILD") {
+                    Button {
                         addChild()
-                    }
-                    .font(.system(size: 16, weight: .bold))
-                    .tracking(0.4)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 60)
-                    .background(Color.white)
-                    .foregroundColor(Color(hex: "2E2E2E"))
-                    .cornerRadius(30)
-                    .disabled(isAddingChild || name.trimmingCharacters(in: .whitespaces).isEmpty || age.isEmpty)
-                    .overlay {
-                        if isAddingChild {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .gray))
-                                .scaleEffect(0.8)
+                    } label: {
+                        HStack {
+                            if isAddingChild {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .gray))
+                                    .scaleEffect(0.8)
+                            }
+                            Text(isAddingChild ? "ADDING..." : "ADD CHILD")
+                                .font(.system(size: 16, weight: .bold))
+                                .tracking(0.4)
                         }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 60)
+                        .background(Color.white)
+                        .foregroundColor(Color(hex: "2E2E2E"))
+                        .cornerRadius(30)
                     }
+                    .disabled(isAddingChild)
 
                     Spacer(minLength: 100)
                 }
@@ -167,9 +200,19 @@ struct AddChildScreen: View {
 
     // MARK: - Add Child (Async + Error Handling)
     private func addChild() {
-        guard let ageInt = Int(age),
-              !name.trimmingCharacters(in: .whitespaces).isEmpty else {
-            errorMessage = "Please enter a valid name and age (1–18)."
+        // Clear previous error
+        errorMessage = nil
+        
+        // Validate name
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty else {
+            errorMessage = "Please enter a valid name"
+            return
+        }
+        
+        // Validate age
+        guard let ageInt = Int(age), ageInt >= 1 && ageInt <= 18 else {
+            errorMessage = "Please enter a valid age (1–18)"
             return
         }
 
@@ -182,9 +225,14 @@ struct AddChildScreen: View {
             }
 
             do {
-                try await authVM.addChild(name: name, age: ageInt, avatarEmoji: avatarName)
+                try await authVM.addChild(name: trimmedName, age: ageInt, avatarEmoji: avatarName)
                 await MainActor.run {
-                    dismiss() // ← Retour seulement si succès
+                    if let onBackClick = onBackClick {
+                        onBackClick()
+                    } else {
+                        // Fallback: navigate back to dashboard
+                        authVM.authState = .parentDashboard
+                    }
                 }
             } catch {
                 await MainActor.run {

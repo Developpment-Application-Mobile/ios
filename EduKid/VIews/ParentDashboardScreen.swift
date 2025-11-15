@@ -10,6 +10,11 @@ import SwiftUI
 
 struct ParentDashboardScreen: View {
     let parent: Parent
+    @State private var childToDelete: Child?
+    @State private var showDeleteAlert = false
+    @State private var isDeletingChild = false
+    @EnvironmentObject var authVM: AuthViewModel
+    
     var onAddChildClick: () -> Void = {}
     var onChildClick: (Child) -> Void = { _ in }
     var onLogoutClick: () -> Void = {}
@@ -113,12 +118,69 @@ struct ParentDashboardScreen: View {
                             ForEach(parent.children) { child in
                                 ChildCard(child: child) {
                                     onChildClick(child)
+                                } onDelete: {
+                                    childToDelete = child
+                                    showDeleteAlert = true
                                 }
                             }
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
                     }
+                }
+            }
+            
+            // Loading overlay when deleting
+            if isDeletingChild {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
+                    
+                    Text("Deleting child...")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                }
+                .padding(32)
+                .background(Color(hex: "272052"))
+                .cornerRadius(16)
+            }
+        }
+        .alert("Delete Child", isPresented: $showDeleteAlert) {
+            Button("Cancel", role: .cancel) {
+                childToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let child = childToDelete {
+                    deleteChild(child)
+                }
+            }
+        } message: {
+            if let child = childToDelete {
+                Text("Are you sure you want to delete '\(child.name)'? This action cannot be undone.")
+            }
+        }
+    }
+    
+    private func deleteChild(_ child: Child) {
+        isDeletingChild = true
+        
+        Task {
+            do {
+                try await authVM.deleteChild(childId: child.id)
+                await MainActor.run {
+                    isDeletingChild = false
+                    childToDelete = nil
+                }
+            } catch {
+                await MainActor.run {
+                    isDeletingChild = false
+                    childToDelete = nil
+                    // Could show error alert here
+                    print("❌ Failed to delete child: \(error.localizedDescription)")
                 }
             }
         }
@@ -129,13 +191,15 @@ struct ParentDashboardScreen: View {
 struct ChildCard: View {
     let child: Child
     let onClick: () -> Void
+    let onDelete: () -> Void
+    @State private var showingOptions = false
     
     var body: some View {
         Button(action: onClick) {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
                     // Avatar
-                    Image(child.avatarEmoji)  // Use Image, not Text
+                    Image(child.avatarEmoji)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 40, height: 40)
@@ -156,6 +220,21 @@ struct ChildCard: View {
                     }
                     
                     Spacer()
+                    
+                    // Delete button
+                    Button(action: {
+                        onDelete()
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16))
+                            .foregroundColor(.red)
+                            .frame(width: 36, height: 36)
+                            .background(Color.red.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    Spacer().frame(width: 8)
                     
                     Text("▶")
                         .font(.system(size: 20))
@@ -321,5 +400,6 @@ struct ParentDashboardScreen_Previews: PreviewProvider {
         )
         
         ParentDashboardScreen(parent: parent)
+            .environmentObject(AuthViewModel())
     }
 }

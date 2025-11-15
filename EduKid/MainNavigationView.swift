@@ -62,6 +62,7 @@ struct MainNavigationView: View {
                     onLogoutClick: authVM.signOut,
                     onProfileClick: { authVM.authState = .parentProfile }
                 )
+                .environmentObject(authVM)
             } else {
                 EmptyView()
             }
@@ -75,8 +76,10 @@ struct MainNavigationView: View {
                 .environmentObject(authVM)
 
         case .addChild:
-            AddChildScreen()
-                .environmentObject(authVM)
+            AddChildScreen(onBackClick: {
+                authVM.authState = .parentDashboard
+            })
+            .environmentObject(authVM)
 
         case .childDetail(let child):
             ChildDetailScreen(
@@ -89,8 +92,13 @@ struct MainNavigationView: View {
             )
         
         case .editChildProfile(let child):
-            EditChildProfileScreen(child: child)
-                .environmentObject(authVM)
+            EditChildProfileScreen(
+                child: child,
+                onBackClick: {
+                    authVM.authState = .childDetail(child)
+                }
+            )
+            .environmentObject(authVM)
 
         case .childQRLogin:
             ChildQRLoginScreen(
