@@ -182,7 +182,12 @@ class AuthService {
     
     // MARK: - Get Current User
     func getCurrentUser() async throws -> UserResponse {
-        guard let url = URL(string: "\(baseURL)/auth/me") else {
+        // Use the existing parent ID to fetch from /parents/:id
+        guard let parentId = getParentId() else {
+            throw AuthError.serverError("No parent ID found")
+        }
+        
+        guard let url = URL(string: "\(baseURL)/parents/\(parentId)") else {
             throw AuthError.invalidURL
         }
         
@@ -198,25 +203,32 @@ class AuthService {
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
+        if let raw = String(data: data, encoding: .utf8) {
+            print("GET CURRENT USER RAW RESPONSE: \(raw)")
+        }
+        
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AuthError.invalidResponse
         }
         
         if httpResponse.statusCode == 200 {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                let userDict = json["user"] as? [String: Any] ?? json["data"] as? [String: Any] ?? json
+                // The response is the parent object directly
                 let user = UserResponse(
-                    id: userDict["id"] as? String,
-                    name: userDict["name"] as? String,
-                    email: userDict["email"] as? String,
-                    profileImageUrl: userDict["profileImageUrl"] as? String
+                    id: json["_id"] as? String ?? json["id"] as? String,
+                    name: json["name"] as? String,
+                    email: json["email"] as? String,
+                    profileImageUrl: json["profileImageUrl"] as? String
                 )
                 if let parentId = user.id {
                     saveParentId(parentId)
                 }
+                print("✅ GET CURRENT USER: Success - Name: \(user.name ?? "N/A"), Email: \(user.email ?? "N/A")")
                 return user
             }
             throw AuthError.serverError("Failed to decode user data")
+        } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            throw AuthError.serverError("401 - Unauthorized")
         } else {
             throw AuthError.serverError("Failed to get user: \(httpResponse.statusCode)")
         }
@@ -238,12 +250,12 @@ class AuthService {
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AuthError.invalidResponse
-        }
-        
         if let jsonString = String(data: data, encoding: .utf8) {
             print("SIGN UP RAW RESPONSE: \(jsonString)")
+        }
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.invalidResponse
         }
         
         if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
@@ -252,7 +264,7 @@ class AuthService {
                 let userDict = json["user"] as? [String: Any] ?? json
                 
                 let user = UserResponse(
-                    id: userDict["id"] as? String,
+                    id: userDict["id"] as? String ?? userDict["_id"] as? String,
                     name: userDict["name"] as? String,
                     email: userDict["email"] as? String,
                     profileImageUrl: userDict["profileImageUrl"] as? String
@@ -260,6 +272,10 @@ class AuthService {
                 
                 if let token = token {
                     saveToken(token, rememberMe: true)
+                }
+                
+                if let userId = user.id {
+                    saveParentId(userId)
                 }
                 
                 return SignUpResponse(message: "Success", user: user, token: token)
@@ -330,8 +346,15 @@ class AuthService {
                             email: user.email,
                             profileImageUrl: user.profileImageUrl
                         )
+                        if let id = updatedUser.id {
+                            saveParentId(id)
+                        }
                         return SignInResponse(token: token, user: updatedUser, message: nil)
                     }
+                }
+                
+                if let id = user.id {
+                    saveParentId(id)
                 }
                 
                 return SignInResponse(token: token, user: user, message: nil)
@@ -697,12 +720,14 @@ class AuthService {
         
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             let userDict = json["user"] as? [String: Any] ?? json["data"] as? [String: Any] ?? json
-            return UserResponse(
-                id: userDict["id"] as? String,
+            let user = UserResponse(
+                id: userDict["id"] as? String ?? userDict["_id"] as? String,
                 name: userDict["name"] as? String,
                 email: userDict["email"] as? String,
                 profileImageUrl: userDict["profileImageUrl"] as? String
             )
+            print("✅ Profile updated: Name=\(user.name ?? "N/A"), Email=\(user.email ?? "N/A")")
+            return user
         }
         throw AuthError.serverError("Failed to decode response")
     }
@@ -725,15 +750,25 @@ class AuthService {
         let body = ["currentPassword": currentPassword, "newPassword": newPassword]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let raw = String(data: data, encoding: .utf8) {
+            print("CHANGE PASSWORD RAW RESPONSE: \(raw)")
+        }
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AuthError.invalidResponse
         }
         
         if httpResponse.statusCode != 200 && httpResponse.statusCode != 201 {
-            throw AuthError.serverError("Password change failed")
+            // Try to decode error message
+            if let errorData = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                throw AuthError.serverError(errorData.message ?? errorData.error ?? "Password change failed")
+            }
+            throw AuthError.serverError("Password change failed with status code: \(httpResponse.statusCode)")
         }
+        
+        print("✅ Password changed successfully")
     }
 
     func deleteAccount() async throws {

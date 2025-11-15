@@ -79,7 +79,10 @@ class AuthViewModel: ObservableObject {
 
     private func restoreSession() async {
         do {
+            // Try to get fresh user data from API
             let user = try await authService.getCurrentUser()
+            print("✅ RESTORE SESSION: Got user data from API - Name: \(user.name ?? "N/A"), Email: \(user.email ?? "N/A")")
+            
             await MainActor.run {
                 let parent = Parent(
                     name: user.name ?? "Parent",
@@ -91,22 +94,83 @@ class AuthViewModel: ObservableObject {
                 self.currentUser = parent
                 self.authState = .parentDashboard
             }
+            
+            // Load children after setting parent
             await loadChildrenForCurrentUser()
+            
         } catch {
-            print("API failed, but session exists – go to dashboard anyway")
-            await MainActor.run {
-                let savedEmail = authService.getSavedEmail() ?? "parent@example.com"
-                let parent = Parent(
-                    name: "Parent",
-                    email: savedEmail,
-                    children: [],
-                    totalScore: 0,
-                    isActive: true
-                )
-                self.currentUser = parent
-                self.authState = .parentDashboard
+            print("⚠️ RESTORE SESSION: API call failed - \(error.localizedDescription)")
+            
+            // Check if it's a network error vs auth error
+            if let urlError = error as? URLError {
+                switch urlError.code {
+                case .timedOut, .cannotConnectToHost, .networkConnectionLost, .notConnectedToInternet:
+                    print("📡 Network error - Using cached session data")
+                    await useCachedSessionData()
+                    return
+                default:
+                    break
+                }
             }
-            await loadChildrenForCurrentUser()
+            
+            // Check if it's an auth error (invalid token)
+            if let authError = error as? AuthError {
+                if case .serverError(let msg) = authError,
+                   msg.contains("401") || msg.contains("403") || msg.contains("token") || msg.contains("unauthorized") {
+                    print("🔒 Auth error - Token invalid, going to welcome")
+                    authService.clearToken()
+                    await MainActor.run {
+                        self.authState = .welcome
+                    }
+                    return
+                }
+            }
+            
+            // For other errors, try to use cached data
+            print("🔄 Other error - Attempting to use cached data")
+            await useCachedSessionData()
+        }
+    }
+    
+    private func useCachedSessionData() async {
+        // Try to load from UserDefaults or use saved email
+        let savedEmail = authService.getSavedEmail() ?? "parent@example.com"
+        
+        // Create a parent with available data
+        await MainActor.run {
+            let parent = Parent(
+                name: "Parent", // Will be updated when API becomes available
+                email: savedEmail,
+                children: [],
+                totalScore: 0,
+                isActive: true
+            )
+            self.currentUser = parent
+            self.authState = .parentDashboard
+        }
+        
+        // Try to load children (this might also fail but won't break the flow)
+        await loadChildrenForCurrentUser()
+        
+        // Try to refresh user data in background
+        Task {
+            do {
+                let user = try await authService.getCurrentUser()
+                await MainActor.run {
+                    if let existingParent = self.currentUser {
+                        self.currentUser = Parent(
+                            name: user.name ?? existingParent.name,
+                            email: user.email ?? existingParent.email,
+                            children: existingParent.children,
+                            totalScore: existingParent.totalScore,
+                            isActive: existingParent.isActive
+                        )
+                        print("✅ Background refresh: Updated parent data")
+                    }
+                }
+            } catch {
+                print("⚠️ Background refresh failed: \(error.localizedDescription)")
+            }
         }
     }
     
@@ -299,13 +363,11 @@ class AuthViewModel: ObservableObject {
     func addChild(name: String, age: Int, avatarEmoji: String) async throws {
         print("🧒 ADD CHILD: Starting...")
         
-        // Validate name is not empty
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty else {
             throw AuthError.serverError("Please enter a valid name")
         }
         
-        // Check for duplicate name
         if let existingChild = currentUser?.children.first(where: {
             $0.name.lowercased() == trimmedName.lowercased()
         }) {
@@ -349,13 +411,11 @@ class AuthViewModel: ObservableObject {
     func updateChild(childId: String, name: String, age: Int, avatarEmoji: String) async throws {
         print("✏️ UPDATE CHILD: Starting...")
         
-        // Validate name is not empty
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty else {
             throw AuthError.serverError("Please enter a valid name")
         }
         
-        // Check for duplicate name (excluding current child)
         if let existingChild = currentUser?.children.first(where: {
             $0.id != childId && $0.name.lowercased() == trimmedName.lowercased()
         }) {
@@ -549,6 +609,11 @@ class AuthViewModel: ObservableObject {
                     totalScore: existingUser.totalScore,
                     isActive: existingUser.isActive
                 )
+                
+                // Update saved email if changed
+                if let newEmail = updatedUser.email {
+                    authService.saveRememberMe(email: newEmail, remember: authService.getRememberMeState())
+                }
             }
             errorMessage = nil
             print("✅ UPDATE PROFILE: Profile updated successfully")
@@ -556,12 +621,18 @@ class AuthViewModel: ObservableObject {
     }
     
     func changePassword(currentPassword: String, newPassword: String, confirmPassword: String) async throws {
+        print("🔐 CHANGE PASSWORD: Starting...")
+        
         guard newPassword == confirmPassword else {
             throw AuthError.serverError("Passwords do not match")
         }
         
         guard newPassword.count >= 6 else {
             throw AuthError.serverError("Password must be at least 6 characters")
+        }
+        
+        guard !currentPassword.isEmpty else {
+            throw AuthError.serverError("Please enter your current password")
         }
         
         await MainActor.run {
@@ -575,6 +646,8 @@ class AuthViewModel: ObservableObject {
         }
         
         try await authService.changePassword(currentPassword: currentPassword, newPassword: newPassword)
+        
+        print("✅ CHANGE PASSWORD: Password changed successfully")
     }
     
     func deleteAccount() async throws {
