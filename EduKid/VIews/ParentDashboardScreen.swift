@@ -135,9 +135,11 @@ struct ChildCard: View {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
                     // Avatar
-                    Text(child.avatarEmoji)
-                        .font(.system(size: 32))
-                        .frame(width: 60, height: 60)
+                    Image(child.avatarEmoji)  // Use Image, not Text
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
                         .background(Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.2))
                         .clipShape(Circle())
                     
