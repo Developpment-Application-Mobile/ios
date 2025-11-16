@@ -1,14 +1,5 @@
-//
-//  Child.swift
-//  EduKid
-//
-//  Created by Mac Mini 11 on 4/11/2025.
-//
-
-// Child.swift
 import Foundation
 import SwiftUI
-
 
 struct Child: Identifiable, Codable {
     let id: String
@@ -17,10 +8,10 @@ struct Child: Identifiable, Codable {
     let level: String
     let avatarEmoji: String
     let Score: Int
-    let quizzes: [String]
-    var totalPoints: Int = 0
+    let quizzes: [quiz]
+    var totalPoints: Int
     let connectionToken: String
-    var rewards: [Reward] = []
+    var rewards: [Reward]
 
     init(
         id: String = UUID().uuidString,
@@ -28,10 +19,10 @@ struct Child: Identifiable, Codable {
         age: Int,
         level: String,
         avatarEmoji: String,
-        Score: Int,
-        quizzes: [String] = [],
+        Score: Int = 0,
+        quizzes: [quiz] = [],
         totalPoints: Int = 0,
-        connectionToken: String,
+        connectionToken: String = UUID().uuidString,
         rewards: [Reward] = []
     ) {
         self.id = id
@@ -46,7 +37,15 @@ struct Child: Identifiable, Codable {
         self.rewards = rewards
     }
 
-    func getCompletedQuizzes() -> [String] {
-        return quizzes // TODO: logique réelle plus tard
+    func getCompletedQuizzes() -> [quiz] {
+        return quizzes.filter { ($0.completionPercentage ?? 0) >= 70 }
+    }
+    
+    var quizCount: Int {
+        return quizzes.count
+    }
+    
+    var completedQuizCount: Int {
+        return getCompletedQuizzes().count
     }
 }

@@ -11,6 +11,7 @@ class AuthService {
     private let rememberMeKey = "remember_me"
     private let userEmailKey = "user_email"
     private let parentIdKey = "parent_id"
+    private let cachedChildrenKey = "cached_children_data"
     
     var useMockMode: Bool = false
     
@@ -56,7 +57,7 @@ class AuthService {
             print("No valid session to restore")
             return false
         }
-
+        
         do {
             let user = try await getCurrentUser()
             print("Session restored for: \(user.email ?? "unknown")")
@@ -72,7 +73,7 @@ class AuthService {
                     break
                 }
             }
-
+            
             if let authError = error as? AuthError,
                case .serverError(let msg) = authError,
                msg.contains("401") || msg.contains("403") {
@@ -80,19 +81,21 @@ class AuthService {
                 clearToken()
                 return false
             }
-
+            
             print("Other error – keep session: \(error.localizedDescription)")
             return true
         }
     }
     
     func clearToken() {
-        print("CLEAR TOKEN: Only removing token & remember-me")
+        print("CLEAR TOKEN: Removing token and remember-me (keeping cached children)")
         UserDefaults.standard.removeObject(forKey: tokenKey)
         UserDefaults.standard.removeObject(forKey: rememberMeKey)
+        // Don't clear cache here - children need it to login!
         UserDefaults.standard.synchronize()
         printCurrentSessionState()
     }
+    
     
     func saveParentId(_ parentId: String) {
         print("SAVE PARENT ID: \(parentId)")
@@ -151,9 +154,55 @@ class AuthService {
         return UserDefaults.standard.bool(forKey: rememberMeKey)
     }
     
-    func getAuthHeader() -> [String: String]? {
-        guard let token = getToken() else { return nil }
-        return ["Authorization": "Bearer \(token)"]
+    
+    // Save children data to UserDefaults when parent logs in
+    func cacheChildrenData(_ children: [ChildResponse]) {
+        if let encoded = try? JSONEncoder().encode(children) {
+            UserDefaults.standard.set(encoded, forKey: cachedChildrenKey)
+            UserDefaults.standard.synchronize()
+            print("📦 CACHE: Saved \(children.count) children to local storage")
+        }
+    }
+    
+    // Load children data from UserDefaults
+    func getCachedChildren() -> [ChildResponse]? {
+        guard let data = UserDefaults.standard.data(forKey: cachedChildrenKey),
+              let children = try? JSONDecoder().decode([ChildResponse].self, from: data) else {
+            print("📦 CACHE: No cached children found")
+            return nil
+        }
+        print("📦 CACHE: Loaded \(children.count) children from cache")
+        return children
+    }
+    
+    // Clear cached children when signing out
+    func clearCachedChildren() {
+        UserDefaults.standard.removeObject(forKey: cachedChildrenKey)
+        print("📦 CACHE: Cleared cached children")
+    }
+    
+    // Get child by connection token from cache
+    func getChildByConnectionToken(_ connectionToken: String) throws -> ChildResponse {
+        guard let cachedChildren = getCachedChildren() else {
+            throw AuthError.serverError("No children data available. Please ask your parent to log in first.")
+        }
+        
+        print("🔍 Searching for child with token: \(connectionToken)")
+        print("📦 Available children in cache:")
+        for child in cachedChildren {
+            print("   - \(child.name): id=\(child.id ?? "NONE"), token=\(child.connectionToken ?? "NONE")")
+        }
+        
+        // Try to match by connectionToken OR by id
+        guard let child = cachedChildren.first(where: {
+            $0.connectionToken == connectionToken || $0.id == connectionToken
+        }) else {
+            print("❌ No matching child found!")
+            throw AuthError.serverError("Invalid QR code or access code")
+        }
+        
+        print("✅ Found child from cache: \(child.name)")
+        return child
     }
     
     // MARK: - JWT Helpers
@@ -530,15 +579,18 @@ class AuthService {
             throw AuthError.serverError("Child not found in response")
         }
         
+        let childId = newChildDict.id ?? newChildDict._id ?? UUID().uuidString
+        
         return ChildResponse(
-            id: newChildDict.id ?? newChildDict._id,
+            id: childId,
             name: newChildDict.name,
             age: newChildDict.age,
             level: newChildDict.level,
             avatarEmoji: newChildDict.avatarEmoji ?? "",
-            connectionToken: newChildDict.connectionToken
+            connectionToken: childId  // 🆕 Use the child's ID as the token!
         )
     }
+
     
     func getChildren() async throws -> [ChildResponse] {
         guard let parentId = getParentId() else { throw AuthError.serverError("No parent ID") }
@@ -558,18 +610,24 @@ class AuthService {
         }
         
         let parent = try JSONDecoder().decode(ParentFullResponse.self, from: data)
-        return parent.children.map {
-            ChildResponse(
-                id: $0.id ?? $0._id,
-                name: $0.name,
-                age: $0.age,
-                level: $0.level,
-                avatarEmoji: $0.avatarEmoji ?? "",
-                connectionToken: $0.connectionToken
+        let children = parent.children.map { child -> ChildResponse in
+            let childId = child.id ?? child._id ?? UUID().uuidString
+            return ChildResponse(
+                id: childId,
+                name: child.name,
+                age: child.age,
+                level: child.level,
+                avatarEmoji: child.avatarEmoji ?? "",
+                connectionToken: childId  // 🆕 Use the child's ID as the token!
             )
         }
+        
+        // Cache the children data
+        cacheChildrenData(children)
+        
+        return children
     }
-
+    
     // MARK: - Update Child (PATCH /parents/:id/kids/:kidId)
     func updateChild(childId: String, name: String?, age: Int?, avatarEmoji: String?) async throws -> ChildResponse {
         guard let parentId = getParentId() else {
@@ -611,15 +669,16 @@ class AuthService {
             throw AuthError.serverError(msg)
         }
         
-        // Try to decode as single child first, fallback to parent response
+        // Try to decode as single child first
         if let childDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let id = childDict["_id"] as? String ?? childDict["id"] as? String ?? childId
             return ChildResponse(
-                id: childDict["_id"] as? String ?? childDict["id"] as? String,
+                id: id,
                 name: childDict["name"] as? String ?? "",
                 age: childDict["age"] as? Int ?? 0,
                 level: childDict["level"] as? String,
                 avatarEmoji: childDict["avatarEmoji"] as? String ?? "",
-                connectionToken: childDict["connectionToken"] as? String
+                connectionToken: id  // 🆕 Use the child's ID
             )
         }
         
@@ -631,16 +690,17 @@ class AuthService {
             throw AuthError.serverError("Updated child not found in response")
         }
         
+        let id = updatedChildDict.id ?? updatedChildDict._id ?? childId
+        
         return ChildResponse(
-            id: updatedChildDict.id ?? updatedChildDict._id,
+            id: id,
             name: updatedChildDict.name,
             age: updatedChildDict.age,
             level: updatedChildDict.level,
             avatarEmoji: updatedChildDict.avatarEmoji ?? "",
-            connectionToken: updatedChildDict.connectionToken
+            connectionToken: id  // 🆕 Use the child's ID
         )
     }
-
     // MARK: - Delete Child (DELETE /parents/:id/kids/:kidId)
     func deleteChild(childId: String) async throws {
         guard let parentId = getParentId() else {
@@ -670,13 +730,13 @@ class AuthService {
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 || httpResponse.statusCode == 204 else {
             let msg = (try? JSONDecoder().decode(ErrorResponse.self, from: data))?.message
-                      ?? "Failed to delete child – status \(statusCode)"
+            ?? "Failed to delete child – status \(statusCode)"
             throw AuthError.serverError(msg)
         }
         
         print("✅ Child deleted successfully")
     }
-
+    
     // MARK: - Profile Management
     func updateProfile(name: String?, email: String?) async throws -> UserResponse {
         guard let parentId = getParentId() else {
@@ -714,7 +774,7 @@ class AuthService {
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             let msg = (try? JSONDecoder().decode(ErrorResponse.self, from: data))?.message
-                      ?? "Update failed – status \(statusCode)"
+            ?? "Update failed – status \(statusCode)"
             throw AuthError.serverError(msg)
         }
         
@@ -731,7 +791,7 @@ class AuthService {
         }
         throw AuthError.serverError("Failed to decode response")
     }
-
+    
     func changePassword(currentPassword: String, newPassword: String) async throws {
         guard let url = URL(string: "\(baseURL)/auth/change-password") else {
             throw AuthError.invalidURL
@@ -770,7 +830,7 @@ class AuthService {
         
         print("✅ Password changed successfully")
     }
-
+    
     func deleteAccount() async throws {
         guard let parentId = getParentId() else {
             throw AuthError.serverError("Parent ID not found")
@@ -797,6 +857,50 @@ class AuthService {
         }
         
         clearToken()
+    }
+    
+    func loginChildWithConnectionToken(_ connectionToken: String) async throws -> ChildResponse {
+        guard let url = URL(string: "\(baseURL)/children/login") else {
+            throw AuthError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
+        
+        let body = ["connectionToken": connectionToken]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let raw = String(data: data, encoding: .utf8) {
+            print("CHILD LOGIN RAW RESPONSE: \(raw)")
+        }
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.invalidResponse
+        }
+        
+        if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let childDict = json["child"] as? [String: Any] ?? json
+                
+                return ChildResponse(
+                    id: childDict["_id"] as? String ?? childDict["id"] as? String,
+                    name: childDict["name"] as? String ?? "",
+                    age: childDict["age"] as? Int ?? 0,
+                    level: childDict["level"] as? String,
+                    avatarEmoji: childDict["avatarEmoji"] as? String ?? "",
+                    connectionToken: childDict["connectionToken"] as? String
+                )
+            }
+            throw AuthError.serverError("Failed to decode child data")
+        } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 404 {
+            throw AuthError.serverError("Invalid QR code or access code")
+        } else {
+            throw AuthError.serverError("Login failed with status code: \(httpResponse.statusCode)")
+        }
     }
 }
 
@@ -846,6 +950,9 @@ private struct ChildInParent: Codable {
     }
 }
 
+
+
+
 enum AuthError: LocalizedError {
     case invalidURL, encodingError, invalidResponse, networkError(String), serverError(String)
     var errorDescription: String? {
@@ -858,3 +965,5 @@ enum AuthError: LocalizedError {
         }
     }
 }
+
+

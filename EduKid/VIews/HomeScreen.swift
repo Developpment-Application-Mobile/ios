@@ -3,6 +3,7 @@
 //  EduKid
 //
 //  Created by Mac Mini 11 on 6/11/2025.
+//  Fixed: November 15, 2025 - Removed duplicate Quiz struct
 //
 
 import Foundation
@@ -14,12 +15,12 @@ struct HomeScreen: View {
     let points = 602
     
     let sampleQuizzes = [
-        Quiz(title: "Advanced Calculus", questions: [], completionPercentage: 65, type: .math),
-        Quiz(title: "Biology Basics", questions: [], completionPercentage: 40, type: .science),
-        Quiz(title: "World War II", questions: [], completionPercentage: 80, type: .history),
-        Quiz(title: "European Capitals", questions: [], completionPercentage: 10, type: .geography),
-        Quiz(title: "Shakespeare Works", questions: [], completionPercentage: 30, type: .literature),
-        Quiz(title: "General Knowledge", questions: [], completionPercentage: 75, type: .general)
+        quiz(title: "Advanced Calculus", category: "Math", questions: [], completionPercentage: 65, type: .math),
+        quiz(title: "Biology Basics", category: "Science", questions: [], completionPercentage: 40, type: .science),
+        quiz(title: "World War II", category: "History", questions: [], completionPercentage: 80, type: .history),
+        quiz(title: "European Capitals", category: "Geography", questions: [], completionPercentage: 10, type: .geography),
+        quiz(title: "Shakespeare Works", category: "English", questions: [], completionPercentage: 30, type: .english),
+        quiz(title: "General Knowledge", category: "General", questions: [], completionPercentage: 75, type: .general)
     ]
     
     var body: some View {
@@ -64,8 +65,8 @@ struct HomeScreen: View {
                 // Unfinished Games List
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(sampleQuizzes) { quiz in
-                            UnfinishedGameItem(quiz: quiz)
+                        ForEach(sampleQuizzes) { quizItem in
+                            UnfinishedGameItem(quiz: quizItem)
                         }
                     }
                     .padding(.bottom, 90)
@@ -210,17 +211,50 @@ struct PageIndicator: View {
 
 // MARK: - Unfinished Game Item
 struct UnfinishedGameItem: View {
-    let quiz: Quiz
+    let quiz: quiz
+    
+    var iconRes: String {
+        switch quiz.type ?? .general {
+        case .math: return "function"
+        case .science: return "flask"
+        case .english: return "book"
+        case .history: return "clock"
+        case .geography: return "globe"
+        case .general: return "star"
+        }
+    }
+    
+    var backgroundColor: Color {
+        switch quiz.type ?? .general {
+        case .math: return Color.blue.opacity(0.2)
+        case .science: return Color.green.opacity(0.2)
+        case .english: return Color.purple.opacity(0.2)
+        case .history: return Color.orange.opacity(0.2)
+        case .geography: return Color.cyan.opacity(0.2)
+        case .general: return Color.yellow.opacity(0.2)
+        }
+    }
+    
+    var progressColor: Color {
+        switch quiz.type ?? .general {
+        case .math: return .blue
+        case .science: return .green
+        case .english: return .purple
+        case .history: return .orange
+        case .geography: return .cyan
+        case .general: return .yellow
+        }
+    }
     
     var body: some View {
         HStack(spacing: 12) {
             // Icon
-            Image(quiz.type.iconRes)
+            Image(systemName: iconRes)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 40, height: 40)
+                .frame(width: 24, height: 24)
                 .frame(width: 48, height: 48)
-                .background(quiz.type.backgroundColor)
+                .background(backgroundColor)
                 .clipShape(Circle())
             
             // Info
@@ -243,14 +277,14 @@ struct UnfinishedGameItem: View {
                     .frame(width: 40, height: 40)
                 
                 Circle()
-                    .trim(from: 0, to: CGFloat(quiz.completionPercentage) / 100)
-                    .stroke(quiz.type.progressColor, lineWidth: 3)
+                    .trim(from: 0, to: CGFloat(quiz.completionPercentage ?? 0) / 100)
+                    .stroke(progressColor, lineWidth: 3)
                     .frame(width: 40, height: 40)
                     .rotationEffect(.degrees(-90))
                 
-                Text("\(quiz.completionPercentage)%")
+                Text("\(quiz.completionPercentage ?? 0)%")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(quiz.type.progressColor)
+                    .foregroundColor(progressColor)
             }
         }
         .padding(.horizontal, 12)
@@ -304,52 +338,6 @@ struct BottomNavigationBar: View {
         .frame(height: 70)
         .background(Color.white)
         .shadow(color: .black.opacity(0.05), radius: 5, y: -2)
-    }
-}
-
-// MARK: - Quiz Model
-struct Quiz: Identifiable {
-    let id = UUID()
-    let title: String
-    let questions: [String]
-    let completionPercentage: Int
-    let type: QuizType
-}
-
-enum QuizType {
-    case math, science, history, geography, literature, general
-    
-    var iconRes: String {
-        switch self {
-        case .math: return "calculator"
-        case .science: return "flask"
-        case .history: return "book"
-        case .geography: return "globe"
-        case .literature: return "book.pages"
-        case .general: return "star"
-        }
-    }
-    
-    var backgroundColor: Color {
-        switch self {
-        case .math: return Color(red: 1.0, green: 0.8, blue: 0.8)
-        case .science: return Color(red: 0.8, green: 1.0, blue: 0.8)
-        case .history: return Color(red: 0.8, green: 0.8, blue: 1.0)
-        case .geography: return Color(red: 1.0, green: 1.0, blue: 0.8)
-        case .literature: return Color(red: 1.0, green: 0.9, blue: 1.0)
-        case .general: return Color(red: 0.9, green: 0.9, blue: 0.9)
-        }
-    }
-    
-    var progressColor: Color {
-        switch self {
-        case .math: return Color(red: 0.988, green: 0.376, blue: 0.286)
-        case .science: return Color(red: 0.298, green: 0.686, blue: 0.314)
-        case .history: return Color(red: 0.573, green: 0.478, blue: 1.0)
-        case .geography: return Color(red: 1.0, green: 0.757, blue: 0.027)
-        case .literature: return Color(red: 0.906, green: 0.298, blue: 0.235)
-        case .general: return Color(red: 0.4, green: 0.4, blue: 0.4)
-        }
     }
 }
 

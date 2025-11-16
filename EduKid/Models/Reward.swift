@@ -6,12 +6,14 @@
 //
 
 import Foundation
+import SwiftUI
 
-struct Reward: Identifiable, Codable, Equatable {
+// MARK: - Reward Model
+struct Reward: Identifiable, Codable {
     let id: String
-    var name: String
-    var cost: Int
-    var isClaimed: Bool = false
+    let name: String
+    let cost: Int
+    var isClaimed: Bool
     
     init(id: String = UUID().uuidString, name: String, cost: Int, isClaimed: Bool = false) {
         self.id = id

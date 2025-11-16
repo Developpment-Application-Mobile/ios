@@ -364,16 +364,8 @@ struct QuizResultCard: View {
     }
 }
 
-// MARK: - Quiz Result Model
-struct QuizResult: Identifiable {
-    let id: String
-    let quizName: String
-    let category: String
-    let score: Int
-    let totalQuestions: Int
-    let date: String
-    let duration: String
-}
+// NOTE: QuizResult is defined in QuizResult.swift - NOT here!
+// The struct definition has been REMOVED from this file.
 
 // MARK: - Decorative Elements Detail
 struct DecorativeElementsDetail: View {

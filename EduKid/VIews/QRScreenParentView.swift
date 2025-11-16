@@ -2,7 +2,7 @@
 //  QRScreenParentView.swift
 //  EduKid
 //
-//  Created by Mac Mini 11 on 6/11/2025.
+//  Updated: November 15, 2025 – Added visible connection code for manual entry
 //
 
 import Foundation
@@ -90,7 +90,6 @@ struct QRScreenParentView: View {
                             .cornerRadius(16)
                             .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                     } else {
-                        // Fallback if QR generation fails
                         VStack(spacing: 12) {
                             Image(systemName: "qrcode")
                                 .font(.system(size: 80))
@@ -104,13 +103,49 @@ struct QRScreenParentView: View {
                         .cornerRadius(16)
                     }
                     
+                    // MARK: - NEW: Connection Code Display
+                    VStack(spacing: 12) {
+                        Text("Or enter this code manually:")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(Color(hex: "2E2E2E"))
+                        
+                        HStack {
+                            Text(child.connectionToken)
+                                .font(.system(size: 28, weight: .bold, design: .monospaced))
+                                .foregroundColor(.purple)
+                                .tracking(4)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                            
+                            Spacer()
+                            
+                            Button {
+                                UIPasteboard.general.string = child.connectionToken
+                                // Optional: add haptic feedback
+                                let generator = UINotificationFeedbackGenerator()
+                                generator.notificationOccurred(.success)
+                            } label: {
+                                Image(systemName: "doc.on.doc.fill")
+                                    .font(.title3)
+                                    .foregroundColor(.blue)
+                                    .frame(width: 44, height: 44)
+                                    .background(Color.white.opacity(0.3))
+                                    .clipShape(Circle())
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                    }
+                    
                     // Instructions
                     VStack(spacing: 8) {
-                        Text("📱 How to use:")
+                        Text("How to use:")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(Color(hex: "2E2E2E"))
                         
-                        Text("Open the EduKid app on the child's device and scan this QR code to login")
+                        Text("Open the EduKid app on the child's device and scan this QR code or enter the code above")
                             .font(.system(size: 14))
                             .foregroundColor(Color(hex: "666666"))
                             .multilineTextAlignment(.center)
@@ -146,19 +181,16 @@ struct QRScreenParentView: View {
         }
         .navigationBarHidden(true)
     }
-
+    
+    // MARK: - QR Code Generator
     func generateQRCode(from string: String) -> UIImage? {
         let context = CIContext()
         let filter = CIFilter.qrCodeGenerator()
         
-        // Use the connection token
         filter.message = Data(string.utf8)
-        
-        // Set error correction level to high
         filter.setValue("H", forKey: "inputCorrectionLevel")
-
+        
         if let outputImage = filter.outputImage {
-            // Scale up the QR code for better quality
             let transform = CGAffineTransform(scaleX: 10, y: 10)
             let scaledImage = outputImage.transformed(by: transform)
             
@@ -181,7 +213,7 @@ struct QRScreenParentView_Previews: PreviewProvider {
                 avatarEmoji: "avatar_1",
                 Score: 85,
                 quizzes: [],
-                connectionToken: "test-token-12345"
+                connectionToken: "ABC123"
             )
         )
         .environmentObject(AuthViewModel())

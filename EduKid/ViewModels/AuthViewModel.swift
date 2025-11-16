@@ -18,23 +18,23 @@ class AuthViewModel: ObservableObject {
         case childQRLogin
         case childHome(Child)
         case qrCodeDisplay(Child)
-
+        
         static func == (lhs: AuthState, rhs: AuthState) -> Bool {
             switch (lhs, rhs) {
             case (.splash, .splash), (.welcome, .welcome),
-                 (.parentSignUp, .parentSignUp), (.parentSignIn, .parentSignIn),
-                 (.forgotPassword, .forgotPassword),
-                 (.parentDashboard, .parentDashboard), (.parentProfile, .parentProfile),
-                 (.editParentProfile, .editParentProfile),
-                 (.addChild, .addChild), (.childQRLogin, .childQRLogin):
+                (.parentSignUp, .parentSignUp), (.parentSignIn, .parentSignIn),
+                (.forgotPassword, .forgotPassword),
+                (.parentDashboard, .parentDashboard), (.parentProfile, .parentProfile),
+                (.editParentProfile, .editParentProfile),
+                (.addChild, .addChild), (.childQRLogin, .childQRLogin):
                 return true
-
+                
             case let (.childDetail(c1), .childDetail(c2)),
-                 let (.editChildProfile(c1), .editChildProfile(c2)),
-                 let (.childHome(c1), .childHome(c2)),
-                 let (.qrCodeDisplay(c1), .qrCodeDisplay(c2)):
+                let (.editChildProfile(c1), .editChildProfile(c2)),
+                let (.childHome(c1), .childHome(c2)),
+                let (.qrCodeDisplay(c1), .qrCodeDisplay(c2)):
                 return c1.id == c2.id
-
+                
             default:
                 return false
             }
@@ -52,10 +52,10 @@ class AuthViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var successMessage: String?
     @Published var isLoading: Bool = false
-
+    
     private var cancellables = Set<AnyCancellable>()
     private let authService = AuthService.shared
-
+    
     init() {
         print("\n🚀 AuthViewModel INIT Started")
         authService.printCurrentSessionState()
@@ -76,7 +76,7 @@ class AuthViewModel: ObservableObject {
             }
         }
     }
-
+    
     private func restoreSession() async {
         do {
             // Try to get fresh user data from API
@@ -244,7 +244,7 @@ class AuthViewModel: ObservableObject {
         let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
         return emailPredicate.evaluate(with: email)
     }
-
+    
     func signIn(email: String, password: String, rememberMe: Bool = false) {
         print("\n📝 SIGN IN: Started")
         print("📝 SIGN IN: Email: \(email)")
@@ -276,22 +276,22 @@ class AuthViewModel: ObservableObject {
                 
                 await MainActor.run {
                     isLoading = false
-
+                    
                     if let token = response.token {
                         print("📝 SIGN IN: Saving token with rememberMe: \(rememberMe)")
                         authService.saveToken(token, rememberMe: rememberMe)
                     }
-
+                    
                     if let userId = response.user?.id {
                         authService.saveParentId(userId)
                     }
-
+                    
                     let trimmedEmail = email.trimmingCharacters(in: .whitespaces).lowercased()
                     authService.saveRememberMe(email: rememberMe ? trimmedEmail : nil, remember: rememberMe)
-
+                    
                     let parentName = response.user?.name ?? "Parent"
                     let parentEmail = response.user?.email ?? trimmedEmail
-
+                    
                     let parent = Parent(
                         name: parentName,
                         email: parentEmail,
@@ -299,7 +299,7 @@ class AuthViewModel: ObservableObject {
                         totalScore: 0,
                         isActive: true
                     )
-
+                    
                     currentUser = parent
                     errorMessage = nil
                     authState = .parentDashboard
@@ -315,7 +315,7 @@ class AuthViewModel: ObservableObject {
             }
         }
     }
-
+    
     func signOut() {
         print("\n🚪 SIGN OUT: Starting...")
         authService.printCurrentSessionState()
@@ -358,7 +358,7 @@ class AuthViewModel: ObservableObject {
             }
         }
     }
-
+    
     // MARK: - Child Management
     func addChild(name: String, age: Int, avatarEmoji: String) async throws {
         print("🧒 ADD CHILD: Starting...")
@@ -383,11 +383,11 @@ class AuthViewModel: ObservableObject {
                 isLoading = false
             }
         }
-
+        
         let childResponse = try await authService.addChild(name: trimmedName, age: age, avatarEmoji: avatarEmoji)
         
         print("🧒 ADD CHILD: Response received")
-
+        
         let newChild = Child(
             id: childResponse.id ?? UUID().uuidString,
             name: childResponse.name,
@@ -399,7 +399,7 @@ class AuthViewModel: ObservableObject {
             totalPoints: 0,
             connectionToken: childResponse.connectionToken ?? UUID().uuidString
         )
-
+        
         await MainActor.run {
             currentUser?.children.append(newChild)
             selectedChild = newChild
@@ -461,7 +461,7 @@ class AuthViewModel: ObservableObject {
             }
         }
     }
-
+    
     func deleteChild(childId: String) async throws {
         print("🗑️ DELETE CHILD: Starting...")
         
@@ -487,7 +487,7 @@ class AuthViewModel: ObservableObject {
             print("🗑️ DELETE CHILD: Child removed from current user")
         }
     }
-
+    
     private func loadChildrenForCurrentUser() async {
         var parentId = authService.getParentId()
         
@@ -507,7 +507,7 @@ class AuthViewModel: ObservableObject {
             print("❌ LOAD CHILDREN: No parent ID available - skipping")
             return
         }
-
+        
         print("🔄 LOAD CHILDREN: Starting with parent ID: \(parentId)")
         
         do {
@@ -527,7 +527,7 @@ class AuthViewModel: ObservableObject {
                     connectionToken: child.connectionToken ?? UUID().uuidString
                 )
             }
-
+            
             await MainActor.run {
                 currentUser?.children = childModels
                 print("✅ LOAD CHILDREN: Loaded \(childModels.count) children successfully")
@@ -536,18 +536,18 @@ class AuthViewModel: ObservableObject {
             print("❌ LOAD CHILDREN: Failed with error: \(error.localizedDescription)")
         }
     }
-
+    
     func selectChild(_ child: Child) {
         selectedChild = child
         authState = .childDetail(child)
     }
-
+    
     // MARK: - QR Code
     func showQRCode(for child: Child) {
         selectedChild = child
         authState = .qrCodeDisplay(child)
     }
-
+    
     func handleQRScan(token: String) {
         guard let child = currentUser?.children.first(where: { $0.connectionToken == token }) else {
             errorMessage = "QR Code invalide"
@@ -556,27 +556,27 @@ class AuthViewModel: ObservableObject {
         selectedChild = child
         authState = .childHome(child)
     }
-
+    
     // MARK: - Récompenses
     func addReward(to child: Child, name: String, cost: Int) {
         guard let childIndex = currentUser?.children.firstIndex(where: { $0.id == child.id }) else { return }
         let reward = Reward(name: name, cost: cost)
         currentUser?.children[childIndex].rewards.append(reward)
     }
-
+    
     func updateReward(_ reward: Reward, name: String, cost: Int) {
         guard let child = selectedChild,
               let childIndex = currentUser?.children.firstIndex(where: { $0.id == child.id }),
               let rewardIndex = currentUser?.children[childIndex].rewards.firstIndex(where: { $0.id == reward.id }) else { return }
         currentUser?.children[childIndex].rewards[rewardIndex] = Reward(id: reward.id, name: name, cost: cost, isClaimed: reward.isClaimed)
     }
-
+    
     func deleteReward(_ reward: Reward) {
         guard let child = selectedChild,
               let childIndex = currentUser?.children.firstIndex(where: { $0.id == child.id }) else { return }
         currentUser?.children[childIndex].rewards.removeAll { $0.id == reward.id }
     }
-
+    
     func claimReward(_ reward: Reward) {
         guard let child = selectedChild,
               child.totalPoints >= reward.cost else { return }
@@ -667,4 +667,34 @@ class AuthViewModel: ObservableObject {
             signOut()
         }
     }
+    
+    
+    func signOutChild() {
+        selectedChild = nil
+        authState = .welcome
+    }
+    
+    
+    func loginChildWithToken(_ token: String) async throws -> Child {
+        print("🔐 LOGIN CHILD: Starting with token: \(token)")
+        
+        // Use synchronous method since we're reading from local cache
+        let childData = try authService.getChildByConnectionToken(token)
+        
+        let child = Child(
+            id: childData.id ?? UUID().uuidString,
+            name: childData.name,
+            age: childData.age,
+            level: "\(childData.age - 3)",
+            avatarEmoji: childData.avatarEmoji,
+            Score: 0,
+            quizzes: [],
+            totalPoints: 0,
+            connectionToken: childData.connectionToken ?? token
+        )
+        
+        print("✅ LOGIN CHILD: Loaded child from cache - \(child.name)")
+        return child
+    }
+    
 }

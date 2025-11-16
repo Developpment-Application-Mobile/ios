@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct quizResult: Identifiable {
+struct QuizResult: Identifiable {
     let id: String
     let quizName: String
     let category: String
