@@ -17,20 +17,21 @@ struct ChildDashboardScreen: View {
     @State private var parentInfo: ParentInfo?
     
     var body: some View {
-        ZStack {
-            // Background gradient
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
-                    Color(red: 0.153, green: 0.125, blue: 0.322)
-                ]),
-                center: .init(x: 0.3, y: 0.3),
-                startRadius: 50,
-                endRadius: 400
-            )
-            .ignoresSafeArea()
-            
-            ScrollView {
+        NavigationStack {
+            ZStack {
+                // Background gradient
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
+                        Color(red: 0.153, green: 0.125, blue: 0.322)
+                    ]),
+                    center: .init(x: 0.3, y: 0.3),
+                    startRadius: 50,
+                    endRadius: 400
+                )
+                .ignoresSafeArea()
+                
+                ScrollView {
                 VStack(spacing: 24) {
                     Spacer().frame(height: 40)
                     
@@ -105,6 +106,7 @@ struct ChildDashboardScreen: View {
                 await loadQuizzes()
                 await loadParentInfo()
             }
+        }
         }
     }
     

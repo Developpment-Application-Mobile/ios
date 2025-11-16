@@ -1,17 +1,37 @@
+//
+//  ChildDetailScreen.swift - Enhanced with Quiz Results
+//  EduKid
+//
+//  Updated: November 16, 2025
+//
+
 import Foundation
 import SwiftUI
 
 struct ChildDetailScreen: View {
     let child: Child
-    let quizResults: [QuizResult]
     
     @State private var selectedTab = 0
+    @State private var quizzes: [AIQuizResponse] = []
+    @State private var isLoading = false
+    @EnvironmentObject var authVM: AuthViewModel
+    
     let tabs = ["Overview", "Quiz Results"]
     
     var onBackClick: () -> Void = {}
     var onAssignQuizClick: () -> Void = {}
     var onGenerateQRClick: () -> Void = {}
     var onEditClick: () -> Void = {}
+    
+    var completedQuizzes: [AIQuizResponse] {
+        quizzes.filter { $0.answered > 0 }
+    }
+    
+    var averageScore: Int {
+        guard !completedQuizzes.isEmpty else { return 0 }
+        let total = completedQuizzes.reduce(0) { $0 + $1.score }
+        return total / completedQuizzes.count
+    }
     
     var body: some View {
         ZStack {
@@ -149,10 +169,47 @@ struct ChildDetailScreen: View {
                 Spacer().frame(height: 16)
                 
                 // Tab content
-                if selectedTab == 0 {
-                    OverviewTab(child: child)
+                if isLoading {
+                    Spacer()
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    Spacer()
                 } else {
-                    QuizResultsTab(quizResults: quizResults)
+                    if selectedTab == 0 {
+                        OverviewTab(
+                            child: child,
+                            completedQuizzes: completedQuizzes.count,
+                            totalQuizzes: quizzes.count,
+                            averageScore: averageScore
+                        )
+                    } else {
+                        QuizResultsTab(quizzes: completedQuizzes)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            loadQuizzes()
+        }
+    }
+    
+    private func loadQuizzes() {
+        isLoading = true
+        Task {
+            do {
+                guard let parentId = AuthService.shared.getParentId() else { return }
+                let fetchedQuizzes = try await AIQuizService.shared.getQuizzes(
+                    parentId: parentId,
+                    kidId: child.id
+                )
+                await MainActor.run {
+                    quizzes = fetchedQuizzes
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    print("Failed to load quizzes: \(error)")
                 }
             }
         }
@@ -162,6 +219,9 @@ struct ChildDetailScreen: View {
 // MARK: - Overview Tab
 struct OverviewTab: View {
     let child: Child
+    let completedQuizzes: Int
+    let totalQuizzes: Int
+    let averageScore: Int
     
     var body: some View {
         ScrollView {
@@ -170,14 +230,14 @@ struct OverviewTab: View {
                 HStack(spacing: 12) {
                     StatsCardDetail(
                         title: "Completed",
-                        value: "\(child.getCompletedQuizzes().count)",
+                        value: "\(completedQuizzes)",
                         subtitle: "quizzes",
                         icon: "✅"
                     )
                     
                     StatsCardDetail(
                         title: "Average",
-                        value: "\(child.Score)",
+                        value: "\(averageScore)%",
                         subtitle: "score",
                         icon: "⭐"
                     )
@@ -195,13 +255,13 @@ struct OverviewTab: View {
                     }
                     
                     HStack {
-                        Text("\(child.getCompletedQuizzes().count) of \(child.quizzes.count) quizzes")
+                        Text("\(completedQuizzes) of \(totalQuizzes) quizzes")
                             .font(.system(size: 14))
                             .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
                         
                         Spacer()
                         
-                        Text("\(child.quizzes.isEmpty ? 0 : (child.getCompletedQuizzes().count * 100 / child.quizzes.count))%")
+                        Text("\(totalQuizzes == 0 ? 0 : (completedQuizzes * 100 / totalQuizzes))%")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
                     }
@@ -215,7 +275,7 @@ struct OverviewTab: View {
                             RoundedRectangle(cornerRadius: 5)
                                 .fill(Color(red: 0.686, green: 0.494, blue: 0.906))
                                 .frame(
-                                    width: child.quizzes.isEmpty ? 0 : geometry.size.width * CGFloat(child.getCompletedQuizzes().count) / CGFloat(child.quizzes.count),
+                                    width: totalQuizzes == 0 ? 0 : geometry.size.width * CGFloat(completedQuizzes) / CGFloat(totalQuizzes),
                                     height: 10
                                 )
                         }
@@ -261,10 +321,10 @@ struct StatsCardDetail: View {
 
 // MARK: - Quiz Results Tab
 struct QuizResultsTab: View {
-    let quizResults: [QuizResult]
+    let quizzes: [AIQuizResponse]
     
     var body: some View {
-        if quizResults.isEmpty {
+        if quizzes.isEmpty {
             VStack(spacing: 12) {
                 Spacer()
                 
@@ -275,13 +335,17 @@ struct QuizResultsTab: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white)
                 
+                Text("Complete some quizzes to see results here")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.7))
+                
                 Spacer()
             }
         } else {
             ScrollView {
                 LazyVStack(spacing: 12) {
-                    ForEach(quizResults) { result in
-                        QuizResultCard(result: result)
+                    ForEach(quizzes) { quiz in
+                        AIQuizResultCard(quiz: quiz)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -291,17 +355,27 @@ struct QuizResultsTab: View {
     }
 }
 
-// MARK: - Quiz Result Card
-struct QuizResultCard: View {
-    let result: QuizResult
+// MARK: - AI Quiz Result Card
+struct AIQuizResultCard: View {
+    let quiz: AIQuizResponse
     
     var scoreColor: Color {
-        if result.score >= 80 {
+        if quiz.score >= 80 {
             return Color(red: 0.298, green: 0.686, blue: 0.314)
-        } else if result.score >= 60 {
+        } else if quiz.score >= 60 {
             return Color(red: 1.0, green: 0.655, blue: 0.149)
         } else {
             return Color(red: 0.937, green: 0.325, blue: 0.314)
+        }
+    }
+    
+    var scoreIcon: String {
+        if quiz.score >= 80 {
+            return "🎉"
+        } else if quiz.score >= 60 {
+            return "👍"
+        } else {
+            return "💪"
         }
     }
     
@@ -309,52 +383,72 @@ struct QuizResultCard: View {
         VStack(spacing: 12) {
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(result.quizName)
+                    Text(quiz.topic.capitalized)
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
                     
-                    Text(result.category)
+                    Text(quiz.subject.capitalized)
                         .font(.system(size: 13))
                         .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+                    
+                    HStack(spacing: 8) {
+                        Text(quiz.difficulty.capitalized)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color(red: 0.686, green: 0.494, blue: 0.906))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.2))
+                            .cornerRadius(6)
+                    }
                 }
                 
                 Spacer()
                 
-                Text("\(result.score)%")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(scoreColor)
-                    .frame(width: 60, height: 60)
-                    .background(scoreColor.opacity(0.2))
-                    .clipShape(Circle())
+                VStack(spacing: 4) {
+                    Text(scoreIcon)
+                        .font(.system(size: 24))
+                    
+                    Text("\(quiz.score)%")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(scoreColor)
+                }
+                .frame(width: 70, height: 70)
+                .background(scoreColor.opacity(0.15))
+                .clipShape(Circle())
             }
+            
+            Divider()
+                .background(Color(red: 0.88, green: 0.88, blue: 0.88))
             
             HStack {
                 HStack(spacing: 4) {
-                    Text("📅")
-                        .font(.system(size: 14))
-                    Text(result.date)
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
-                }
-                
-                Spacer()
-                
-                HStack(spacing: 4) {
-                    Text("⏱️")
-                        .font(.system(size: 14))
-                    Text(result.duration)
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
-                }
-                
-                Spacer()
-                
-                HStack(spacing: 4) {
                     Text("❓")
                         .font(.system(size: 14))
-                    Text("\(result.score * result.totalQuestions / 100)/\(result.totalQuestions)")
+                    Text("\(quiz.questions.count) questions")
                         .font(.system(size: 13))
                         .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+                }
+                
+                Spacer()
+                
+                HStack(spacing: 4) {
+                    Text("✅")
+                        .font(.system(size: 14))
+                    Text("\(quiz.answered) answered")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+                }
+                
+                Spacer()
+                
+                if let date = quiz.createdAt {
+                    HStack(spacing: 4) {
+                        Text("📅")
+                            .font(.system(size: 14))
+                        Text(formatDate(date))
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+                    }
                 }
             }
         }
@@ -362,10 +456,17 @@ struct QuizResultCard: View {
         .background(Color.white.opacity(0.95))
         .cornerRadius(16)
     }
+    
+    private func formatDate(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        if let date = formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateFormat = "MMM d"
+            return displayFormatter.string(from: date)
+        }
+        return "Recent"
+    }
 }
-
-// NOTE: QuizResult is defined in QuizResult.swift - NOT here!
-// The struct definition has been REMOVED from this file.
 
 // MARK: - Decorative Elements Detail
 struct DecorativeElementsDetail: View {

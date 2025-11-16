@@ -91,13 +91,13 @@ struct MainNavigationView: View {
 
         case .childDetail(let child):
             ChildDetailScreen(
-                child: child,
-                quizResults: mockQuizResults(),  // Fixed - no argument needed
+                child: child,  // ✅ No quizResults parameter needed
                 onBackClick: { authVM.authState = .parentDashboard },
                 onAssignQuizClick: { },
                 onGenerateQRClick: { authVM.showQRCode(for: child) },
                 onEditClick: { authVM.authState = .editChildProfile(child) }
             )
+            .environmentObject(authVM)
         
         case .editChildProfile(let child):
             EditChildProfileScreen(
@@ -113,9 +113,11 @@ struct MainNavigationView: View {
                 .environmentObject(authVM)
 
         case .childHome(let child):
-            ChildDashboardScreen(child: child)
-                .environmentObject(authVM)
-                .onAppear { authVM.selectedChild = child }
+            NavigationStack {
+                ChildDashboardScreen(child: child)
+                    .environmentObject(authVM)
+            }
+            .onAppear { authVM.selectedChild = child }
 
         case .qrCodeDisplay(let child):
             QRScreenParentView(child: child)
@@ -124,10 +126,4 @@ struct MainNavigationView: View {
         }
     }
 
-    private func mockQuizResults() -> [QuizResult] {
-        [
-            QuizResult(id: "1", quizName: "Math Basics", category: "Math", score: 90, totalQuestions: 10, date: "Nov 4", duration: "8 min"),
-            QuizResult(id: "2", quizName: "Animals", category: "Science", score: 75, totalQuestions: 15, date: "Nov 3", duration: "12 min")
-        ]
-    }
 }
