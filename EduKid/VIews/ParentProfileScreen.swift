@@ -13,6 +13,7 @@ struct ParentProfileScreen: View {
     @State private var confirmPasswordVisible = false
     @State private var showChangePassword = false
     @State private var showDeleteConfirmation = false
+    @State private var showLogoutConfirmation = false
     @State private var activeSection: ProfileSection = .profile
     @State private var errorMessage: String?
     @State private var successMessage: String?
@@ -42,19 +43,8 @@ struct ParentProfileScreen: View {
             
             ScrollView {
                 VStack(spacing: 0) {
-                    // Header
+                    // Header (without back button)
                     HStack {
-                        Button(action: {
-                            authVM.authState = .parentDashboard
-                        }) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 44, height: 44)
-                                .background(Color.white.opacity(0.2))
-                                .clipShape(Circle())
-                        }
-                        
                         Spacer()
                         
                         Text("Profile")
@@ -62,10 +52,6 @@ struct ParentProfileScreen: View {
                             .foregroundColor(.white)
                         
                         Spacer()
-                        
-                        // Placeholder for alignment
-                        Color.clear
-                            .frame(width: 44, height: 44)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 60)
@@ -128,6 +114,14 @@ struct ParentProfileScreen: View {
             }
         } message: {
             Text("Are you sure you want to delete your account? This action cannot be undone.")
+        }
+        .alert("Logout", isPresented: $showLogoutConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Logout", role: .destructive) {
+                authVM.signOut()
+            }
+        } message: {
+            Text("Are you sure you want to logout?")
         }
     }
     
@@ -239,7 +233,36 @@ struct ParentProfileScreen: View {
             .disabled(isLoading)
             .padding(.horizontal, 20)
             
-            Spacer().frame(height: 40)
+            Spacer().frame(height: 16)
+            
+            // Logout button
+            Button(action: {
+                showLogoutConfirmation = true
+            }) {
+                HStack {
+                    Image(systemName: "arrow.right.square.fill")
+                        .font(.system(size: 18))
+                    Text("LOGOUT")
+                        .font(.system(size: 16, weight: .bold))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 60)
+                .foregroundColor(.white)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.orange.opacity(0.8),
+                            Color.red.opacity(0.8)
+                        ]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(30)
+            }
+            .padding(.horizontal, 20)
+            
+            Spacer().frame(height: 16)
             
             // Delete Account button
             Button(action: {

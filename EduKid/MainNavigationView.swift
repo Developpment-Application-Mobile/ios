@@ -53,7 +53,7 @@ struct MainNavigationView: View {
                 successMessage: authVM.successMessage
             )
 
-        case .parentDashboard:
+       /* case .parentDashboard:
             if let parent = authVM.currentUser {
                 ParentDashboardScreen(
                     parent: parent,
@@ -65,7 +65,15 @@ struct MainNavigationView: View {
                 .environmentObject(authVM)
             } else {
                 EmptyView()
-            }
+            }*/
+            
+        case .parentDashboard:
+                    if let parent = authVM.currentUser {
+                        ParentTabView(parent: parent)
+                            .environmentObject(authVM)
+                    } else {
+                        EmptyView()
+                    }
             
         case .parentProfile:
             ParentProfileScreen()

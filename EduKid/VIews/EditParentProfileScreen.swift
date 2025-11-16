@@ -2,7 +2,7 @@
 //  EditParentProfileScreen.swift
 //  EduKid
 //
-//  Created by mac on 15/11/2025.
+//  Updated: November 16, 2025 - Added logout button, removed back button
 //
 
 import SwiftUI
@@ -18,6 +18,7 @@ struct EditParentProfileScreen: View {
     @State private var confirmPassword = ""
     @State private var showChangePassword = false
     @State private var showDeleteAlert = false
+    @State private var showLogoutAlert = false
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var successMessage: String?
@@ -43,29 +44,17 @@ struct EditParentProfileScreen: View {
             
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header
-                    HStack {
-                        Button(action: { dismiss() }) {
-                            Image(systemName: "chevron.left")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .frame(width: 48, height: 48)
-                                .background(Color.white.opacity(0.2))
-                                .clipShape(Circle())
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Edit Profile")
-                                .font(.system(size: 28, weight: .bold))
-                                .foregroundColor(.white)
-                            Text("Update your information")
-                                .font(.system(size: 14))
-                                .foregroundColor(.white.opacity(0.9))
-                        }
-                        
-                        Spacer()
+                    // Header (without back button)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Edit Profile")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                        Text("Update your information")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.9))
                     }
-                    .padding(.top, 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 60)
                     
                     // Profile Info Section
                     VStack(alignment: .leading, spacing: 16) {
@@ -251,6 +240,30 @@ struct EditParentProfileScreen: View {
                             .cornerRadius(12)
                     }
                     
+                    // Logout Button
+                    Button(action: { showLogoutAlert = true }) {
+                        HStack {
+                            Image(systemName: "arrow.right.square.fill")
+                                .font(.title3)
+                            Text("LOGOUT")
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 60)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.orange.opacity(0.8),
+                                    Color.red.opacity(0.8)
+                                ]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .foregroundColor(.white)
+                        .cornerRadius(30)
+                    }
+                    
                     // Delete Account Button
                     Button(action: { showDeleteAlert = true }) {
                         Text("DELETE ACCOUNT")
@@ -268,6 +281,14 @@ struct EditParentProfileScreen: View {
             }
         }
         .navigationBarHidden(true)
+        .alert("Logout", isPresented: $showLogoutAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Logout", role: .destructive) {
+                authVM.signOut()
+            }
+        } message: {
+            Text("Are you sure you want to logout?")
+        }
         .alert("Delete Account", isPresented: $showDeleteAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -388,5 +409,3 @@ struct EditParentProfileScreen: View {
         }
     }
 }
-
-

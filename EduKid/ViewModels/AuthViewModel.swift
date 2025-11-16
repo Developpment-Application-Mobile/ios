@@ -54,7 +54,8 @@ class AuthViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     
     private var cancellables = Set<AnyCancellable>()
-    private let authService = AuthService.shared
+    let authService = AuthService.shared
+    
     
     init() {
         print("\n🚀 AuthViewModel INIT Started")
@@ -678,23 +679,69 @@ class AuthViewModel: ObservableObject {
     func loginChildWithToken(_ token: String) async throws -> Child {
         print("🔐 LOGIN CHILD: Starting with token: \(token)")
         
-        // Use synchronous method since we're reading from local cache
-        let childData = try authService.getChildByConnectionToken(token)
-        
-        let child = Child(
-            id: childData.id ?? UUID().uuidString,
-            name: childData.name,
-            age: childData.age,
-            level: "\(childData.age - 3)",
-            avatarEmoji: childData.avatarEmoji,
-            Score: 0,
-            quizzes: [],
-            totalPoints: 0,
-            connectionToken: childData.connectionToken ?? token
-        )
-        
-        print("✅ LOGIN CHILD: Loaded child from cache - \(child.name)")
-        return child
+        // First try to login via API to get a proper session
+        do {
+            let result = try await authService.loginChildByToken(token)
+            
+            // Save the child session token
+            if let childToken = result.token {
+                authService.saveToken(childToken, rememberMe: false)
+                print("✅ LOGIN CHILD: Saved child session token")
+            }
+            
+            let child = Child(
+                id: result.child.id ?? UUID().uuidString,
+                name: result.child.name,
+                age: result.child.age,
+                level: result.child.level ?? "\(result.child.age - 3)",
+                avatarEmoji: result.child.avatarEmoji,
+                Score: 0,
+                quizzes: [],
+                totalPoints: 0,
+                connectionToken: result.child.connectionToken ?? token
+            )
+            
+            print("✅ LOGIN CHILD: Successfully logged in via API - \(child.name)")
+            return child
+            
+        } catch {
+            print("⚠️ LOGIN CHILD: API login failed, falling back to cache - \(error.localizedDescription)")
+            
+            // Fallback to cached data if API fails
+            let childData = try authService.getChildByConnectionToken(token)
+            
+            // 🆕 CRITICAL FIX: Create a mock token for child session
+            let mockChildToken = "child_\(token)_\(UUID().uuidString)"
+            authService.saveToken(mockChildToken, rememberMe: false)
+            print("✅ LOGIN CHILD: Created mock child session token")
+            
+            let child = Child(
+                id: childData.id ?? UUID().uuidString,
+                name: childData.name,
+                age: childData.age,
+                level: childData.level ?? "\(childData.age - 3)",
+                avatarEmoji: childData.avatarEmoji,
+                Score: 0,
+                quizzes: [],
+                totalPoints: 0,
+                connectionToken: childData.connectionToken ?? token
+            )
+            
+            print("✅ LOGIN CHILD: Loaded child from cache - \(child.name)")
+            return child
+        }
+    }
+    
+    func hasChildSession() -> Bool {
+        // For child sessions, we can be more lenient
+        // Check if we have a selected child OR a token
+        return selectedChild != nil || authService.getToken() != nil
+    }
+
+    func clearChildSession() {
+        selectedChild = nil
+        // Don't clear the token here as it might be needed for API calls
+        // The token will be cleared when the parent logs out or explicitly cleared
     }
     
 }

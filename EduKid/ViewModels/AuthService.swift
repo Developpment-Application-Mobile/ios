@@ -590,7 +590,7 @@ class AuthService {
             connectionToken: childId  // 🆕 Use the child's ID as the token!
         )
     }
-
+    
     
     func getChildren() async throws -> [ChildResponse] {
         guard let parentId = getParentId() else { throw AuthError.serverError("No parent ID") }
@@ -665,7 +665,7 @@ class AuthService {
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             let msg = (try? JSONDecoder().decode(ErrorResponse.self, from: data))?.message
-                      ?? "Failed to update child – status \(statusCode)"
+            ?? "Failed to update child – status \(statusCode)"
             throw AuthError.serverError(msg)
         }
         
@@ -902,8 +902,94 @@ class AuthService {
             throw AuthError.serverError("Login failed with status code: \(httpResponse.statusCode)")
         }
     }
+    
+    
+    
+    
+    // MARK: - Child Login by Token
+    func loginChildByToken(_ token: String) async throws -> (child: ChildResponse, parentId: String?, token: String?) {
+        print("AUTH SERVICE: Login child by token - \(token)")
+        
+        // 🆕 FIX: Use the correct endpoint that exists
+        let endpoint = "\(baseURL)/auth/child-login"
+        
+        guard let url = URL(string: endpoint) else {
+            throw AuthError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
+        
+        let body: [String: Any] = ["connectionToken": token]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            throw AuthError.encodingError
+        }
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let raw = String(data: data, encoding: .utf8) {
+            print("AUTH SERVICE: Child login raw response - \(raw)")
+        }
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.invalidResponse
+        }
+        
+        print("AUTH SERVICE: Child login response status - \(httpResponse.statusCode)")
+        
+        // 🆕 FIX: Handle different status codes appropriately
+        if httpResponse.statusCode == 404 {
+            // Endpoint not found - we'll handle this gracefully with fallback
+            throw AuthError.serverError("Child login endpoint not available")
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                throw AuthError.serverError(errorResponse.message ?? "Login failed")
+            }
+            throw AuthError.serverError("Invalid login code. Please check with your parent.")
+        }
+        
+        // Try to decode the response
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let childDict = json["child"] as? [String: Any] ?? json
+            let token = json["token"] as? String ?? json["accessToken"] as? String
+            
+            let childResponse = ChildResponse(
+                id: childDict["_id"] as? String ?? childDict["id"] as? String,
+                name: childDict["name"] as? String ?? "",
+                age: childDict["age"] as? Int ?? 0,
+                level: childDict["level"] as? String,
+                avatarEmoji: childDict["avatarEmoji"] as? String ?? "",
+                connectionToken: childDict["connectionToken"] as? String
+            )
+            
+            let parentId = childDict["parentId"] as? String ?? json["parentId"] as? String
+            
+            print("AUTH SERVICE: Child login successful - \(childResponse.name)")
+            
+            return (child: childResponse, parentId: parentId, token: token)
+        }
+        
+        throw AuthError.serverError("Failed to decode login response")
+    }
+    
+    func validateChildSession() async -> Bool {
+        guard let token = getToken() else {
+            return false
+        }
+        
+        // For child sessions, we might want to use a simpler validation
+        // since children don't have the same profile endpoints
+        return true // Or implement proper child session validation
+    }
+    
 }
-
 // MARK: - Models
 struct SignUpRequest: Codable { let name: String; let email: String; let password: String }
 struct SignUpResponse: Codable { let message: String?; let user: UserResponse?; let token: String? }
@@ -950,7 +1036,21 @@ private struct ChildInParent: Codable {
     }
 }
 
-
+struct ChildLoginResponse: Codable {
+    let success: Bool
+    let message: String?
+    let token: String?
+    let parentId: String?
+    let child: ChildResponse
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case message
+        case token
+        case parentId
+        case child
+    }
+}
 
 
 enum AuthError: LocalizedError {

@@ -2,7 +2,7 @@
 //  ChildQRLoginScreen.swift
 //  EduKid
 //
-//  Updated: November 15, 2025 – QR/Code login with API integration
+//  Updated: November 15, 2025 – QR/Code login with proper session management
 //
 
 import SwiftUI
@@ -67,7 +67,7 @@ struct ChildQRLoginScreen: View {
                     if showScanner {
                         QRCodeScannerView { result in
                             if let code = result {
-                                handleLogin(token: code)
+                                handleScannedToken(code)
                                 showScanner = false
                             }
                         }
@@ -169,30 +169,67 @@ struct ChildQRLoginScreen: View {
         }
         .sheet(isPresented: $showCodeEntry) {
             CodeEntrySheet(isPresented: $showCodeEntry, manualCode: $manualCode) { token in
-                handleLogin(token: token)
+                handleScannedToken(token)
             }
+        }
+        .onAppear {
+            print("🔐 CHILD LOGIN SCREEN: Appeared - checking session state")
+            authVM.authService.printCurrentSessionState()
         }
     }
 
-    // MARK: – Login Handler
-    private func handleLogin(token: String) {
+    // MARK: – Updated QR Scanner Handler
+    private func handleScannedToken(_ token: String) {
+        print("🔐 SCANNED TOKEN: Processing token - \(token)")
         isLoading = true
         errorMessage = nil
         
         Task {
             do {
-                // Find child by connection token
+                print("🔐 SCANNED TOKEN: Starting login process...")
+                
+                // Use the updated login method that creates proper session
                 let child = try await authVM.loginChildWithToken(token)
                 
                 await MainActor.run {
-                    isLoading = false
+                    print("🔐 SCANNED TOKEN: Login successful - \(child.name)")
+                    
+                    // Set the selected child and navigate to child home
                     authVM.selectedChild = child
                     authVM.authState = .childHome(child)
+                    
+                    // Print session state for debugging
+                    authVM.authService.printCurrentSessionState()
+                    
+                    isLoading = false
+                    errorMessage = nil
                 }
+                
             } catch {
                 await MainActor.run {
+                    print("❌ SCANNED TOKEN: Login failed - \(error.localizedDescription)")
                     isLoading = false
                     errorMessage = error.localizedDescription
+                    
+                    // Show specific error messages for common cases
+                    if let authError = error as? AuthError {
+                        switch authError {
+                        case .serverError(let msg):
+                            if msg.contains("No children data available") {
+                                errorMessage = "Please ask your parent to log in first to load your profile."
+                            } else if msg.contains("Invalid QR code") {
+                                errorMessage = "Invalid QR code or access code. Please check with your parent."
+                            } else {
+                                errorMessage = msg
+                            }
+                        case .networkError(let msg):
+                            errorMessage = "Network error: \(msg). Please check your connection."
+                        default:
+                            errorMessage = error.localizedDescription
+                        }
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
                 }
             }
         }
@@ -201,13 +238,22 @@ struct ChildQRLoginScreen: View {
     // MARK: – Camera permission
     private func requestCameraPermission() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized: showScanner = true
+        case .authorized:
+            showScanner = true
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
-                DispatchQueue.main.async { if granted { showScanner = true } }
+                DispatchQueue.main.async {
+                    if granted {
+                        showScanner = true
+                    } else {
+                        showPermissionAlert = true
+                    }
+                }
             }
-        case .denied, .restricted: showPermissionAlert = true
-        @unknown default: break
+        case .denied, .restricted:
+            showPermissionAlert = true
+        @unknown default:
+            break
         }
     }
 
@@ -303,6 +349,7 @@ private struct CodeEntrySheet: View {
         .presentationDragIndicator(.visible)
     }
 }
+
 // MARK: – Decorative Elements
 private struct DecorativeElementsChildLogin: View {
     var body: some View {
