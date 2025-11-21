@@ -1,5 +1,5 @@
 //
-//  ChildDetailScreen.swift - Enhanced with Quiz Results
+//  ChildDetailScreen.swift - Enhanced with Full Quiz Results for Parents
 //  EduKid
 //
 //  Updated: November 16, 2025
@@ -14,6 +14,8 @@ struct ChildDetailScreen: View {
     @State private var selectedTab = 0
     @State private var quizzes: [AIQuizResponse] = []
     @State private var isLoading = false
+    @State private var selectedQuiz: AIQuizResponse?
+    @State private var showQuizDetail = false
     @EnvironmentObject var authVM: AuthViewModel
     
     let tabs = ["Overview", "Quiz Results"]
@@ -183,9 +185,17 @@ struct ChildDetailScreen: View {
                             averageScore: averageScore
                         )
                     } else {
-                        QuizResultsTab(quizzes: completedQuizzes)
+                        QuizResultsTab(quizzes: completedQuizzes) { quiz in
+                            selectedQuiz = quiz
+                            showQuizDetail = true
+                        }
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $showQuizDetail) {
+            if let quiz = selectedQuiz {
+                ParentQuizDetailView(quiz: quiz, child: child)
             }
         }
         .onAppear {
@@ -322,6 +332,7 @@ struct StatsCardDetail: View {
 // MARK: - Quiz Results Tab
 struct QuizResultsTab: View {
     let quizzes: [AIQuizResponse]
+    let onQuizTap: (AIQuizResponse) -> Void
     
     var body: some View {
         if quizzes.isEmpty {
@@ -345,7 +356,9 @@ struct QuizResultsTab: View {
             ScrollView {
                 LazyVStack(spacing: 12) {
                     ForEach(quizzes) { quiz in
-                        AIQuizResultCard(quiz: quiz)
+                        Button(action: { onQuizTap(quiz) }) {
+                            AIQuizResultCard(quiz: quiz)
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -451,6 +464,17 @@ struct AIQuizResultCard: View {
                     }
                 }
             }
+            
+            // "View Details" indicator
+            HStack {
+                Spacer()
+                Text("Tap to view details")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(red: 0.686, green: 0.494, blue: 0.906))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(red: 0.686, green: 0.494, blue: 0.906))
+            }
         }
         .padding(16)
         .background(Color.white.opacity(0.95))
@@ -465,6 +489,293 @@ struct AIQuizResultCard: View {
             return displayFormatter.string(from: date)
         }
         return "Recent"
+    }
+}
+
+// MARK: - Parent Quiz Detail View
+struct ParentQuizDetailView: View {
+    let quiz: AIQuizResponse
+    let child: Child
+    
+    @Environment(\.dismiss) var dismiss
+    @State private var showAllQuestions = false
+    
+    // Calculate results from quiz data
+    var totalQuestions: Int {
+        quiz.questions.count
+    }
+    
+    var correctAnswers: Int {
+        // Since we don't have individual answer tracking, use the score
+        Int(Double(quiz.score) / 100.0 * Double(totalQuestions))
+    }
+    
+    var incorrectAnswers: Int {
+        totalQuestions - correctAnswers
+    }
+    
+    var body: some View {
+        ZStack {
+            // Background
+            RadialGradient(
+                gradient: Gradient(colors: [
+                    Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
+                    Color(red: 0.153, green: 0.125, blue: 0.322)
+                ]),
+                center: .init(x: 0.3, y: 0.3),
+                startRadius: 50,
+                endRadius: 400
+            )
+            .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 32) {
+                    // Header
+                    HStack {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        
+                        Spacer()
+                        
+                        Text("Quiz Results")
+                            .font(.title3.bold())
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                        
+                        // Placeholder for symmetry
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.clear)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    
+                    // Child Info
+                    HStack(spacing: 12) {
+                        Image(child.avatarEmoji)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 50, height: 50)
+                            .background(Color.white.opacity(0.3))
+                            .clipShape(Circle())
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(child.name)
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            Text("\(child.age) years old")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(16)
+                    .background(Color.white.opacity(0.15))
+                    .cornerRadius(16)
+                    .padding(.horizontal, 20)
+                    
+                    // Score Circle
+                    ZStack {
+                        Circle()
+                            .stroke(Color.white.opacity(0.3), lineWidth: 20)
+                            .frame(width: 200, height: 200)
+                        
+                        Circle()
+                            .trim(from: 0, to: Double(quiz.score) / 100.0)
+                            .stroke(
+                                quiz.score >= 80 ? Color.green :
+                                quiz.score >= 60 ? Color.orange : Color.red,
+                                style: StrokeStyle(lineWidth: 20, lineCap: .round)
+                            )
+                            .frame(width: 200, height: 200)
+                            .rotationEffect(.degrees(-90))
+                        
+                        VStack(spacing: 8) {
+                            Text("\(quiz.score)%")
+                                .font(.system(size: 48, weight: .bold))
+                                .foregroundColor(.white)
+                            
+                            Text("\(correctAnswers)/\(totalQuestions)")
+                                .font(.title3)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                    }
+                    
+                    // Quiz Info
+                    VStack(spacing: 16) {
+                        HStack {
+                            Text("Topic")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.7))
+                            Spacer()
+                            Text(quiz.topic.capitalized)
+                                .font(.subheadline.bold())
+                                .foregroundColor(.white)
+                        }
+                        
+                        HStack {
+                            Text("Subject")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.7))
+                            Spacer()
+                            Text(quiz.subject.capitalized)
+                                .font(.subheadline.bold())
+                                .foregroundColor(.white)
+                        }
+                        
+                        HStack {
+                            Text("Difficulty")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.7))
+                            Spacer()
+                            Text(quiz.difficulty.capitalized)
+                                .font(.subheadline.bold())
+                                .foregroundColor(.white)
+                        }
+                        
+                        Divider()
+                            .background(Color.white.opacity(0.3))
+                        
+                        HStack {
+                            Text("Correct Answers")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.7))
+                            Spacer()
+                            Text("\(correctAnswers)")
+                                .font(.subheadline.bold())
+                                .foregroundColor(.green)
+                        }
+                        
+                        HStack {
+                            Text("Incorrect Answers")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.7))
+                            Spacer()
+                            Text("\(incorrectAnswers)")
+                                .font(.subheadline.bold())
+                                .foregroundColor(.red)
+                        }
+                    }
+                    .padding(24)
+                    .background(Color.white.opacity(0.15))
+                    .cornerRadius(16)
+                    .padding(.horizontal, 20)
+                    
+                    // All Questions Button
+                    Button(action: { showAllQuestions.toggle() }) {
+                        HStack {
+                            Image(systemName: showAllQuestions ? "chevron.up" : "chevron.down")
+                            Text(showAllQuestions ? "Hide All Questions" : "View All Questions")
+                                .font(.headline)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color.blue.opacity(0.7))
+                        .cornerRadius(16)
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    // Questions List
+                    if showAllQuestions {
+                        VStack(spacing: 16) {
+                            ForEach(Array(quiz.questions.enumerated()), id: \.offset) { index, question in
+                                ParentQuestionCard(
+                                    questionNumber: index + 1,
+                                    question: question
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                    
+                    Spacer().frame(height: 40)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Parent Question Card
+struct ParentQuestionCard: View {
+    let questionNumber: Int
+    let question: AIQuestion
+    
+    let letters = ["A", "B", "C", "D"]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Question
+            HStack(alignment: .top, spacing: 8) {
+                Text("\(questionNumber).")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                Text(question.questionText)
+                    .font(.body)
+                    .foregroundColor(.white)
+            }
+            
+            Divider()
+                .background(Color.white.opacity(0.3))
+            
+            // Options
+            VStack(spacing: 8) {
+                ForEach(Array(question.options.enumerated()), id: \.offset) { index, option in
+                    HStack {
+                        ZStack {
+                            Circle()
+                                .fill(index == question.correctAnswerIndex ? Color.green.opacity(0.3) : Color.white.opacity(0.2))
+                                .frame(width: 30, height: 30)
+                            
+                            Text(letters[index])
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                        
+                        Text(option)
+                            .font(.body)
+                            .foregroundColor(.white.opacity(0.9))
+                        
+                        Spacer()
+                        
+                        if index == question.correctAnswerIndex {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            
+            // Explanation
+            if let explanation = question.explanation {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "lightbulb.fill")
+                            .foregroundColor(.yellow)
+                        Text("Explanation")
+                            .font(.subheadline.bold())
+                            .foregroundColor(.white)
+                    }
+                    
+                    Text(explanation)
+                        .font(.body)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+                .padding(12)
+                .background(Color.white.opacity(0.1))
+                .cornerRadius(8)
+            }
+        }
+        .padding(20)
+        .background(Color.white.opacity(0.15))
+        .cornerRadius(16)
     }
 }
 

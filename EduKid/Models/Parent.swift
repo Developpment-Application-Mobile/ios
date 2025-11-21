@@ -16,10 +16,6 @@ struct parent: Identifiable {
     var totalScore: Int
     let isActive: Bool
     
-    
-    
-    
-    
 }
 
 

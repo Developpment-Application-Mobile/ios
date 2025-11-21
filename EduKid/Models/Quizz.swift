@@ -1,9 +1,8 @@
 //
-//  Quizz.swift
+//  Quiz.swift
 //  EduKid
 //
-//  Created by Mac Mini 11 on 6/11/2025.
-//  Fixed: November 15, 2025 – Type ambiguity and naming consistency
+//  Fixed: November 22, 2025 - Match backend schema, fixed typo
 //
 
 import Foundation
@@ -11,31 +10,38 @@ import SwiftUI
 
 struct quiz: Identifiable {
     var id: String?
-    let title: String
-    let category: String
+    var title: String
+    var category: String
     var description: String?
-    var duration: Int? // in minutes
+    var duration: Int?
     var questions: [Question]
     var completionPercentage: Int?
     var type: quizType?
     
-    // Custom coding keys to match backend
+    // Backend fields
+    var answered: Int?
+    var isAnswered: Bool?
+    var score: Int?
+    
     private enum CodingKeys: String, CodingKey {
         case id = "_id"
-        case title, category, description, duration, questions
+        case title
+        case category
+        case type
+        case description
+        case duration
+        case questions
+        case answered
+        case isAnswered
+        case score
     }
     
     // Computed property to get quizType from category
     var categoryType: quizType {
-        quizType(rawValue: category) ?? .general
+        quizType(rawValue: category.lowercased()) ?? .general
     }
     
-    // Computed property for type-safe category access
-    var categoryEnum: quizType? {
-        quizType(rawValue: category)
-    }
-    
-    // Initialize
+    // Initialize - FIXED: removed extra "A" after category
     init(id: String? = nil,
          title: String,
          category: String,
@@ -43,7 +49,10 @@ struct quiz: Identifiable {
          duration: Int? = nil,
          questions: [Question] = [],
          completionPercentage: Int? = nil,
-         type: quizType? = nil) {
+         type: quizType? = nil,
+         answered: Int? = nil,
+         isAnswered: Bool? = nil,
+         score: Int? = nil) {
         self.id = id
         self.title = title
         self.category = category
@@ -51,7 +60,10 @@ struct quiz: Identifiable {
         self.duration = duration
         self.questions = questions
         self.completionPercentage = completionPercentage
-        self.type = type ?? quizType(rawValue: category)
+        self.type = type ?? quizType(rawValue: category.lowercased())
+        self.answered = answered
+        self.isAnswered = isAnswered
+        self.score = score
     }
 }
 
@@ -62,23 +74,38 @@ typealias Quiz = quiz
 extension quiz: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        
         id = try container.decodeIfPresent(String.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
-        category = try container.decode(String.self, forKey: .category)
+        
+        // Handle category/type - backend uses "type" field
+        if let typeStr = try container.decodeIfPresent(String.self, forKey: .type) {
+            category = typeStr
+            type = quizType(rawValue: typeStr.lowercased())
+        } else if let cat = try container.decodeIfPresent(String.self, forKey: .category) {
+            category = cat
+            type = quizType(rawValue: cat.lowercased())
+        } else {
+            category = "general"
+            type = .general
+        }
+        
         description = try container.decodeIfPresent(String.self, forKey: .description)
         duration = try container.decodeIfPresent(Int.self, forKey: .duration)
         questions = try container.decodeIfPresent([Question].self, forKey: .questions) ?? []
+        answered = try container.decodeIfPresent(Int.self, forKey: .answered)
+        isAnswered = try container.decodeIfPresent(Bool.self, forKey: .isAnswered)
+        score = try container.decodeIfPresent(Int.self, forKey: .score)
         completionPercentage = nil
-        type = quizType(rawValue: category)
     }
     
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        
         try container.encodeIfPresent(id, forKey: .id)
         try container.encode(title, forKey: .title)
-        try container.encode(category, forKey: .category)
+        try container.encode(category, forKey: .type)  // Backend expects "type"
         
-        // Fix: Explicitly type the optional values
         if let desc = description {
             try container.encode(desc, forKey: .description)
         }
@@ -88,6 +115,18 @@ extension quiz: Codable {
         }
         
         try container.encode(questions, forKey: .questions)
+        
+        if let ans = answered {
+            try container.encode(ans, forKey: .answered)
+        }
+        
+        if let isAns = isAnswered {
+            try container.encode(isAns, forKey: .isAnswered)
+        }
+        
+        if let sc = score {
+            try container.encode(sc, forKey: .score)
+        }
     }
 }
 
@@ -127,8 +166,7 @@ class QuizService {
         }
         
         let decoder = JSONDecoder()
-        let quizzes = try decoder.decode([quiz].self, from: data)
-        return quizzes
+        return try decoder.decode([quiz].self, from: data)
     }
     
     func createQuiz(parentId: String, kidId: String, quiz quizData: quiz) async throws -> quiz {
@@ -146,24 +184,16 @@ class QuizService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
         
-        let encoder = JSONEncoder()
-        let httpBody = try encoder.encode(quizData)
-        request.httpBody = httpBody
+        request.httpBody = try JSONEncoder().encode(quizData)
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        
-        if let raw = String(data: data, encoding: .utf8) {
-            print("CREATE QUIZ RAW: \(raw)")
-        }
         
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
             throw AuthError.serverError("Failed to create quiz")
         }
         
-        let decoder = JSONDecoder()
-        let createdQuiz = try decoder.decode(quiz.self, from: data)
-        return createdQuiz
+        return try JSONDecoder().decode(quiz.self, from: data)
     }
     
     func updateQuiz(parentId: String, kidId: String, quizId: String, quiz quizData: quiz) async throws -> quiz {
@@ -181,9 +211,7 @@ class QuizService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
         
-        let encoder = JSONEncoder()
-        let httpBody = try encoder.encode(quizData)
-        request.httpBody = httpBody
+        request.httpBody = try JSONEncoder().encode(quizData)
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -192,9 +220,7 @@ class QuizService {
             throw AuthError.serverError("Failed to update quiz")
         }
         
-        let decoder = JSONDecoder()
-        let updatedQuiz = try decoder.decode(quiz.self, from: data)
-        return updatedQuiz
+        return try JSONDecoder().decode(quiz.self, from: data)
     }
     
     func deleteQuiz(parentId: String, kidId: String, quizId: String) async throws {
@@ -236,23 +262,16 @@ class QuizService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
         
-        let encoder = JSONEncoder()
-        request.httpBody = try encoder.encode(question)
+        request.httpBody = try JSONEncoder().encode(question)
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        
-        if let raw = String(data: data, encoding: .utf8) {
-            print("ADD QUESTION RAW: \(raw)")
-        }
         
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
             throw AuthError.serverError("Failed to add question")
         }
         
-        let decoder = JSONDecoder()
-        let addedQuestion = try decoder.decode(Question.self, from: data)
-        return addedQuestion
+        return try JSONDecoder().decode(Question.self, from: data)
     }
     
     func updateQuestion(parentId: String, kidId: String, quizId: String, questionId: String, question: Question) async throws -> Question {
@@ -270,8 +289,7 @@ class QuizService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
         
-        let encoder = JSONEncoder()
-        request.httpBody = try encoder.encode(question)
+        request.httpBody = try JSONEncoder().encode(question)
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -280,13 +298,11 @@ class QuizService {
             throw AuthError.serverError("Failed to update question")
         }
         
-        let decoder = JSONDecoder()
-        let updatedQuestion = try decoder.decode(Question.self, from: data)
-        return updatedQuestion
+        return try JSONDecoder().decode(Question.self, from: data)
     }
     
     func deleteQuestion(parentId: String, kidId: String, quizId: String, questionId: String) async throws {
-        guard let url = URL(string: "\(baseURL)/parents/\(parentId)/kids/\(kidId)/quizzes/\(quizId)") else {
+        guard let url = URL(string: "\(baseURL)/parents/\(parentId)/kids/\(kidId)/quizzes/\(quizId)/questions/\(questionId)") else {
             throw AuthError.invalidURL
         }
         

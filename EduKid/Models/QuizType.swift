@@ -2,19 +2,31 @@
 //  QuizType.swift
 //  EduKid
 //
-//  Created by Mac Mini 11 on 6/11/2025.
+//  Fixed: November 22, 2025 - Match backend lowercase values
 //
 
 import Foundation
 import SwiftUI
 
 enum quizType: String, Codable, CaseIterable {
-    case math = "Math"
-    case science = "Science"
-    case english = "English"
-    case history = "History"
-    case geography = "Geography"
-    case general = "General"
+    case math = "math"
+    case science = "science"
+    case english = "english"
+    case history = "history"
+    case geography = "geography"
+    case general = "general"
+    case mixed = "mixed"  // Added for "Getting Started Quiz"
+    
+    // Display name for UI
+    var displayName: String {
+        switch self {
+        case .math: return "Math"
+        case .science: return "Science"
+        case .english: return "English"
+        case .history: return "History"
+        case .geography: return "Geography"
+        case .general: return "General"
+        case .mixed: return "Mixed"
+        }
+    }
 }
-
-

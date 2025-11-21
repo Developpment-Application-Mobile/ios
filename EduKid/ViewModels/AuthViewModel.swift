@@ -18,27 +18,32 @@ class AuthViewModel: ObservableObject {
         case childQRLogin
         case childHome(Child)
         case qrCodeDisplay(Child)
+        case resetPassword(token: String)  // 👈 ADD THIS LINE
+
         
         static func == (lhs: AuthState, rhs: AuthState) -> Bool {
-            switch (lhs, rhs) {
-            case (.splash, .splash), (.welcome, .welcome),
-                (.parentSignUp, .parentSignUp), (.parentSignIn, .parentSignIn),
-                (.forgotPassword, .forgotPassword),
-                (.parentDashboard, .parentDashboard), (.parentProfile, .parentProfile),
-                (.editParentProfile, .editParentProfile),
-                (.addChild, .addChild), (.childQRLogin, .childQRLogin):
-                return true
-                
-            case let (.childDetail(c1), .childDetail(c2)),
-                let (.editChildProfile(c1), .editChildProfile(c2)),
-                let (.childHome(c1), .childHome(c2)),
-                let (.qrCodeDisplay(c1), .qrCodeDisplay(c2)):
-                return c1.id == c2.id
-                
-            default:
-                return false
+                switch (lhs, rhs) {
+                case (.splash, .splash), (.welcome, .welcome),
+                    (.parentSignUp, .parentSignUp), (.parentSignIn, .parentSignIn),
+                    (.forgotPassword, .forgotPassword),
+                    (.parentDashboard, .parentDashboard), (.parentProfile, .parentProfile),
+                    (.editParentProfile, .editParentProfile),
+                    (.addChild, .addChild), (.childQRLogin, .childQRLogin):
+                    return true
+                    
+                case let (.resetPassword(t1), .resetPassword(t2)):  // 👈 ADD THIS LINE
+                    return t1 == t2
+                    
+                case let (.childDetail(c1), .childDetail(c2)),
+                    let (.editChildProfile(c1), .editChildProfile(c2)),
+                    let (.childHome(c1), .childHome(c2)),
+                    let (.qrCodeDisplay(c1), .qrCodeDisplay(c2)):
+                    return c1.id == c2.id
+                    
+                default:
+                    return false
+                }
             }
-        }
     }
     
     
@@ -329,6 +334,67 @@ class AuthViewModel: ObservableObject {
     }
     
     // MARK: - Forgot Password
+    
+    
+    func resetPassword(token: String, newPassword: String, confirm: String) {
+        print("🔄 resetPassword called with token: \(token.prefix(10))...")
+        
+        errorMessage = nil
+        successMessage = nil
+
+        guard !newPassword.isEmpty, !confirm.isEmpty else {
+            errorMessage = "Please fill all fields"
+            return
+        }
+
+        guard newPassword == confirm else {
+            errorMessage = "Passwords do not match"
+            return
+        }
+
+        guard newPassword.count >= 6 else {
+            errorMessage = "Password must be at least 6 characters"
+            return
+        }
+
+        isLoading = true
+
+        Task {
+            do {
+                print("🔄 Calling authService.resetPassword...")
+                try await authService.resetPassword(token: token, newPassword: newPassword)
+
+                await MainActor.run {
+                    isLoading = false
+                    successMessage = "Password updated successfully!"
+                    print("✅ Password reset successful, showing success message")
+
+                    // 🆕 CRITICAL: Only navigate after user has seen the success message
+                    // Remove the auto-navigation for now - let user click "Back to Sign In"
+                    // DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                    //     self?.authState = .parentSignIn
+                    //     self?.successMessage = nil
+                    // }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = error.localizedDescription
+                    print("❌ Password reset failed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    // Add this to your AuthViewModel
+    func handleResetPasswordToken(_ token: String) {
+        print("🔄 Handling reset password token: \(token)")
+        // Clear any existing messages when navigating to reset screen
+        errorMessage = nil
+        successMessage = nil
+        authState = .resetPassword(token: token)
+    }
+    
     func requestPasswordReset(email: String) {
         errorMessage = nil
         successMessage = nil

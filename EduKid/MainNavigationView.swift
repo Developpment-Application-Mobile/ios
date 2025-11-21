@@ -43,37 +43,22 @@ struct MainNavigationView: View {
             )
 
         case .forgotPassword:
-            ForgotPasswordScreen(
-                onResetPasswordClick: { email in
-                    authVM.requestPasswordReset(email: email)
-                },
-                onBackToSignInClick: { authVM.authState = .parentSignIn },
-                isLoading: authVM.isLoading,
-                errorMessage: authVM.errorMessage,
-                successMessage: authVM.successMessage
-            )
-
-       /* case .parentDashboard:
-            if let parent = authVM.currentUser {
-                ParentDashboardScreen(
-                    parent: parent,
-                    onAddChildClick: { authVM.authState = .addChild },
-                    onChildClick: authVM.selectChild,
-                    onLogoutClick: authVM.signOut,
-                    onProfileClick: { authVM.authState = .parentProfile }
-                )
+            ForgotPasswordScreen()
                 .environmentObject(authVM)
-            } else {
-                EmptyView()
-            }*/
+            
+            
+        case .resetPassword(let token):
+            ResetPasswordScreen(token: token)
+                .environmentObject(authVM)
+            
             
         case .parentDashboard:
-                    if let parent = authVM.currentUser {
-                        ParentTabView(parent: parent)
-                            .environmentObject(authVM)
-                    } else {
-                        EmptyView()
-                    }
+            if let parent = authVM.currentUser {
+                ParentTabView(parent: parent)
+                    .environmentObject(authVM)
+            } else {
+                EmptyView()
+            }
             
         case .parentProfile:
             ParentProfileScreen()
@@ -91,7 +76,7 @@ struct MainNavigationView: View {
 
         case .childDetail(let child):
             ChildDetailScreen(
-                child: child,  // ✅ No quizResults parameter needed
+                child: child,
                 onBackClick: { authVM.authState = .parentDashboard },
                 onAssignQuizClick: { },
                 onGenerateQRClick: { authVM.showQRCode(for: child) },
@@ -125,5 +110,4 @@ struct MainNavigationView: View {
                 .onAppear { authVM.selectedChild = child }
         }
     }
-
 }

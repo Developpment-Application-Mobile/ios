@@ -1,9 +1,10 @@
 //
-//  Quiz Management Views
+//  Quiz Management Views - COMPLETE
 //  EduKid
 //
-//  Created: November 15, 2025
-//  Fixed: November 15, 2025 - Type consistency
+//  Updated: November 22, 2025
+//  Added missing views: AddQuestionView, EditQuestionView, EditQuizView
+//  Fixed to match backend schema
 //
 
 import SwiftUI
@@ -26,12 +27,9 @@ struct AddQuizView: View {
                     TextField("Title", text: $title)
                     
                     Picker("Category", selection: $selectedType) {
-                        Text("Math").tag(quizType.math)
-                        Text("Science").tag(quizType.science)
-                        Text("English").tag(quizType.english)
-                        Text("History").tag(quizType.history)
-                        Text("Geography").tag(quizType.geography)
-                        Text("General").tag(quizType.general)
+                        ForEach(quizType.allCases, id: \.self) { type in
+                            Text(type.displayName).tag(type)
+                        }
                     }
                     
                     TextField("Description (optional)", text: $description)
@@ -43,9 +41,7 @@ struct AddQuizView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .navigationBarItems(
-                leading: Button("Cancel") {
-                    dismiss()
-                },
+                leading: Button("Cancel") { dismiss() },
                 trailing: Button("Save") {
                     let newQuiz = quiz(
                         title: title,
@@ -53,7 +49,10 @@ struct AddQuizView: View {
                         description: description.isEmpty ? nil : description,
                         duration: Int(duration),
                         questions: [],
-                        type: selectedType
+                        type: selectedType,
+                        answered: 0,
+                        isAnswered: false,
+                        score: 0
                     )
                     onSave(newQuiz)
                     dismiss()
@@ -64,399 +63,291 @@ struct AddQuizView: View {
     }
 }
 
-// MARK: - Quiz Detail View
-struct QuizDetailView: View {
+// MARK: - Add Question View
+struct AddQuestionView: View {
     let quiz: quiz
     let child: Child
-    let onUpdate: () async -> Void
+    let onSave: (Question) -> Void
     
-    @State private var localQuiz: quiz
-    @State private var showAddQuestion = false
-    @State private var showEditQuiz = false
-    @State private var showDeleteAlert = false
-    @State private var questionToDelete: Question?
-    @State private var questionToEdit: Question?
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @Environment(\.dismiss) var dismiss
+    @State private var questionText = ""
+    @State private var options: [String] = ["", "", "", ""]
+    @State private var correctAnswerIndex = 0
+    @State private var explanation = ""
+    @State private var selectedType = "general"
+    @State private var selectedLevel = "beginner"
     
-    init(quiz: quiz, child: Child, onUpdate: @escaping () async -> Void) {
-        self.quiz = quiz
-        self.child = child
-        self.onUpdate = onUpdate
-        _localQuiz = State(initialValue: quiz)
-    }
+    let types = ["math", "science", "english", "history", "geography", "general"]
+    let levels = ["beginner", "intermediate", "advanced"]
     
     var body: some View {
-        ZStack {
-            // Background
-            Color(red: 0.153, green: 0.125, blue: 0.322)
-                .ignoresSafeArea()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Quiz Header
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(localQuiz.title)
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        Text(localQuiz.category)
-                            .font(.title3)
-                            .foregroundColor(.white.opacity(0.8))
-                        
-                        if let description = localQuiz.description {
-                            Text(description)
-                                .font(.body)
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        
-                        HStack(spacing: 16) {
-                            Label("\(localQuiz.questions.count) questions", systemImage: "questionmark.circle.fill")
-                            
-                            if let duration = localQuiz.duration {
-                                Label("\(duration) min", systemImage: "clock.fill")
-                            }
-                        }
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.6))
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(16)
-                    
-                    // Action Buttons
-                    HStack(spacing: 12) {
-                        Button(action: { showEditQuiz = true }) {
-                            Label("Edit Quiz", systemImage: "pencil")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue.opacity(0.8))
-                                .foregroundColor(.white)
-                                .cornerRadius(12)
-                        }
-                        
-                        Button(action: { showDeleteAlert = true }) {
-                            Label("Delete", systemImage: "trash")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.red.opacity(0.8))
-                                .foregroundColor(.white)
-                                .cornerRadius(12)
-                        }
-                    }
-                    
-                    // Error message
-                    if let error = errorMessage {
-                        Text(error)
-                            .font(.subheadline)
-                            .foregroundColor(.red)
-                            .padding()
-                            .background(Color.white.opacity(0.9))
-                            .cornerRadius(8)
-                    }
-                    
-                    // Questions Section
-                    VStack(alignment: .leading, spacing: 12) {
+        NavigationStack {
+            Form {
+                Section("Question") {
+                    TextField("Enter your question", text: $questionText, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+                
+                Section("Options") {
+                    ForEach(0..<4, id: \.self) { index in
                         HStack {
-                            Text("Questions")
-                                .font(.title2.bold())
-                                .foregroundColor(.white)
+                            TextField("Option \(["A", "B", "C", "D"][index])", text: $options[index])
                             
-                            Spacer()
-                            
-                            Button(action: { showAddQuestion = true }) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        
-                        if localQuiz.questions.isEmpty {
-                            VStack(spacing: 12) {
-                                Image(systemName: "questionmark.circle")
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.white.opacity(0.5))
-                                Text("No questions yet")
-                                    .font(.headline)
-                                    .foregroundColor(.white.opacity(0.7))
-                                Text("Tap + to add questions")
-                                    .font(.subheadline)
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(40)
-                            .background(Color.white.opacity(0.1))
-                            .cornerRadius(12)
-                        } else {
-                            ForEach(Array(localQuiz.questions.enumerated()), id: \.element.id) { index, question in
-                                QuestionCardView(
-                                    question: question,
-                                    index: index + 1,
-                                    onEdit: {
-                                        questionToEdit = question
-                                    },
-                                    onDelete: {
-                                        questionToDelete = question
-                                    }
-                                )
+                            if correctAnswerIndex == index {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
                             }
                         }
                     }
                 }
-                .padding()
-            }
-            
-            if isLoading {
-                ZStack {
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                    
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.5)
+                
+                Section("Correct Answer") {
+                    Picker("Select correct answer", selection: $correctAnswerIndex) {
+                        ForEach(0..<4, id: \.self) { index in
+                            Text("Option \(["A", "B", "C", "D"][index])").tag(index)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
-            }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showAddQuestion) {
-            AddQuestionView(quiz: localQuiz, child: child) { newQuestion in
-                Task {
-                    await addQuestion(newQuestion)
-                }
-            }
-        }
-        .sheet(item: $questionToEdit) { question in
-            EditQuestionView(question: question, quiz: localQuiz, child: child) { updatedQuestion in
-                Task {
-                    await updateQuestion(updatedQuestion)
-                }
-            }
-        }
-        .sheet(isPresented: $showEditQuiz) {
-            EditQuizView(quiz: localQuiz, child: child) { updatedQuiz in
-                Task {
-                    await updateQuiz(updatedQuiz)
-                }
-            }
-        }
-        .alert("Delete Question", isPresented: .constant(questionToDelete != nil)) {
-            Button("Cancel", role: .cancel) {
-                questionToDelete = nil
-            }
-            Button("Delete", role: .destructive) {
-                if let question = questionToDelete {
-                    Task {
-                        await deleteQuestion(question)
+                
+                Section("Type & Level") {
+                    Picker("Type", selection: $selectedType) {
+                        ForEach(types, id: \.self) { t in
+                            Text(t.capitalized).tag(t)
+                        }
+                    }
+                    Picker("Level", selection: $selectedLevel) {
+                        ForEach(levels, id: \.self) { l in
+                            Text(l.capitalized).tag(l)
+                        }
                     }
                 }
-            }
-        } message: {
-            Text("Are you sure you want to delete this question?")
-        }
-        .alert("Delete Quiz", isPresented: $showDeleteAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                Task {
-                    await deleteQuiz()
+                
+                Section("Explanation (Optional)") {
+                    TextField("Why is this the correct answer?", text: $explanation, axis: .vertical)
+                        .lineLimit(2...4)
                 }
             }
-        } message: {
-            Text("Are you sure you want to delete this quiz? This action cannot be undone.")
-        }
-    }
-    
-    // MARK: - Question Management
-    private func addQuestion(_ question: Question) async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let addedQuestion = try await QuizService.shared.addQuestion(
-                parentId: AuthService.shared.getParentId() ?? "",
-                kidId: child.id,
-                quizId: localQuiz.id ?? "",
-                question: question
-            )
-            
-            await MainActor.run {
-                localQuiz.questions.append(addedQuestion)
-                isLoading = false
-                showAddQuestion = false
-            }
-        } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isLoading = false
-            }
-        }
-    }
-    
-    private func updateQuestion(_ question: Question) async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let updatedQuestion = try await QuizService.shared.updateQuestion(
-                parentId: AuthService.shared.getParentId() ?? "",
-                kidId: child.id,
-                quizId: localQuiz.id ?? "",
-                questionId: question.id ?? "",
-                question: question
-            )
-            
-            await MainActor.run {
-                if let index = localQuiz.questions.firstIndex(where: { $0.id == question.id }) {
-                    localQuiz.questions[index] = updatedQuestion
+            .navigationTitle("Add Question")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
                 }
-                isLoading = false
-                questionToEdit = nil
-            }
-        } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isLoading = false
-            }
-        }
-    }
-    
-    private func deleteQuestion(_ question: Question) async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            try await QuizService.shared.deleteQuestion(
-                parentId: AuthService.shared.getParentId() ?? "",
-                kidId: child.id,
-                quizId: localQuiz.id ?? "",
-                questionId: question.id ?? ""
-            )
-            
-            await MainActor.run {
-                localQuiz.questions.removeAll { $0.id == question.id }
-                isLoading = false
-                questionToDelete = nil
-            }
-        } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isLoading = false
-                questionToDelete = nil
-            }
-        }
-    }
-    
-    private func updateQuiz(_ quizData: quiz) async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let updatedQuiz = try await QuizService.shared.updateQuiz(
-                parentId: AuthService.shared.getParentId() ?? "",
-                kidId: child.id,
-                quizId: localQuiz.id ?? "",
-                quiz: quizData
-            )
-            
-            await MainActor.run {
-                localQuiz = updatedQuiz
-                isLoading = false
-                showEditQuiz = false
-            }
-        } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isLoading = false
-            }
-        }
-    }
-    
-    private func deleteQuiz() async {
-        isLoading = true
-        
-        do {
-            try await QuizService.shared.deleteQuiz(
-                parentId: AuthService.shared.getParentId() ?? "",
-                kidId: child.id,
-                quizId: localQuiz.id ?? ""
-            )
-            
-            await MainActor.run {
-                isLoading = false
-                dismiss()
-            }
-            
-            await onUpdate()
-        } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isLoading = false
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        let filteredOptions = options.filter { !$0.isEmpty }
+                        let newQuestion = Question(
+                            questionText: questionText,
+                            options: filteredOptions,
+                            correctAnswer: filteredOptions[correctAnswerIndex],
+                            correctAnswerIndex: correctAnswerIndex,
+                            explanation: explanation.isEmpty ? nil : explanation,
+                            type: selectedType,
+                            level: selectedLevel
+                        )
+                        onSave(newQuestion)
+                        dismiss()
+                    }
+                    .disabled(questionText.isEmpty || options.filter { !$0.isEmpty }.count < 2)
+                }
             }
         }
     }
 }
 
-// MARK: - Question Card View
-struct QuestionCardView: View {
+// MARK: - Edit Question View
+struct EditQuestionView: View {
     let question: Question
-    let index: Int
-    let onEdit: () -> Void
-    let onDelete: () -> Void
+    let quiz: quiz
+    let child: Child
+    let onSave: (Question) -> Void
+    
+    @Environment(\.dismiss) var dismiss
+    @State private var questionText: String
+    @State private var options: [String]
+    @State private var correctAnswerIndex: Int
+    @State private var explanation: String
+    @State private var selectedType: String
+    @State private var selectedLevel: String
+    
+    let types = ["math", "science", "english", "history", "geography", "general"]
+    let levels = ["beginner", "intermediate", "advanced"]
+    
+    init(question: Question, quiz: quiz, child: Child, onSave: @escaping (Question) -> Void) {
+        self.question = question
+        self.quiz = quiz
+        self.child = child
+        self.onSave = onSave
+        
+        _questionText = State(initialValue: question.questionText)
+        
+        var opts = question.options
+        while opts.count < 4 { opts.append("") }
+        _options = State(initialValue: opts)
+        
+        let correctIdx = question.correctAnswerIndex ?? question.options.firstIndex(of: question.correctAnswer) ?? 0
+        _correctAnswerIndex = State(initialValue: correctIdx)
+        _explanation = State(initialValue: question.explanation ?? "")
+        _selectedType = State(initialValue: question.type ?? "general")
+        _selectedLevel = State(initialValue: question.level ?? "beginner")
+    }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Question Number and Text
-            HStack(alignment: .top) {
-                Text("\(index).")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(width: 30, alignment: .leading)
+        NavigationStack {
+            Form {
+                Section("Question") {
+                    TextField("Enter your question", text: $questionText, axis: .vertical)
+                        .lineLimit(3...6)
+                }
                 
-                Text(question.questionText)
-                    .font(.body)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                HStack(spacing: 12) {
-                    Button(action: onEdit) {
-                        Image(systemName: "pencil.circle.fill")
-                            .foregroundColor(.blue)
-                    }
-                    
-                    Button(action: onDelete) {
-                        Image(systemName: "trash.circle.fill")
-                            .foregroundColor(.red)
+                Section("Options") {
+                    ForEach(0..<4, id: \.self) { index in
+                        HStack {
+                            TextField("Option \(["A", "B", "C", "D"][index])", text: $options[index])
+                            if correctAnswerIndex == index {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
+                        }
                     }
                 }
-            }
-            
-            // Options
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(question.options, id: \.self) { option in
-                    HStack {
-                        Image(systemName: option == question.correctAnswer ? "checkmark.circle.fill" : "circle")
-                            .foregroundColor(option == question.correctAnswer ? .green : .white.opacity(0.5))
-                        
-                        Text(option)
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.9))
+                
+                Section("Correct Answer") {
+                    Picker("Select correct answer", selection: $correctAnswerIndex) {
+                        ForEach(0..<4, id: \.self) { index in
+                            Text("Option \(["A", "B", "C", "D"][index])").tag(index)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                
+                Section("Type & Level") {
+                    Picker("Type", selection: $selectedType) {
+                        ForEach(types, id: \.self) { t in
+                            Text(t.capitalized).tag(t)
+                        }
+                    }
+                    Picker("Level", selection: $selectedLevel) {
+                        ForEach(levels, id: \.self) { l in
+                            Text(l.capitalized).tag(l)
+                        }
                     }
                 }
+                
+                Section("Explanation (Optional)") {
+                    TextField("Why is this the correct answer?", text: $explanation, axis: .vertical)
+                        .lineLimit(2...4)
+                }
             }
-            .padding(.leading, 30)
-            
-            // Explanation
-            if let explanation = question.explanation, !explanation.isEmpty {
-                Text("💡 \(explanation)")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
-                    .padding(.leading, 30)
+            .navigationTitle("Edit Question")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        let filteredOptions = options.filter { !$0.isEmpty }
+                        let updatedQuestion = Question(
+                            id: question.id,
+                            questionText: questionText,
+                            options: filteredOptions,
+                            correctAnswer: filteredOptions[correctAnswerIndex],
+                            correctAnswerIndex: correctAnswerIndex,
+                            explanation: explanation.isEmpty ? nil : explanation,
+                            type: selectedType,
+                            level: selectedLevel
+                        )
+                        onSave(updatedQuestion)
+                        dismiss()
+                    }
+                    .disabled(questionText.isEmpty || options.filter { !$0.isEmpty }.count < 2)
+                }
             }
         }
-        .padding()
-        .background(Color.white.opacity(0.1))
-        .cornerRadius(12)
     }
 }
+
+// MARK: - Edit Quiz View
+struct EditQuizView: View {
+    let quiz: quiz
+    let child: Child
+    let onSave: (quiz) -> Void
+    
+    @Environment(\.dismiss) var dismiss
+    @State private var title: String
+    @State private var selectedType: quizType
+    @State private var description: String
+    @State private var duration: String
+    
+    init(quiz: quiz, child: Child, onSave: @escaping (quiz) -> Void) {
+        self.quiz = quiz
+        self.child = child
+        self.onSave = onSave
+        
+        _title = State(initialValue: quiz.title)
+        _description = State(initialValue: quiz.description ?? "")
+        _duration = State(initialValue: quiz.duration != nil ? "\(quiz.duration!)" : "")
+        
+        // Safely unwrap the optional quizType
+        if let t = quiz.type {
+            _selectedType = State(initialValue: t)
+        } else if let t = quizType(rawValue: quiz.category.lowercased()) {
+            _selectedType = State(initialValue: t)
+        } else {
+            _selectedType = State(initialValue: .general)
+        }
+    }
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Quiz Information") {
+                    TextField("Title", text: $title)
+                    
+                    Picker("Category", selection: $selectedType) {
+                        ForEach(quizType.allCases, id: \.self) { type in
+                            Text(type.displayName).tag(type)
+                        }
+                    }
+                    
+                    TextField("Description (optional)", text: $description)
+                    TextField("Duration in minutes (optional)", text: $duration)
+                        .keyboardType(.numberPad)
+                }
+            }
+            .navigationTitle("Edit Quiz")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        let updatedQuiz = Quiz(
+                            id: quiz.id,
+                            title: title,
+                            category: selectedType.rawValue,
+                            description: description.isEmpty ? nil : description,
+                            duration: Int(duration),
+                            questions: quiz.questions,
+                            type: selectedType,
+                            answered: quiz.answered,
+                            isAnswered: quiz.isAnswered,
+                            score: quiz.score
+                        )
+                        onSave(updatedQuiz)
+                        dismiss()
+                    }
+                    .disabled(title.isEmpty)
+                }
+            }
+        }
+    }
+}
+
+// Note: Question, quiz, and quizType models are defined in their respective files:
+// - Question.swift
+// - Quiz.swift
+// - QuizType.swift

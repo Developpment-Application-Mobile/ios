@@ -1,9 +1,9 @@
 //
-//  AIQuizService.swift
+//  AIQuizService.swift - UPDATED
 //  EduKid
 //
-//  Created: November 16, 2025
-//  AI-Generated Quiz Service - FIXED
+//  Updated: November 21, 2025
+//  Synchronized with backend API
 //
 
 import Foundation
@@ -15,7 +15,7 @@ class AIQuizService {
     
     private init() {}
     
-    // MARK: - Generate AI Quiz
+    // MARK: - Generate AI Quiz (Normal or Adaptive)
     func generateAIQuiz(
         parentId: String,
         kidId: String,
@@ -68,10 +68,60 @@ class AIQuizService {
             throw QuizError.serverError("Failed to generate quiz: \(httpResponse.statusCode)")
         }
         
-        // Parse the response - the API returns the quiz directly
         let decoder = JSONDecoder()
         let quizResponse = try decoder.decode(AIQuizResponse.self, from: data)
         print("✅ AI QUIZ: Generated successfully with \(quizResponse.questions.count) questions")
+        
+        return quizResponse
+    }
+    
+    // MARK: - Generate Retry Quiz (Empty body = retry mode)
+    func generateRetryQuiz(
+        parentId: String,
+        kidId: String
+    ) async throws -> AIQuizResponse {
+        let endpoint = "\(baseURL)/parents/\(parentId)/kids/\(kidId)/quizzes"
+        
+        guard let url = URL(string: endpoint) else {
+            throw QuizError.invalidURL
+        }
+        
+        guard let token = AuthService.shared.getToken() else {
+            throw QuizError.noToken
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
+        
+        // Empty body triggers retry mode on backend
+        let requestBody: [String: Any] = [:]
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        
+        print("🔄 RETRY QUIZ: Generating retry quiz based on incorrect answers")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        if let raw = String(data: data, encoding: .utf8) {
+            print("🔄 RETRY QUIZ RAW RESPONSE: \(raw)")
+        }
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw QuizError.invalidResponse
+        }
+        
+        guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
+            if let errorData = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                throw QuizError.serverError(errorData.message ?? "Failed to generate retry quiz")
+            }
+            throw QuizError.serverError("Failed to generate retry quiz: \(httpResponse.statusCode)")
+        }
+        
+        let decoder = JSONDecoder()
+        let quizResponse = try decoder.decode(AIQuizResponse.self, from: data)
+        print("✅ RETRY QUIZ: Generated successfully with \(quizResponse.questions.count) questions")
         
         return quizResponse
     }
@@ -165,16 +215,16 @@ class AIQuizService {
         print("✅ Quiz deleted successfully")
     }
     
-    // MARK: - Submit Quiz Answer
+    // MARK: - Submit Quiz Answer (UPDATED to match backend)
     func submitQuizAnswer(
         parentId: String,
         kidId: String,
         quizId: String,
-        answers: [String: Int]
+        answers: [Int]  // Changed from [String: Int] to [Int]
     ) async throws -> QuizResultResponse {
-        let endpoint = "\(baseURL)/parents/\(parentId)/kids/\(kidId)/quizzes/\(quizId)/submit"
+        let submitEndpoint = "\(baseURL)/parents/\(parentId)/kids/\(kidId)/quizzes/\(quizId)/submit"
         
-        guard let url = URL(string: endpoint) else {
+        guard let url = URL(string: submitEndpoint) else {
             throw QuizError.invalidURL
         }
         
@@ -188,21 +238,98 @@ class AIQuizService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
         
+        // Backend expects: { "answers": [0, 2, 1, 3] }
         let requestBody = ["answers": answers]
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
+        print("📤 SUBMIT QUIZ REQUEST:")
+        print("   URL: \(submitEndpoint)")
+        print("   Answers: \(answers)")
+        
         let (data, response) = try await URLSession.shared.data(for: request)
         
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw QuizError.serverError("Failed to submit answers")
+        if let raw = String(data: data, encoding: .utf8) {
+            print("📥 SUBMIT QUIZ RAW RESPONSE: \(raw)")
         }
         
-        return try JSONDecoder().decode(QuizResultResponse.self, from: data)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw QuizError.invalidResponse
+        }
+        
+        print("📥 SUBMIT QUIZ STATUS CODE: \(httpResponse.statusCode)")
+        
+        guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let errorMsg = errorJson["message"] as? String ??
+                               errorJson["error"] as? String ??
+                               "Failed to submit answers"
+                print("❌ SUBMIT ERROR: \(errorMsg)")
+                throw QuizError.serverError(errorMsg)
+            }
+            throw QuizError.serverError("Failed to submit answers: Status \(httpResponse.statusCode)")
+        }
+        
+        // Parse backend response
+        do {
+            let result = try parseSubmitResponse(from: data)
+            print("✅ SUBMIT SUCCESS: \(result.correctAnswers)/\(result.totalQuestions) - \(result.score)%")
+            return result
+        } catch {
+            print("❌ DECODE ERROR: \(error)")
+            throw QuizError.serverError("Failed to decode quiz result: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Parse Submit Response
+    private func parseSubmitResponse(from data: Data) throws -> QuizResultResponse {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw QuizError.serverError("Invalid response format")
+        }
+        
+        print("🔧 Parsing submit response...")
+        
+        // Backend returns: { quiz, correctAnswers, totalQuestions, score }
+        guard let correctAnswers = json["correctAnswers"] as? Int,
+              let totalQuestions = json["totalQuestions"] as? Int,
+              let score = json["score"] as? Int else {
+            throw QuizError.serverError("Missing required fields in response")
+        }
+        
+        // Quiz object contains updated questions with userAnswerIndex
+        let quizData = json["quiz"] as? [String: Any]
+        let questionsArray = quizData?["questions"] as? [[String: Any]] ?? []
+        
+        // Build answer details from questions
+        var answerDetails: [AnswerDetail] = []
+        for (index, questionDict) in questionsArray.enumerated() {
+            let questionId = questionDict["_id"] as? String ?? "\(index)"
+            let userAnswerIndex = questionDict["userAnswerIndex"] as? Int ?? -1
+            let correctAnswerIndex = questionDict["correctAnswerIndex"] as? Int ?? 0
+            let isCorrect = userAnswerIndex == correctAnswerIndex
+            
+            answerDetails.append(AnswerDetail(
+                questionId: questionId,
+                isCorrect: isCorrect,
+                userAnswer: userAnswerIndex,
+                correctAnswer: correctAnswerIndex
+            ))
+        }
+        
+        let percentage = totalQuestions > 0 ? Double(score) : 0.0
+        
+        print("✅ Parsing successful: \(correctAnswers)/\(totalQuestions) - \(score)%")
+        
+        return QuizResultResponse(
+            score: score,
+            totalQuestions: totalQuestions,
+            percentage: percentage,
+            correctAnswers: correctAnswers,
+            answers: answerDetails
+        )
     }
 }
 
-// MARK: - Models
+// MARK: - Models (UPDATED)
 struct AIQuizResponse: Codable, Identifiable {
     let id: String
     let title: String
@@ -213,6 +340,7 @@ struct AIQuizResponse: Codable, Identifiable {
     let type: String
     let score: Int
     let answered: Int
+    let isAnswered: Bool
     let createdAt: String?
     
     enum CodingKeys: String, CodingKey {
@@ -225,10 +353,10 @@ struct AIQuizResponse: Codable, Identifiable {
         case type
         case score
         case answered
+        case isAnswered
         case createdAt
     }
     
-    // Custom init to provide default values and extract subject/difficulty/topic from title if needed
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -238,13 +366,12 @@ struct AIQuizResponse: Codable, Identifiable {
         type = try container.decodeIfPresent(String.self, forKey: .type) ?? "quiz"
         score = try container.decodeIfPresent(Int.self, forKey: .score) ?? 0
         answered = try container.decodeIfPresent(Int.self, forKey: .answered) ?? 0
+        isAnswered = try container.decodeIfPresent(Bool.self, forKey: .isAnswered) ?? false
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
         
-        // Extract subject, difficulty, and topic from title
-        // Title format: "Beginner Math: Plus and Minus" or "Beginner Math Quiz: Addition"
         let titleStr = title
         
-        // Extract difficulty
+        // Parse difficulty from title or type
         if titleStr.lowercased().contains("beginner") {
             difficulty = "beginner"
         } else if titleStr.lowercased().contains("intermediate") {
@@ -255,40 +382,29 @@ struct AIQuizResponse: Codable, Identifiable {
             difficulty = "beginner"
         }
         
-        // Extract subject
-        if titleStr.lowercased().contains("math") {
+        // Parse subject from title or type
+        if titleStr.lowercased().contains("math") || type.lowercased() == "math" {
             subject = "math"
-        } else if titleStr.lowercased().contains("science") {
+        } else if titleStr.lowercased().contains("science") || type.lowercased() == "science" {
             subject = "science"
-        } else if titleStr.lowercased().contains("english") {
+        } else if titleStr.lowercased().contains("english") || type.lowercased() == "english" {
             subject = "english"
-        } else if titleStr.lowercased().contains("history") {
+        } else if titleStr.lowercased().contains("history") || type.lowercased() == "history" {
             subject = "history"
-        } else if titleStr.lowercased().contains("geography") {
+        } else if titleStr.lowercased().contains("geography") || type.lowercased() == "geography" {
             subject = "geography"
         } else {
-            subject = "general"
+            subject = type
         }
         
-        // Extract topic from title (everything after ":" or fallback to title)
-        if let colonIndex = titleStr.firstIndex(of: ":") {
-            let topicStart = titleStr.index(after: colonIndex)
-            topic = String(titleStr[topicStart...]).trimmingCharacters(in: .whitespaces)
-        } else {
-            // Remove difficulty and subject from title to get topic
-            var topicStr = titleStr
-                .replacingOccurrences(of: "Beginner", with: "", options: .caseInsensitive)
-                .replacingOccurrences(of: "Intermediate", with: "", options: .caseInsensitive)
-                .replacingOccurrences(of: "Advanced", with: "", options: .caseInsensitive)
-                .replacingOccurrences(of: "Math", with: "", options: .caseInsensitive)
-                .replacingOccurrences(of: "Science", with: "", options: .caseInsensitive)
-                .replacingOccurrences(of: "English", with: "", options: .caseInsensitive)
-                .replacingOccurrences(of: "History", with: "", options: .caseInsensitive)
-                .replacingOccurrences(of: "Geography", with: "", options: .caseInsensitive)
-                .replacingOccurrences(of: "Quiz", with: "", options: .caseInsensitive)
-                .trimmingCharacters(in: .whitespaces)
-            
+        // Parse topic from title
+        if let dashIndex = titleStr.firstIndex(of: "-") {
+            let topicStart = titleStr.index(after: dashIndex)
+            var topicStr = String(titleStr[topicStart...]).trimmingCharacters(in: .whitespaces)
+            topicStr = topicStr.replacingOccurrences(of: "Quiz", with: "", options: .caseInsensitive).trimmingCharacters(in: .whitespaces)
             topic = topicStr.isEmpty ? "General" : topicStr
+        } else {
+            topic = "General"
         }
     }
 }
@@ -302,6 +418,7 @@ struct AIQuestion: Codable, Identifiable {
     let imageUrl: String?
     let type: String?
     let level: String?
+    let userAnswerIndex: Int?  // Added field from backend
     
     enum CodingKeys: String, CodingKey {
         case id = "_id"
@@ -312,6 +429,7 @@ struct AIQuestion: Codable, Identifiable {
         case imageUrl
         case type
         case level
+        case userAnswerIndex
     }
 }
 

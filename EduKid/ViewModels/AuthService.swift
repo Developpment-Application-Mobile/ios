@@ -4,7 +4,8 @@ import UIKit
 class AuthService {
     static let shared = AuthService()
     
-    private let baseURL = "https://accessorial-zaida-soggily.ngrok-free.dev"
+    private let baseURL =     "https://accessorial-zaida-soggily.ngrok-free.dev"
+
     
     // Token storage keys
     private let tokenKey = "auth_token"
@@ -458,7 +459,11 @@ class AuthService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
         
-        let body = ["token": token, "newPassword": newPassword]
+        let body: [String: Any] = [
+            "token": token,
+            "newPassword": newPassword
+        ]
+        
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -469,12 +474,12 @@ class AuthService {
         
         if httpResponse.statusCode != 200 && httpResponse.statusCode != 201 {
             if let errorData = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                throw AuthError.serverError(errorData.message ?? "Failed to reset password")
+                throw AuthError.serverError(errorData.message ?? errorData.error ?? "Password reset failed")
             }
-            throw AuthError.serverError("Failed to reset password")
+            throw AuthError.serverError("Password reset failed with status code: \(httpResponse.statusCode)")
         }
         
-        print("Password reset successfully")
+        print("✅ Password reset successfully")
     }
     
     // MARK: - Profile Image Upload

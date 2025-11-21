@@ -1,8 +1,11 @@
 //
-//  ChildDashboardScreen.swift
+//  ChildDashboardScreen.swift - UPDATED
 //  EduKid
 //
-//  Updated: November 16, 2025 – Fixed for AI Quiz Integration
+//  Updated: November 22, 2025
+//  - Added quiz result display
+//  - Auto-refresh after quiz completion
+//  - Shows completed vs pending quizzes
 //
 
 import SwiftUI
@@ -12,14 +15,26 @@ struct ChildDashboardScreen: View {
     @EnvironmentObject var authVM: AuthViewModel
     @State private var quizzes: [AIQuizResponse] = []
     @State private var isLoading = false
-    @State private var showAddQuiz = false
     @State private var errorMessage: String?
-    @State private var parentInfo: ParentInfo?
+    @State private var selectedTab = 0
+    
+    var pendingQuizzes: [AIQuizResponse] {
+        quizzes.filter { $0.answered == 0 }
+    }
+    
+    var completedQuizzes: [AIQuizResponse] {
+        quizzes.filter { $0.answered > 0 }
+    }
+    
+    var averageScore: Int {
+        guard !completedQuizzes.isEmpty else { return 0 }
+        let total = completedQuizzes.reduce(0) { $0 + $1.score }
+        return total / completedQuizzes.count
+    }
     
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background gradient
                 RadialGradient(
                     gradient: Gradient(colors: [
                         Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
@@ -32,85 +47,126 @@ struct ChildDashboardScreen: View {
                 .ignoresSafeArea()
                 
                 ScrollView {
-                VStack(spacing: 24) {
-                    Spacer().frame(height: 40)
-                    
-                    // Child Info Card
-                    ChildInfoCard(child: child)
-                        .padding(.horizontal, 20)
-                    
-                    // Parent Info Card
-                    if let parent = parentInfo {
-                        ParentInfoCard(parent: parent)
+                    VStack(spacing: 24) {
+                        Spacer().frame(height: 40)
+                        
+                        // Child Info Card
+                        ChildInfoCard(child: child)
                             .padding(.horizontal, 20)
-                    }
-                    
-                    // Quizzes Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("My Quizzes")
-                                    .font(.title2.bold())
-                                    .foregroundColor(.white)
-                                
-                                Text("\(quizzes.count) quizzes available")
-                                    .font(.subheadline)
-                                    .foregroundColor(.white.opacity(0.7))
-                            }
-                            
-                            Spacer()
+                        
+                        // Stats Row
+                        HStack(spacing: 12) {
+                            QuickStatCard(
+                                icon: "checkmark.circle.fill",
+                                value: "\(completedQuizzes.count)",
+                                label: "Completed",
+                                color: .green
+                            )
+                            QuickStatCard(
+                                icon: "hourglass",
+                                value: "\(pendingQuizzes.count)",
+                                label: "Pending",
+                                color: .orange
+                            )
+                            QuickStatCard(
+                                icon: "chart.line.uptrend.xyaxis",
+                                value: "\(averageScore)%",
+                                label: "Average",
+                                color: .blue
+                            )
                         }
                         .padding(.horizontal, 20)
                         
-                        if isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                        } else if quizzes.isEmpty {
-                            EmptyQuizzesView()
-                                .padding(.horizontal, 20)
-                        } else {
-                            ForEach(quizzes) { quiz in
-                                NavigationLink(destination: QuizTakingScreen(quiz: quiz, child: child)) {
-                                    AIQuizCardForChild(quiz: quiz)
+                        // Tab Selector
+                        HStack(spacing: 0) {
+                            TabButton(title: "Pending (\(pendingQuizzes.count))", isSelected: selectedTab == 0) {
+                                selectedTab = 0
+                            }
+                            TabButton(title: "Completed (\(completedQuizzes.count))", isSelected: selectedTab == 1) {
+                                selectedTab = 1
+                            }
+                        }
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(12)
+                        .padding(.horizontal, 20)
+                        
+                        // Quizzes Section
+                        VStack(alignment: .leading, spacing: 16) {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                            } else if selectedTab == 0 {
+                                // Pending Quizzes
+                                if pendingQuizzes.isEmpty {
+                                    EmptyStateView(
+                                        icon: "checkmark.seal.fill",
+                                        title: "All caught up!",
+                                        message: "No pending quizzes. Great job!"
+                                    )
+                                } else {
+                                    ForEach(pendingQuizzes) { quiz in
+                                        NavigationLink(destination:
+                                            QuizTakingScreen(
+                                                quiz: quiz,
+                                                child: child,
+                                                onQuizCompleted: {
+                                                    Task { await loadQuizzes() }
+                                                }
+                                            )
+                                        ) {
+                                            AIQuizCardForChild(quiz: quiz, showScore: false)
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Completed Quizzes
+                                if completedQuizzes.isEmpty {
+                                    EmptyStateView(
+                                        icon: "book.closed",
+                                        title: "No completed quizzes",
+                                        message: "Complete a quiz to see your results here"
+                                    )
+                                } else {
+                                    ForEach(completedQuizzes) { quiz in
+                                        CompletedQuizCard(quiz: quiz)
+                                    }
                                 }
                             }
-                            .padding(.horizontal, 20)
                         }
-                    }
-                    
-                    // Logout Button
-                    Button(action: { authVM.signOutChild() }) {
-                        HStack {
-                            Image(systemName: "arrow.uturn.left.circle.fill")
-                                .font(.title3)
-                            Text("Logout")
-                                .font(.title3.bold())
+                        .padding(.horizontal, 20)
+                        
+                        // Logout Button
+                        Button(action: { authVM.signOutChild() }) {
+                            HStack {
+                                Image(systemName: "arrow.uturn.left.circle.fill")
+                                    .font(.title3)
+                                Text("Logout")
+                                    .font(.title3.bold())
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(Color.red.opacity(0.7))
+                            .cornerRadius(16)
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 60)
-                        .background(Color.red.opacity(0.7))
-                        .cornerRadius(16)
+                        .padding(.horizontal, 20)
+                        
+                        Spacer().frame(height: 40)
                     }
-                    .padding(.horizontal, 20)
-                    
-                    Spacer().frame(height: 40)
                 }
             }
-        }
-        .navigationBarHidden(true)
-        .onAppear {
-            Task {
-                await loadQuizzes()
-                await loadParentInfo()
+            .navigationBarHidden(true)
+            .onAppear {
+                Task { await loadQuizzes() }
             }
-        }
+            .refreshable {
+                await loadQuizzes()
+            }
         }
     }
     
-    // MARK: - Load Quizzes
     private func loadQuizzes() async {
         isLoading = true
         errorMessage = nil
@@ -126,193 +182,114 @@ struct ChildDashboardScreen: View {
             )
             
             await MainActor.run {
-                self.quizzes = fetchedQuizzes
+                self.quizzes = fetchedQuizzes.sorted { q1, q2 in
+                    guard let d1 = q1.createdAt, let d2 = q2.createdAt else { return false }
+                    return d1 > d2
+                }
                 isLoading = false
             }
         } catch {
             await MainActor.run {
                 errorMessage = error.localizedDescription
                 isLoading = false
-                print("❌ Failed to load quizzes: \(error.localizedDescription)")
             }
-        }
-    }
-    
-    // MARK: - Load Parent Info
-    private func loadParentInfo() async {
-        do {
-            let user = try await AuthService.shared.getCurrentUser()
-            await MainActor.run {
-                self.parentInfo = ParentInfo(
-                    name: user.name ?? "Parent",
-                    email: user.email ?? ""
-                )
-            }
-        } catch {
-            print("Failed to load parent info: \(error.localizedDescription)")
         }
     }
 }
 
-// MARK: - Child Info Card
-struct ChildInfoCard: View {
-    let child: Child
+// MARK: - Tab Button
+struct TabButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Avatar
-            Image(child.avatarEmoji)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 100, height: 100)
-                .background(Color.white.opacity(0.3))
-                .clipShape(Circle())
-                .shadow(radius: 8)
-            
-            // Name
-            Text(child.name)
-                .font(.system(size: 28, weight: .bold))
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.bold())
                 .foregroundColor(.white)
-            
-            // Stats Row
-            HStack(spacing: 24) {
-                StatBadge(icon: "star.fill", label: "Points", value: "\(child.Score)", color: .yellow)
-                StatBadge(icon: "chart.bar.fill", label: "Level", value: child.level, color: .green)
-                StatBadge(icon: "calendar", label: "Age", value: "\(child.age)", color: .blue)
-            }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(isSelected ? Color.white.opacity(0.2) : Color.clear)
         }
-        .frame(maxWidth: .infinity)
-        .padding(24)
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.white.opacity(0.25),
-                    Color.white.opacity(0.15)
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .cornerRadius(24)
-        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
     }
 }
 
-// MARK: - Stat Badge
-struct StatBadge: View {
+// MARK: - Quick Stat Card
+struct QuickStatCard: View {
     let icon: String
-    let label: String
     let value: String
+    let label: String
     let color: Color
     
     var body: some View {
         VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.3))
-                    .frame(width: 50, height: 50)
-                
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundColor(color)
-            }
-            
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
             Text(value)
-                .font(.system(size: 18, weight: .bold))
+                .font(.title3.bold())
                 .foregroundColor(.white)
-            
             Text(label)
                 .font(.caption)
                 .foregroundColor(.white.opacity(0.7))
         }
-    }
-}
-
-// MARK: - Parent Info Card
-struct ParentInfoCard: View {
-    let parent: ParentInfo
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(.white.opacity(0.9))
-                
-                Text("Parent Information")
-                    .font(.headline)
-                    .foregroundColor(.white)
-            }
-            
-            Divider()
-                .background(Color.white.opacity(0.3))
-            
-            VStack(alignment: .leading, spacing: 8) {
-                InfoRow(icon: "person.fill", label: "Name", value: parent.name)
-                InfoRow(icon: "envelope.fill", label: "Email", value: parent.email)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
         .background(Color.white.opacity(0.15))
-        .cornerRadius(20)
+        .cornerRadius(16)
     }
 }
 
-// MARK: - Info Row
-struct InfoRow: View {
+// MARK: - Empty State View
+struct EmptyStateView: View {
     let icon: String
-    let label: String
-    let value: String
+    let title: String
+    let message: String
     
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.subheadline)
+                .font(.system(size: 50))
+                .foregroundColor(.white.opacity(0.5))
+            Text(title)
+                .font(.title3)
                 .foregroundColor(.white.opacity(0.7))
-                .frame(width: 20)
-            
-            Text(label)
+            Text(message)
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.7))
-                .frame(width: 60, alignment: .leading)
-            
-            Text(value)
-                .font(.subheadline.bold())
-                .foregroundColor(.white)
-            
-            Spacer()
+                .foregroundColor(.white.opacity(0.6))
+                .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity)
+        .padding(40)
+        .background(Color.white.opacity(0.1))
+        .cornerRadius(16)
     }
 }
 
 // MARK: - AI Quiz Card for Child
 struct AIQuizCardForChild: View {
     let quiz: AIQuizResponse
+    var showScore: Bool = true
     
     var body: some View {
         HStack(spacing: 16) {
-            // Icon
             ZStack {
                 Circle()
                     .fill(iconColor.opacity(0.3))
                     .frame(width: 70, height: 70)
-                
                 Image(systemName: subjectIcon)
                     .font(.system(size: 28))
                     .foregroundColor(iconColor)
             }
             
-            // Info
             VStack(alignment: .leading, spacing: 8) {
                 Text(quiz.topic.capitalized)
                     .font(.title3.bold())
                     .foregroundColor(.white)
-                
                 Text(quiz.subject.capitalized)
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.8))
-                
                 HStack(spacing: 12) {
                     Label("\(quiz.questions.count) questions", systemImage: "questionmark.circle.fill")
                     Label(quiz.difficulty.capitalized, systemImage: difficultyIcon)
@@ -330,16 +307,12 @@ struct AIQuizCardForChild: View {
         .padding(20)
         .background(
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.white.opacity(0.25),
-                    Color.white.opacity(0.15)
-                ]),
+                gradient: Gradient(colors: [Color.white.opacity(0.25), Color.white.opacity(0.15)]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         )
         .cornerRadius(20)
-        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
     }
     
     var subjectIcon: String {
@@ -374,32 +347,143 @@ struct AIQuizCardForChild: View {
     }
 }
 
-// MARK: - Empty Quizzes View
-struct EmptyQuizzesView: View {
+// MARK: - Completed Quiz Card
+struct CompletedQuizCard: View {
+    let quiz: AIQuizResponse
+    
+    var scoreColor: Color {
+        if quiz.score >= 80 { return .green }
+        else if quiz.score >= 60 { return .orange }
+        else { return .red }
+    }
+    
+    var scoreEmoji: String {
+        if quiz.score >= 80 { return "🎉" }
+        else if quiz.score >= 60 { return "👍" }
+        else { return "💪" }
+    }
+    
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "book.closed")
-                .font(.system(size: 50))
-                .foregroundColor(.white.opacity(0.5))
+        HStack(spacing: 16) {
+            // Score Circle
+            ZStack {
+                Circle()
+                    .stroke(scoreColor.opacity(0.3), lineWidth: 4)
+                    .frame(width: 70, height: 70)
+                Circle()
+                    .trim(from: 0, to: Double(quiz.score) / 100)
+                    .stroke(scoreColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .frame(width: 70, height: 70)
+                    .rotationEffect(.degrees(-90))
+                VStack(spacing: 2) {
+                    Text(scoreEmoji)
+                        .font(.title3)
+                    Text("\(quiz.score)%")
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                }
+            }
             
-            Text("No quizzes yet")
-                .font(.title3)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(quiz.topic.capitalized)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Text(quiz.subject.capitalized)
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.8))
+                HStack(spacing: 12) {
+                    Label("\(quiz.answered)/\(quiz.questions.count)", systemImage: "checkmark.circle")
+                    Label(quiz.difficulty.capitalized, systemImage: "chart.bar")
+                }
+                .font(.caption)
                 .foregroundColor(.white.opacity(0.7))
+            }
             
-            Text("Your parent will assign quizzes for you")
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.6))
-                .multilineTextAlignment(.center)
+            Spacer()
+            
+            Image(systemName: "checkmark.seal.fill")
+                .font(.title2)
+                .foregroundColor(.green)
         }
-        .frame(maxWidth: .infinity)
-        .padding(40)
-        .background(Color.white.opacity(0.1))
-        .cornerRadius(16)
+        .padding(20)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    scoreColor.opacity(0.2),
+                    Color.white.opacity(0.1)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(20)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(scoreColor.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
-// MARK: - Parent Info Model
-struct ParentInfo {
-    let name: String
-    let email: String
+// MARK: - Child Info Card
+struct ChildInfoCard: View {
+    let child: Child
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(child.avatarEmoji)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 100, height: 100)
+                .background(Color.white.opacity(0.3))
+                .clipShape(Circle())
+                .shadow(radius: 8)
+            
+            Text(child.name)
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(.white)
+            
+            HStack(spacing: 24) {
+                StatBadge(icon: "star.fill", label: "Points", value: "\(child.Score)", color: .yellow)
+                StatBadge(icon: "chart.bar.fill", label: "Level", value: child.level, color: .green)
+                StatBadge(icon: "calendar", label: "Age", value: "\(child.age)", color: .blue)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(24)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.white.opacity(0.25), Color.white.opacity(0.15)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(24)
+    }
+}
+
+// MARK: - Stat Badge
+struct StatBadge: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.3))
+                    .frame(width: 50, height: 50)
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(color)
+            }
+            Text(value)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.white)
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.7))
+        }
+    }
 }
