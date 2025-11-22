@@ -2,7 +2,8 @@
 //  ParentTabView.swift
 //  EduKid
 //
-//  Created: November 16, 2025
+//  Updated: November 22, 2025
+//  Added Puzzles section alongside Quizzes
 //
 
 import SwiftUI
@@ -32,8 +33,8 @@ struct ParentTabView: View {
                 ParentDashboardContent(parent: parent)
                     .tag(0)
                 
-                // Quiz Management Tab
-                ParentQuizManagementScreen(parent: parent)
+                // Games Management Tab (Quizzes + Puzzles)
+                ParentGamesManagementScreen(parent: parent)
                     .tag(1)
                 
                 // Profile Tab
@@ -65,8 +66,8 @@ struct CustomBottomNavBar: View {
             )
             
             NavBarItem(
-                icon: "book.fill",
-                title: "Quizzes",
+                icon: "gamecontroller.fill",
+                title: "Games",
                 isSelected: selectedTab == 1,
                 action: { selectedTab = 1 }
             )
@@ -111,7 +112,7 @@ struct NavBarItem: View {
     }
 }
 
-// MARK: - Parent Dashboard Content (without navigation bar)
+// MARK: - Parent Dashboard Content
 struct ParentDashboardContent: View {
     let parent: Parent
     @EnvironmentObject var authVM: AuthViewModel
@@ -179,7 +180,7 @@ struct ParentDashboardContent: View {
                             }
                         }
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 100) // Space for bottom nav
+                        .padding(.bottom, 100)
                     }
                 }
             }
@@ -235,23 +236,23 @@ struct ParentDashboardContent: View {
     }
 }
 
-// MARK: - Parent Quiz Management Screen
-struct ParentQuizManagementScreen: View {
+// MARK: - Parent Games Management Screen (Quizzes + Puzzles)
+struct ParentGamesManagementScreen: View {
     let parent: Parent
     @EnvironmentObject var authVM: AuthViewModel
     @State private var selectedChild: Child?
-    @State private var showChildSelector = false
+    @State private var selectedGameType = 0 // 0: Quizzes, 1: Puzzles
     
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
                 // Header
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Quiz Management")
+                    Text("Games Management")
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)
                     
-                    Text("Create and manage quizzes for your children")
+                    Text("Create quizzes and puzzles for your children")
                         .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.85))
                 }
@@ -261,7 +262,7 @@ struct ParentQuizManagementScreen: View {
                 
                 Spacer().frame(height: 24)
                 
-                // Select Child
+                // Content
                 if parent.children.isEmpty {
                     VStack(spacing: 16) {
                         Spacer()
@@ -270,20 +271,21 @@ struct ParentQuizManagementScreen: View {
                         Text("No children added")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(.white)
-                        Text("Add a child first to create quizzes")
+                        Text("Add a child first to create games")
                             .font(.system(size: 14))
                             .foregroundColor(.white.opacity(0.8))
                         Spacer()
                     }
                 } else if selectedChild == nil {
+                    // Child Selector
                     VStack(spacing: 16) {
                         Spacer()
-                        Text("📝")
+                        Text("🎮")
                             .font(.system(size: 60))
                         Text("Select a child")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(.white)
-                        Text("Choose which child to create quizzes for")
+                        Text("Choose which child to create games for")
                             .font(.system(size: 14))
                             .foregroundColor(.white.opacity(0.8))
                         
@@ -328,7 +330,7 @@ struct ParentQuizManagementScreen: View {
                         Spacer()
                     }
                 } else {
-                    // Show quiz management for selected child with proper header
+                    // Game Type Selector + Content
                     VStack(spacing: 0) {
                         // Change Child button
                         HStack {
@@ -350,11 +352,206 @@ struct ParentQuizManagementScreen: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, 12)
                         
-                        // Quiz list screen
-                        ParentQuizListScreen(child: selectedChild!)
+                        // Game Type Tabs
+                        HStack(spacing: 0) {
+                            GameTypeTab(
+                                title: "📝 Quizzes",
+                                isSelected: selectedGameType == 0
+                            ) {
+                                selectedGameType = 0
+                            }
+                            
+                            GameTypeTab(
+                                title: "🧩 Puzzles",
+                                isSelected: selectedGameType == 1
+                            ) {
+                                selectedGameType = 1
+                            }
+                        }
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(12)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 16)
+                        
+                        // Content based on selected type
+                        if selectedGameType == 0 {
+                            ParentQuizListScreen(child: selectedChild!)
+                        } else {
+                            ParentPuzzleListScreen(child: selectedChild!)
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+// MARK: - Game Type Tab
+struct GameTypeTab: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 15, weight: isSelected ? .bold : .regular))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(isSelected ? Color.white.opacity(0.2) : Color.clear)
+        }
+    }
+}
+
+// MARK: - Parent Puzzle List Screen
+struct ParentPuzzleListScreen: View {
+    let child: Child
+    @State private var puzzles: [PuzzleResponse] = []
+    @State private var isLoading = false
+    @State private var showGenerateSheet = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Generate Puzzle Button
+            Button(action: { showGenerateSheet = true }) {
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles")
+                        .font(.title3)
+                    Text("Generate New Puzzle")
+                        .font(.headline)
+                }
+                .foregroundColor(Color(red: 0.153, green: 0.125, blue: 0.322))
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(Color.white)
+                .cornerRadius(16)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
+            
+            // Puzzles List
+            if isLoading {
+                Spacer()
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.5)
+                Spacer()
+            } else if puzzles.isEmpty {
+                VStack(spacing: 16) {
+                    Spacer()
+                    Text("🧩")
+                        .font(.system(size: 60))
+                    Text("No puzzles yet")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.white)
+                    Text("Generate a puzzle to get started")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.8))
+                    Spacer()
+                }
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(puzzles) { puzzle in
+                            ParentPuzzleCard(puzzle: puzzle)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 100)
+                }
+            }
+        }
+        .sheet(isPresented: $showGenerateSheet) {
+            GeneratePuzzleSheet(child: child) {
+                Task { await loadPuzzles() }
+            }
+        }
+        .onAppear {
+            Task { await loadPuzzles() }
+        }
+    }
+    
+    private func loadPuzzles() async {
+        isLoading = true
+        do {
+            guard let parentId = AuthService.shared.getParentId() else { return }
+            let fetched = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
+            await MainActor.run {
+                puzzles = fetched.sorted { ($0.createdAt ?? "") > ($1.createdAt ?? "") }
+                isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                isLoading = false
+                print("Error loading puzzles: \(error)")
+            }
+        }
+    }
+}
+
+// MARK: - Parent Puzzle Card
+struct ParentPuzzleCard: View {
+    let puzzle: PuzzleResponse
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // Icon
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(puzzle.puzzleType.color.opacity(0.3))
+                    .frame(width: 60, height: 60)
+                
+                Image(systemName: puzzle.puzzleType.icon)
+                    .font(.title2)
+                    .foregroundColor(puzzle.puzzleType.color)
+            }
+            
+            // Info
+            VStack(alignment: .leading, spacing: 6) {
+                Text(puzzle.title)
+                    .font(.headline)
+                    .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
+                
+                HStack(spacing: 8) {
+                    Label(puzzle.puzzleType.displayName, systemImage: puzzle.puzzleType.icon)
+                    Label("\(puzzle.gridSize)x\(puzzle.gridSize)", systemImage: "square.grid.2x2")
+                }
+                .font(.caption)
+                .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+                
+                Text(puzzle.puzzleDifficulty.displayName)
+                    .font(.caption.bold())
+                    .foregroundColor(puzzle.puzzleDifficulty.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(puzzle.puzzleDifficulty.color.opacity(0.2))
+                    .cornerRadius(4)
+            }
+            
+            Spacer()
+            
+            // Status
+            if puzzle.isCompleted {
+                VStack(spacing: 4) {
+                    Text("⭐")
+                        .font(.title2)
+                    Text("\(puzzle.score)")
+                        .font(.headline.bold())
+                        .foregroundColor(.yellow)
+                }
+            } else {
+                Text("Pending")
+                    .font(.caption.bold())
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.orange.opacity(0.2))
+                    .cornerRadius(6)
+            }
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.95))
+        .cornerRadius(16)
     }
 }

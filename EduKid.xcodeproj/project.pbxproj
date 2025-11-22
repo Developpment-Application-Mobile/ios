@@ -13,7 +13,6 @@
 		042C83BF2ED0775000F6E0A8 /* AnalyticsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042C83BE2ED0774B00F6E0A8 /* AnalyticsCard.swift */; };
 		0478BB172EC7F59300AB6E6D /* EditParentProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB162EC7F59000AB6E6D /* EditParentProfileScreen.swift */; };
 		0478BB192EC7F62300AB6E6D /* EditChildProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */; };
-		0478BB1B2EC8EAF000AB6E6D /* ChildDashboardScreen.swift.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB1A2EC8EAED00AB6E6D /* ChildDashboardScreen.swift.swift */; };
 		0478BB212EC8F1F100AB6E6D /* QuizzManagementViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB202EC8F1E200AB6E6D /* QuizzManagementViews.swift */; };
 		0478BB252EC8F5C100AB6E6D /* Question.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB242EC8F5A600AB6E6D /* Question.swift */; };
 		049625A42EC9E71100C83F87 /* ParentTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A32EC9E70E00C83F87 /* ParentTabView.swift */; };
@@ -22,6 +21,15 @@
 		049625AA2EC9ED6E00C83F87 /* ChildQuizListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A92EC9ED6C00C83F87 /* ChildQuizListScreen.swift */; };
 		04B99C012ECB325400224AE7 /* ResetPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04B99C002ECB325100224AE7 /* ResetPasswordScreen.swift */; };
 		04ED24592EC635590047BA65 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */; };
+		04FB42D72ED1D4DE00B2AC32 /* PuzzleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42D62ED1D4D700B2AC32 /* PuzzleModels.swift */; };
+		04FB42D92ED1D51D00B2AC32 /* PuzzleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42D82ED1D51900B2AC32 /* PuzzleViews.swift */; };
+		04FB42DB2ED1D58300B2AC32 /* PuzzlePlayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42DA2ED1D57F00B2AC32 /* PuzzlePlayScreen.swift */; };
+		04FB42DD2ED1D66A00B2AC32 /* PuzzleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42DC2ED1D66600B2AC32 /* PuzzleService.swift */; };
+		04FB42DF2ED1DDBA00B2AC32 /* PuzzleImagePlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42DE2ED1DDB300B2AC32 /* PuzzleImagePlaceholder.swift */; };
+		04FB42E12ED1E4D100B2AC32 /* SimpleGames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42E02ED1E4CD00B2AC32 /* SimpleGames.swift */; };
+		04FB42E52ED1E53B00B2AC32 /* ChildDashboardScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42E42ED1E53800B2AC32 /* ChildDashboardScreen.swift */; };
+		04FB42E72ED1E5FB00B2AC32 /* EnhancedChildDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42E62ED1E5F600B2AC32 /* EnhancedChildDetailScreen.swift */; };
+		04FB42E92ED1E9CD00B2AC32 /* LocalPuzzleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42E82ED1E9CA00B2AC32 /* LocalPuzzleManager.swift */; };
 		594352312EBCE356002EA9EE /* ParentSignUpScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 594352302EBCE356002EA9EE /* ParentSignUpScreen.swift */; };
 		595695B82EBA2FBA005DBD2D /* EduKidApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595695B72EBA2FBA005DBD2D /* EduKidApp.swift */; };
 		595695BA2EBA2FBA005DBD2D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595695B92EBA2FBA005DBD2D /* ContentView.swift */; };
@@ -78,7 +86,6 @@
 		042C83BE2ED0774B00F6E0A8 /* AnalyticsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsCard.swift; sourceTree = "<group>"; };
 		0478BB162EC7F59000AB6E6D /* EditParentProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditParentProfileScreen.swift; sourceTree = "<group>"; };
 		0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditChildProfileScreen.swift; sourceTree = "<group>"; };
-		0478BB1A2EC8EAED00AB6E6D /* ChildDashboardScreen.swift.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildDashboardScreen.swift.swift; sourceTree = "<group>"; };
 		0478BB202EC8F1E200AB6E6D /* QuizzManagementViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizzManagementViews.swift; sourceTree = "<group>"; };
 		0478BB242EC8F5A600AB6E6D /* Question.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Question.swift; sourceTree = "<group>"; };
 		049625A32EC9E70E00C83F87 /* ParentTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentTabView.swift; sourceTree = "<group>"; };
@@ -87,6 +94,15 @@
 		049625A92EC9ED6C00C83F87 /* ChildQuizListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildQuizListScreen.swift; sourceTree = "<group>"; };
 		04B99C002ECB325100224AE7 /* ResetPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordScreen.swift; sourceTree = "<group>"; };
 		04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
+		04FB42D62ED1D4D700B2AC32 /* PuzzleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleModels.swift; sourceTree = "<group>"; };
+		04FB42D82ED1D51900B2AC32 /* PuzzleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleViews.swift; sourceTree = "<group>"; };
+		04FB42DA2ED1D57F00B2AC32 /* PuzzlePlayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzlePlayScreen.swift; sourceTree = "<group>"; };
+		04FB42DC2ED1D66600B2AC32 /* PuzzleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleService.swift; sourceTree = "<group>"; };
+		04FB42DE2ED1DDB300B2AC32 /* PuzzleImagePlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleImagePlaceholder.swift; sourceTree = "<group>"; };
+		04FB42E02ED1E4CD00B2AC32 /* SimpleGames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleGames.swift; sourceTree = "<group>"; };
+		04FB42E42ED1E53800B2AC32 /* ChildDashboardScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildDashboardScreen.swift; sourceTree = "<group>"; };
+		04FB42E62ED1E5F600B2AC32 /* EnhancedChildDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedChildDetailScreen.swift; sourceTree = "<group>"; };
+		04FB42E82ED1E9CA00B2AC32 /* LocalPuzzleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPuzzleManager.swift; sourceTree = "<group>"; };
 		594352302EBCE356002EA9EE /* ParentSignUpScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentSignUpScreen.swift; sourceTree = "<group>"; };
 		595695B42EBA2FBA005DBD2D /* EduKid.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EduKid.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		595695B72EBA2FBA005DBD2D /* EduKidApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EduKidApp.swift; sourceTree = "<group>"; };
@@ -226,6 +242,7 @@
 		595695E62EBA321A005DBD2D /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				04FB42D62ED1D4D700B2AC32 /* PuzzleModels.swift */,
 				0478BB242EC8F5A600AB6E6D /* Question.swift */,
 				595695F02EBA3B5B005DBD2D /* Child.swift */,
 				59B85F882EBCEAF0007264C5 /* Parent.swift */,
@@ -240,10 +257,12 @@
 		595695E72EBA3232005DBD2D /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				04FB42E82ED1E9CA00B2AC32 /* LocalPuzzleManager.swift */,
+				04FB42DE2ED1DDB300B2AC32 /* PuzzleImagePlaceholder.swift */,
 				042C83B72ED075A400F6E0A8 /* AdaptiveQuizSystem.swift */,
-				049625A52EC9ED1C00C83F87 /* AIQuizService.swift */,
 				59B8D3462EC3AFD2004374A1 /* AuthViewModel.swift */,
 				59B8D3482EC3B05B004374A1 /* AuthService.swift */,
+				04FB42D82ED1D51900B2AC32 /* PuzzleViews.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -251,13 +270,16 @@
 		595695E82EBA3246005DBD2D /* VIews */ = {
 			isa = PBXGroup;
 			children = (
+				04FB42E62ED1E5F600B2AC32 /* EnhancedChildDetailScreen.swift */,
+				04FB42E02ED1E4CD00B2AC32 /* SimpleGames.swift */,
+				04FB42E42ED1E53800B2AC32 /* ChildDashboardScreen.swift */,
+				04FB42DA2ED1D57F00B2AC32 /* PuzzlePlayScreen.swift */,
 				042C83B92ED0770000F6E0A8 /* Components */,
 				04B99C002ECB325100224AE7 /* ResetPasswordScreen.swift */,
 				049625A92EC9ED6C00C83F87 /* ChildQuizListScreen.swift */,
 				049625A72EC9ED4D00C83F87 /* AIQuizGenerationScreen.swift */,
 				049625A32EC9E70E00C83F87 /* ParentTabView.swift */,
 				0478BB202EC8F1E200AB6E6D /* QuizzManagementViews.swift */,
-				0478BB1A2EC8EAED00AB6E6D /* ChildDashboardScreen.swift.swift */,
 				0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */,
 				0478BB162EC7F59000AB6E6D /* EditParentProfileScreen.swift */,
 				04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */,
@@ -278,6 +300,8 @@
 		595695E92EBA3253005DBD2D /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				04FB42DC2ED1D66600B2AC32 /* PuzzleService.swift */,
+				049625A52EC9ED1C00C83F87 /* AIQuizService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -422,6 +446,7 @@
 				049625A42EC9E71100C83F87 /* ParentTabView.swift in Sources */,
 				042C83BB2ED0772B00F6E0A8 /* ProfileBadge.swift in Sources */,
 				595695C12EBA2FBB005DBD2D /* Persistence.swift in Sources */,
+				04FB42E92ED1E9CD00B2AC32 /* LocalPuzzleManager.swift in Sources */,
 				049625A82EC9ED5000C83F87 /* AIQuizGenerationScreen.swift in Sources */,
 				59B8D34B2EC3C302004374A1 /* ParentProfileScreen.swift in Sources */,
 				59B85F812EBCE7FD007264C5 /* ParentDashboardScreen.swift in Sources */,
@@ -432,6 +457,7 @@
 				595695F52EBA3BBA005DBD2D /* SplashView.swift in Sources */,
 				595695C42EBA2FBB005DBD2D /* EduKid.xcdatamodeld in Sources */,
 				59B8D3492EC3B05B004374A1 /* AuthService.swift in Sources */,
+				04FB42D72ED1D4DE00B2AC32 /* PuzzleModels.swift in Sources */,
 				0478BB192EC7F62300AB6E6D /* EditChildProfileScreen.swift in Sources */,
 				049625A62EC9ED1E00C83F87 /* AIQuizService.swift in Sources */,
 				594352312EBCE356002EA9EE /* ParentSignUpScreen.swift in Sources */,
@@ -442,21 +468,27 @@
 				0478BB212EC8F1F100AB6E6D /* QuizzManagementViews.swift in Sources */,
 				59B85F7F2EBCE7BC007264C5 /* ParentSignInScreen.swift in Sources */,
 				595695F12EBA3B5B005DBD2D /* Child.swift in Sources */,
+				04FB42E72ED1E5FB00B2AC32 /* EnhancedChildDetailScreen.swift in Sources */,
 				59B85F8B2EBCEBF0007264C5 /* Quizz.swift in Sources */,
 				04ED24592EC635590047BA65 /* ForgotPasswordScreen.swift in Sources */,
 				59B85F932EBCEF4D007264C5 /* AddChildScreen.swift in Sources */,
 				042C83BF2ED0775000F6E0A8 /* AnalyticsCard.swift in Sources */,
 				049625AA2EC9ED6E00C83F87 /* ChildQuizListScreen.swift in Sources */,
 				595696032EBA503E005DBD2D /* DecorationElementView.swift in Sources */,
+				04FB42D92ED1D51D00B2AC32 /* PuzzleViews.swift in Sources */,
 				59B85F872EBCEA17007264C5 /* ChildDetailScreen.swift in Sources */,
 				595696012EBA4FEB005DBD2D /* WelcomeScreenView.swift in Sources */,
+				04FB42DF2ED1DDBA00B2AC32 /* PuzzleImagePlaceholder.swift in Sources */,
 				0478BB172EC7F59300AB6E6D /* EditParentProfileScreen.swift in Sources */,
 				59B85F972EBCF3B2007264C5 /* MainNavigationView.swift in Sources */,
+				04FB42E52ED1E53B00B2AC32 /* ChildDashboardScreen.swift in Sources */,
 				59B85F8D2EBCEC24007264C5 /* QuizType.swift in Sources */,
 				59B8D3472EC3AFD2004374A1 /* AuthViewModel.swift in Sources */,
+				04FB42DD2ED1D66A00B2AC32 /* PuzzleService.swift in Sources */,
+				04FB42DB2ED1D58300B2AC32 /* PuzzlePlayScreen.swift in Sources */,
 				595695BA2EBA2FBA005DBD2D /* ContentView.swift in Sources */,
+				04FB42E12ED1E4D100B2AC32 /* SimpleGames.swift in Sources */,
 				595695B82EBA2FBA005DBD2D /* EduKidApp.swift in Sources */,
-				0478BB1B2EC8EAF000AB6E6D /* ChildDashboardScreen.swift.swift in Sources */,
 				042C83B82ED075A700F6E0A8 /* AdaptiveQuizSystem.swift in Sources */,
 				595695FB2EBA3DCD005DBD2D /* ColorExtension.swift in Sources */,
 			);
