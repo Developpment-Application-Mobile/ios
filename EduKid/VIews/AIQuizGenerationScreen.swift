@@ -669,7 +669,7 @@ struct ParentQuizListScreen: View {
     }
 }
 
-// MARK: - Enhanced AI Quiz Card
+// MARK: - Enhanced AI Quiz Card (UPDATED avec titre significatif)
 struct EnhancedAIQuizCard: View {
     let quiz: AIQuizResponse
     let isRecent: Bool
@@ -692,7 +692,8 @@ struct EnhancedAIQuizCard: View {
                 // Info
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text(quiz.topic.capitalized)
+                        // CHANGÉ: Utiliser meaningfulTitle
+                        Text(quiz.meaningfulTitle)
                             .font(.headline)
                             .foregroundColor(.white)
                             .lineLimit(1)
@@ -856,3 +857,4 @@ struct EnhancedAIQuizCard: View {
         else { return "arrow.up.circle.fill" }
     }
 }
+

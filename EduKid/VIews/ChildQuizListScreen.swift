@@ -32,6 +32,11 @@ struct QuizTakingScreen: View {
         Double(currentQuestionIndex + 1) / Double(quiz.questions.count)
     }
     
+    // CHECK: Si le quiz est déjà complété, afficher seulement les résultats
+    var isAlreadyCompleted: Bool {
+        quiz.answered > 0
+    }
+    
     init(quiz: AIQuizResponse, child: Child, onQuizCompleted: (() -> Void)? = nil) {
         self.quiz = quiz
         self.child = child
@@ -52,100 +57,108 @@ struct QuizTakingScreen: View {
             )
             .ignoresSafeArea()
             
-            VStack(spacing: 0) {
-                // Progress Bar
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("Question \(currentQuestionIndex + 1) of \(quiz.questions.count)")
-                            .font(.subheadline.bold())
-                            .foregroundColor(.white)
-                        
-                        Spacer()
-                        
-                        Button(action: { dismiss() }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.white.opacity(0.8))
-                        }
-                    }
-                    
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.white.opacity(0.3))
-                                .frame(height: 8)
-                            
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.blue)
-                                .frame(width: geometry.size.width * progress, height: 8)
-                        }
-                    }
-                    .frame(height: 8)
+            if isAlreadyCompleted {
+                // Afficher seulement les résultats pour un quiz déjà complété
+                CompletedQuizViewOnlyScreen(quiz: quiz, child: child) {
+                    dismiss()
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 60)
-                .padding(.bottom, 20)
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        Text(currentQuestion.questionText)
-                            .font(.title2.bold())
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
-                        
-                        VStack(spacing: 16) {
-                            ForEach(Array(currentQuestion.options.enumerated()), id: \.offset) { index, option in
-                                SimpleOptionButton(
-                                    text: option,
-                                    index: index,
-                                    isSelected: selectedAnswers[currentQuestionIndex] == index,
-                                    action: { selectedAnswers[currentQuestionIndex] = index }
-                                )
+            } else {
+                // Interface normale de quiz
+                VStack(spacing: 0) {
+                    // Progress Bar
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("Question \(currentQuestionIndex + 1) of \(quiz.questions.count)")
+                                .font(.subheadline.bold())
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                            
+                            Button(action: { dismiss() }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.white.opacity(0.8))
                             }
                         }
-                        .padding(.horizontal, 20)
                         
-                        HStack(spacing: 16) {
-                            if currentQuestionIndex > 0 {
-                                Button(action: previousQuestion) {
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.white.opacity(0.3))
+                                    .frame(height: 8)
+                                
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.blue)
+                                    .frame(width: geometry.size.width * progress, height: 8)
+                            }
+                        }
+                        .frame(height: 8)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 60)
+                    .padding(.bottom, 20)
+                    
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            Text(currentQuestion.questionText)
+                                .font(.title2.bold())
+                                .foregroundColor(.white)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
+                            
+                            VStack(spacing: 16) {
+                                ForEach(Array(currentQuestion.options.enumerated()), id: \.offset) { index, option in
+                                    SimpleOptionButton(
+                                        text: option,
+                                        index: index,
+                                        isSelected: selectedAnswers[currentQuestionIndex] == index,
+                                        action: { selectedAnswers[currentQuestionIndex] = index }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            
+                            HStack(spacing: 16) {
+                                if currentQuestionIndex > 0 {
+                                    Button(action: previousQuestion) {
+                                        HStack {
+                                            Image(systemName: "arrow.left")
+                                            Text("Previous")
+                                        }
+                                        .font(.headline)
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 56)
+                                        .background(Color.white.opacity(0.2))
+                                        .cornerRadius(16)
+                                    }
+                                }
+                                
+                                Button(action: nextQuestion) {
                                     HStack {
-                                        Image(systemName: "arrow.left")
-                                        Text("Previous")
+                                        Text(currentQuestionIndex < quiz.questions.count - 1 ? "Next" : "Finish")
+                                        Image(systemName: currentQuestionIndex < quiz.questions.count - 1 ? "arrow.right" : "checkmark.circle.fill")
                                     }
                                     .font(.headline)
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 56)
-                                    .background(Color.white.opacity(0.2))
+                                    .background(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [Color.blue, Color.purple]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
                                     .cornerRadius(16)
                                 }
+                                .disabled(selectedAnswers[currentQuestionIndex] == -1 && currentQuestionIndex == quiz.questions.count - 1)
                             }
-                            
-                            Button(action: nextQuestion) {
-                                HStack {
-                                    Text(currentQuestionIndex < quiz.questions.count - 1 ? "Next" : "Finish")
-                                    Image(systemName: currentQuestionIndex < quiz.questions.count - 1 ? "arrow.right" : "checkmark.circle.fill")
-                                }
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 56)
-                                .background(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [Color.blue, Color.purple]),
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .cornerRadius(16)
-                            }
-                            .disabled(selectedAnswers[currentQuestionIndex] == -1 && currentQuestionIndex == quiz.questions.count - 1)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 40)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 40)
+                        .padding(.top, 20)
                     }
-                    .padding(.top, 20)
                 }
             }
             
@@ -285,6 +298,208 @@ struct QuizTakingScreen: View {
         )
     }
 }
+
+
+// MARK: - Completed Quiz View Only (READ-ONLY)
+struct CompletedQuizViewOnlyScreen: View {
+    let quiz: AIQuizResponse
+    let child: Child
+    let onDismiss: () -> Void
+    
+    var incorrectAnswers: [(question: AIQuestion, userAnswer: Int?)] {
+        quiz.questions.compactMap { question -> (question: AIQuestion, userAnswer: Int?)? in
+            guard let userAnswerIndex = question.userAnswerIndex,
+                  userAnswerIndex != question.correctAnswerIndex else {
+                return nil
+            }
+            return (question, userAnswerIndex)
+        }
+    }
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 32) {
+                Spacer().frame(height: 40)
+                
+                // Notice que le quiz est déjà complété
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.green)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Quiz Already Completed")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Text("You've already taken this quiz. Review your results below.")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                }
+                .padding(16)
+                .background(Color.green.opacity(0.2))
+                .cornerRadius(16)
+                .padding(.horizontal, 20)
+                
+                // Score Display
+                Text(quiz.score >= 80 ? "🎉" : quiz.score >= 60 ? "👍" : "💪")
+                    .font(.system(size: 80))
+                
+                VStack(spacing: 12) {
+                    Text("\(quiz.score)%")
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Text("Your Score")
+                        .font(.title3)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                
+                // Quiz Info
+                VStack(spacing: 16) {
+                    ResultStatRow(label: "Topic", value: quiz.topic.capitalized)
+                    ResultStatRow(label: "Subject", value: quiz.subject.capitalized)
+                    ResultStatRow(label: "Difficulty", value: quiz.difficulty.capitalized)
+                    ResultStatRow(label: "Questions Answered", value: "\(quiz.answered)/\(quiz.questions.count)")
+                }
+                .padding(24)
+                .background(Color.white.opacity(0.15))
+                .cornerRadius(16)
+                .padding(.horizontal, 40)
+                
+                // Review Wrong Answers
+                if !incorrectAnswers.isEmpty {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text("Questions You Missed (\(incorrectAnswers.count))")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        ForEach(Array(incorrectAnswers.enumerated()), id: \.offset) { index, item in
+                            CompletedQuestionReviewCard(
+                                questionNumber: index + 1,
+                                question: item.question,
+                                userAnswer: item.userAnswer ?? -1
+                            )
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                }
+                
+                // Back Button
+                Button(action: onDismiss) {
+                    HStack {
+                        Image(systemName: "arrow.left")
+                        Text("Back to Dashboard")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(Color.blue)
+                    .cornerRadius(16)
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
+            }
+        }
+    }
+}
+
+
+
+// MARK: - Completed Question Review Card
+struct CompletedQuestionReviewCard: View {
+    let questionNumber: Int
+    let question: AIQuestion
+    let userAnswer: Int
+    
+    let letters = ["A", "B", "C", "D"]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 8) {
+                Text("\(questionNumber).")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Text(question.questionText)
+                    .font(.body)
+                    .foregroundColor(.white)
+            }
+            
+            Divider().background(Color.white.opacity(0.3))
+            
+            if userAnswer >= 0 && userAnswer < question.options.count {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.red)
+                        Text("Your Answer:")
+                            .font(.subheadline.bold())
+                            .foregroundColor(.white)
+                    }
+                    HStack {
+                        Text(letters[userAnswer])
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Color.red.opacity(0.3))
+                            .clipShape(Circle())
+                        Text(question.options[userAnswer])
+                            .font(.body)
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("Correct Answer:")
+                        .font(.subheadline.bold())
+                        .foregroundColor(.white)
+                }
+                HStack {
+                    Text(letters[question.correctAnswerIndex])
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(width: 30, height: 30)
+                        .background(Color.green.opacity(0.3))
+                        .clipShape(Circle())
+                    Text(question.options[question.correctAnswerIndex])
+                        .font(.body)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+            }
+            
+            if let explanation = question.explanation {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "lightbulb.fill")
+                            .foregroundColor(.yellow)
+                        Text("Explanation")
+                            .font(.subheadline.bold())
+                            .foregroundColor(.white)
+                    }
+                    Text(explanation)
+                        .font(.body)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+                .padding(12)
+                .background(Color.white.opacity(0.1))
+                .cornerRadius(8)
+            }
+        }
+        .padding(20)
+        .background(Color.white.opacity(0.15))
+        .cornerRadius(16)
+    }
+}
+
 
 // MARK: - Enhanced Quiz Result Screen
 struct EnhancedQuizResultScreen: View {

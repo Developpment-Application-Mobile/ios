@@ -11,17 +11,17 @@ import SwiftUI
 struct ChildDetailScreen: View {
     let child: Child
     
-    @State private var selectedTab = 0
     @State private var quizzes: [AIQuizResponse] = []
+    @State private var localPuzzles: [LocalPuzzle] = []
+    @State private var serverPuzzles: [PuzzleResponse] = []
+    @State private var games: [[String: Any]] = []
     @State private var isLoading = false
     @State private var selectedQuiz: AIQuizResponse?
     @State private var showQuizDetail = false
+    @State private var showGamesSheet = false
     @EnvironmentObject var authVM: AuthViewModel
     
-    let tabs = ["Overview", "Quiz Results"]
-    
     var onBackClick: () -> Void = {}
-    var onAssignQuizClick: () -> Void = {}
     var onGenerateQRClick: () -> Void = {}
     var onEditClick: () -> Void = {}
     
@@ -29,10 +29,30 @@ struct ChildDetailScreen: View {
         quizzes.filter { $0.answered > 0 }
     }
     
-    var averageScore: Int {
+    var completedPuzzles: [LocalPuzzle] {
+        localPuzzles.filter { $0.isCompleted }
+    }
+    
+    var completedServerPuzzles: [PuzzleResponse] {
+        serverPuzzles.filter { $0.isCompleted }
+    }
+    
+    var averageQuizScore: Int {
         guard !completedQuizzes.isEmpty else { return 0 }
         let total = completedQuizzes.reduce(0) { $0 + $1.score }
         return total / completedQuizzes.count
+    }
+    
+    var averagePuzzleScore: Int {
+        let localScores = completedPuzzles.map { $0.score }
+        let serverScores = completedServerPuzzles.map { $0.score }
+        let allScores = localScores + serverScores
+        guard !allScores.isEmpty else { return 0 }
+        return allScores.reduce(0, +) / allScores.count
+    }
+    
+    var totalGamesCompleted: Int {
+        games.count + completedPuzzles.count + completedServerPuzzles.count
     }
     
     var body: some View {
@@ -124,10 +144,13 @@ struct ChildDetailScreen: View {
                 
                 Spacer().frame(height: 16)
                 
-                // Action buttons
+                // Action Buttons
                 HStack(spacing: 12) {
-                    Button(action: onAssignQuizClick) {
-                        Text("📝 Assign Quiz")
+                    Button(action: { /* Scroll to top of overview */ }) {
+                        HStack {
+                            Image(systemName: "chart.pie.fill")
+                            Text("Overview")
+                        }
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
                             .frame(maxWidth: .infinity)
@@ -150,46 +173,32 @@ struct ChildDetailScreen: View {
                 
                 Spacer().frame(height: 20)
                 
-                // Tabs
-                HStack(spacing: 0) {
-                    ForEach(0..<tabs.count, id: \.self) { index in
-                        Button(action: { selectedTab = index }) {
-                            Text(tabs[index])
-                                .font(.system(size: 15, weight: selectedTab == index ? .bold : .regular))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(
-                                    selectedTab == index ?
-                                    Color.white.opacity(0.2) : Color.clear
-                                )
-                        }
-                    }
-                }
-                .background(Color.white.opacity(0.1))
-                
-                Spacer().frame(height: 16)
-                
-                // Tab content
+                // Overview Content
                 if isLoading {
                     Spacer()
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     Spacer()
                 } else {
-                    if selectedTab == 0 {
-                        OverviewTab(
-                            child: child,
-                            completedQuizzes: completedQuizzes.count,
-                            totalQuizzes: quizzes.count,
-                            averageScore: averageScore
-                        )
-                    } else {
-                        QuizResultsTab(quizzes: completedQuizzes) { quiz in
+                    ComprehensiveOverview(
+                        child: child,
+                        completedQuizzes: completedQuizzes.count,
+                        totalQuizzes: quizzes.count,
+                        completedPuzzles: completedPuzzles.count + completedServerPuzzles.count,
+                        totalPuzzles: localPuzzles.count + serverPuzzles.count,
+                        totalGamesCompleted: totalGamesCompleted,
+                        averageQuizScore: averageQuizScore,
+                        averagePuzzleScore: averagePuzzleScore,
+                        quizzes: completedQuizzes,
+                        games: games,
+                        onQuizTap: { quiz in
                             selectedQuiz = quiz
                             showQuizDetail = true
+                        },
+                        onGamesTap: {
+                            showGamesSheet = true
                         }
-                    }
+                    )
                 }
             }
         }
@@ -198,6 +207,9 @@ struct ChildDetailScreen: View {
                 ParentQuizDetailView(quiz: quiz, child: child)
             }
         }
+        .sheet(isPresented: $showGamesSheet) {
+            GamesListSheet(games: games, child: child)
+        }
         .onAppear {
             loadQuizzes()
         }
@@ -205,87 +217,108 @@ struct ChildDetailScreen: View {
     
     private func loadQuizzes() {
         isLoading = true
+        
+        // Load local data
+        localPuzzles = LocalPuzzleManager.shared.getAllPuzzles(for: child.id)
+        games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
+        
         Task {
             do {
                 guard let parentId = AuthService.shared.getParentId() else { return }
-                let fetchedQuizzes = try await AIQuizService.shared.getQuizzes(
-                    parentId: parentId,
-                    kidId: child.id
-                )
+                
+                async let quizzesTask = AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
+                async let puzzlesTask = PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
+                
+                let (fetchedQuizzes, fetchedPuzzles) = try await (quizzesTask, puzzlesTask)
+                
                 await MainActor.run {
                     quizzes = fetchedQuizzes
+                    serverPuzzles = fetchedPuzzles
                     isLoading = false
                 }
             } catch {
                 await MainActor.run {
                     isLoading = false
-                    print("Failed to load quizzes: \(error)")
+                    print("Failed to load data: \(error)")
                 }
             }
         }
     }
 }
 
-// MARK: - Overview Tab
-struct OverviewTab: View {
+// MARK: - Comprehensive Overview
+struct ComprehensiveOverview: View {
     let child: Child
     let completedQuizzes: Int
     let totalQuizzes: Int
-    let averageScore: Int
+    let completedPuzzles: Int
+    let totalPuzzles: Int
+    let totalGamesCompleted: Int
+    let averageQuizScore: Int
+    let averagePuzzleScore: Int
+    let quizzes: [AIQuizResponse]
+    let games: [[String: Any]]
+    let onQuizTap: (AIQuizResponse) -> Void
+    let onGamesTap: () -> Void
+    
+    var totalCompleted: Int { completedQuizzes + completedPuzzles }
+    var totalActivities: Int { totalQuizzes + totalPuzzles }
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
-                // Stats cards
-                HStack(spacing: 12) {
-                    StatsCardDetail(
-                        title: "Completed",
-                        value: "\(completedQuizzes)",
-                        subtitle: "quizzes",
-                        icon: "✅"
-                    )
+            VStack(spacing: 16) {
+                // Overall Stats (Glassmorphism)
+                VStack(spacing: 12) {
+                    Text("📊 Overall Performance")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    StatsCardDetail(
-                        title: "Average",
-                        value: "\(averageScore)%",
-                        subtitle: "score",
-                        icon: "⭐"
-                    )
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        Button(action: onGamesTap) {
+                            OverviewStatCard(title: "Games", value: "\(totalGamesCompleted)", icon: "gamecontroller.fill", color: .orange)
+                        }
+                        
+                        OverviewStatCard(title: "Score", value: "\(child.Score)", icon: "star.fill", color: .yellow)
+                    }
                 }
+                .padding(16)
+                .background(Color.white.opacity(0.15))
+                .cornerRadius(16)
                 .padding(.horizontal, 20)
                 
                 // Overall Progress
                 VStack(spacing: 12) {
                     HStack {
                         Text("Overall Progress")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
+                            .font(.headline)
+                            .foregroundColor(.white)
                         
                         Spacer()
                     }
                     
                     HStack {
-                        Text("\(completedQuizzes) of \(totalQuizzes) quizzes")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
+                        Text("\(totalCompleted) of \(totalActivities) completed")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
                         
                         Spacer()
                         
-                        Text("\(totalQuizzes == 0 ? 0 : (completedQuizzes * 100 / totalQuizzes))%")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
+                        Text("\(totalActivities == 0 ? 0 : (totalCompleted * 100 / totalActivities))%")
+                            .font(.headline)
+                            .foregroundColor(.white)
                     }
                     
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 5)
-                                .fill(Color(red: 0.88, green: 0.88, blue: 0.88))
+                                .fill(Color.white.opacity(0.2))
                                 .frame(height: 10)
                             
                             RoundedRectangle(cornerRadius: 5)
-                                .fill(Color(red: 0.686, green: 0.494, blue: 0.906))
+                                .fill(Color.green)
                                 .frame(
-                                    width: totalQuizzes == 0 ? 0 : geometry.size.width * CGFloat(completedQuizzes) / CGFloat(totalQuizzes),
+                                    width: totalActivities == 0 ? 0 : geometry.size.width * CGFloat(totalCompleted) / CGFloat(totalActivities),
                                     height: 10
                                 )
                         }
@@ -293,7 +326,36 @@ struct OverviewTab: View {
                     .frame(height: 10)
                 }
                 .padding(16)
-                .background(Color.white.opacity(0.95))
+                .background(Color.white.opacity(0.15))
+                .cornerRadius(16)
+                .padding(.horizontal, 20)
+                
+                // Quiz Results Section
+                VStack(spacing: 12) {
+                    HStack {
+                        Text("📝 Quiz Results")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                    }
+                    
+                    if !quizzes.isEmpty {
+                        ForEach(quizzes) { quiz in
+                            Button(action: { onQuizTap(quiz) }) {
+                                AIQuizResultCard(quiz: quiz)
+                            }
+                        }
+                    } else {
+                        Text("No completed quizzes yet")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.7))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 8)
+                    }
+                }
+                .padding(16)
+                .background(Color.white.opacity(0.15))
                 .cornerRadius(16)
                 .padding(.horizontal, 20)
             }
@@ -302,71 +364,235 @@ struct OverviewTab: View {
     }
 }
 
-// MARK: - Stats Card Detail
-struct StatsCardDetail: View {
-    let title: String
-    let value: String
-    let subtitle: String
-    let icon: String
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(icon)
-                .font(.system(size: 32))
-            
-            Text(value)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
-            
-            Text(subtitle)
-                .font(.system(size: 12))
-                .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(16)
-        .background(Color.white.opacity(0.95))
-        .cornerRadius(16)
-    }
-}
 
-// MARK: - Quiz Results Tab
-struct QuizResultsTab: View {
-    let quizzes: [AIQuizResponse]
-    let onQuizTap: (AIQuizResponse) -> Void
+
+// MARK: - Games List Sheet
+struct GamesListSheet: View {
+    let games: [[String: Any]]
+    let child: Child
+    @Environment(\.dismiss) var dismiss
+    @State private var selectedSegment = 0
+    
+    var completedGames: [[String: Any]] {
+        games.filter { game in
+            // Games with score are considered completed
+            (game["score"] as? Int) != nil
+        }
+    }
+    
+    var pendingGames: [[String: Any]] {
+        games.filter { game in
+            // Games without score are pending (if we ever save pending games)
+            (game["score"] as? Int) == nil
+        }
+    }
     
     var body: some View {
-        if quizzes.isEmpty {
-            VStack(spacing: 12) {
-                Spacer()
+        NavigationView {
+            ZStack {
+                // Background Gradient
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
+                        Color(red: 0.153, green: 0.125, blue: 0.322)
+                    ]),
+                    center: .init(x: 0.3, y: 0.3),
+                    startRadius: 50,
+                    endRadius: 400
+                )
+                .ignoresSafeArea()
                 
-                Text("📊")
-                    .font(.system(size: 48))
-                
-                Text("No quiz results yet")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                
-                Text("Complete some quizzes to see results here")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.7))
-                
-                Spacer()
-            }
-        } else {
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(quizzes) { quiz in
-                        Button(action: { onQuizTap(quiz) }) {
-                            AIQuizResultCard(quiz: quiz)
+                VStack(spacing: 0) {
+                    // Segment Control
+                    Picker("", selection: $selectedSegment) {
+                        Text("Completed (\(completedGames.count))").tag(0)
+                        Text("Pending (\(pendingGames.count))").tag(1)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding()
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(12)
+                    .padding()
+                    
+                    // Content
+                    if selectedSegment == 0 {
+                        if completedGames.isEmpty {
+                            VStack(spacing: 16) {
+                                Spacer()
+                                Text("🎮")
+                                    .font(.system(size: 60))
+                                Text("No completed games yet")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                Text("Complete some games to see them here!")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.7))
+                                Spacer()
+                            }
+                        } else {
+                            ScrollView {
+                                LazyVStack(spacing: 12) {
+                                    ForEach(completedGames.indices.reversed(), id: \.self) { index in
+                                        GameResultCardSimple(game: completedGames[index])
+                                    }
+                                }
+                                .padding()
+                            }
+                        }
+                    } else {
+                        if pendingGames.isEmpty {
+                            VStack(spacing: 16) {
+                                Spacer()
+                                Text("⏳")
+                                    .font(.system(size: 60))
+                                Text("No pending games")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                Text("All games are completed!")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.7))
+                                Spacer()
+                            }
+                        } else {
+                            ScrollView {
+                                LazyVStack(spacing: 12) {
+                                    ForEach(pendingGames.indices, id: \.self) { index in
+                                        GameResultCardSimple(game: pendingGames[index])
+                                    }
+                                }
+                                .padding()
+                            }
                         }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+            }
+            .navigationTitle("\(child.name)'s Games")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
             }
         }
     }
 }
+
+// MARK: - Game Result Card Simple
+struct GameResultCardSimple: View {
+    let game: [String: Any]
+    
+    var gameType: String { (game["type"] as? String) ?? "game" }
+    var gameTitle: String {
+        switch gameType {
+        case "memory": return "Memory Match"
+        case "color": return "Color Match"
+        case "shape": return "Shape Match"
+        case "sequence": return "Number Sequence"
+        case "puzzle": return "Puzzle"
+        default: return "Game"
+        }
+    }
+    var gameIcon: String {
+        switch gameType {
+        case "memory": return "brain.head.profile"
+        case "color": return "paintpalette.fill"
+        case "shape": return "square.on.circle"
+        case "sequence": return "number.circle"
+        case "puzzle": return "puzzlepiece.fill"
+        default: return "gamecontroller.fill"
+        }
+    }
+    var gameColor: Color {
+        switch gameType {
+        case "memory": return .purple
+        case "color": return .orange
+        case "shape": return .green
+        case "sequence": return .blue
+        case "puzzle": return Color(red: 0.686, green: 0.494, blue: 0.906)
+        default: return .gray
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(gameColor.opacity(0.2))
+                    .frame(width: 60, height: 60)
+                Image(systemName: gameIcon)
+                    .font(.title2)
+                    .foregroundColor(gameColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(gameTitle)
+                    .font(.headline)
+                
+                if let dateString = game["date"] as? String {
+                    Text(formatDate(dateString))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack(spacing: 12) {
+                    if let time = game["time"] as? Int {
+                        Label(formatTime(time), systemImage: "clock")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if let moves = game["moves"] as? Int {
+                        Label("\(moves)", systemImage: "hand.tap")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else if let attempts = game["attempts"] as? Int {
+                        Label("\(attempts) tries", systemImage: "arrow.counterclockwise")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            if let score = game["score"] as? Int {
+                VStack(spacing: 4) {
+                    Text("⭐")
+                        .font(.title3)
+                    Text("\(score)")
+                        .font(.title3.bold())
+                        .foregroundColor(gameColor)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+    }
+    
+    private func formatDate(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        if let date = formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateFormat = "MMM d, h:mm a"
+            return displayFormatter.string(from: date)
+        }
+        return "Recent"
+    }
+    
+    private func formatTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+}
+
+
+
 
 // MARK: - AI Quiz Result Card
 struct AIQuizResultCard: View {
@@ -396,7 +622,7 @@ struct AIQuizResultCard: View {
         VStack(spacing: 12) {
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(quiz.topic.capitalized)
+                    Text(quiz.meaningfulTitle)
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
                     

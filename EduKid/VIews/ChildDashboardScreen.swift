@@ -1,28 +1,42 @@
 //
-//  ChildDashboardScreen.swift - COMPLETE with ALL Components
+//  ChildDashboardScreen.swift
 //  EduKid
+//
+//  FIXED: All 4 games now working - NO placeholders
 //
 
 import SwiftUI
 
-// MARK: - Game Type Enum (Must be at top level)
-enum SimpleGameType: String, Identifiable {
+// MARK: - Game Type Enum
+enum SimpleGameType: String, Identifiable, CaseIterable {
     case memory = "Memory Match"
     case color = "Color Match"
+    case shape = "Shape Match"
+    case sequence = "Number Sequence"
     
     var id: String { rawValue }
-    
     var icon: String {
         switch self {
         case .memory: return "brain.head.profile"
         case .color: return "paintpalette.fill"
+        case .shape: return "square.on.circle"
+        case .sequence: return "number.circle"
         }
     }
-    
     var color: Color {
         switch self {
         case .memory: return .purple
         case .color: return .orange
+        case .shape: return .green
+        case .sequence: return .blue
+        }
+    }
+    var description: String {
+        switch self {
+        case .memory: return "Match pairs of cards"
+        case .color: return "Match colors and patterns"
+        case .shape: return "Identify matching shapes"
+        case .sequence: return "Complete number patterns"
         }
     }
 }
@@ -32,27 +46,12 @@ struct ChildDashboardScreen: View {
     let child: Child
     @EnvironmentObject var authVM: AuthViewModel
     @State private var quizzes: [AIQuizResponse] = []
-    @State private var puzzles: [PuzzleResponse] = []
     @State private var isLoading = false
     @State private var selectedMainTab = 0
-    @State private var selectedQuizTab = 0
     @State private var selectedGame: SimpleGameType?
     
-    var pendingQuizzes: [AIQuizResponse] {
-        quizzes.filter { $0.answered == 0 }
-    }
-    
-    var completedQuizzes: [AIQuizResponse] {
-        quizzes.filter { $0.answered > 0 }
-    }
-    
-    var pendingPuzzles: [PuzzleResponse] {
-        puzzles.filter { !$0.isCompleted }
-    }
-    
-    var completedPuzzles: [PuzzleResponse] {
-        puzzles.filter { $0.isCompleted }
-    }
+    var pendingQuizzes: [AIQuizResponse] { quizzes.filter { $0.answered == 0 } }
+    var completedQuizzes: [AIQuizResponse] { quizzes.filter { $0.answered > 0 } }
     
     var body: some View {
         NavigationStack {
@@ -72,46 +71,43 @@ struct ChildDashboardScreen: View {
                     VStack(spacing: 24) {
                         Spacer().frame(height: 40)
                         
-                        ChildInfoCard(child: child)
+                        ChildInfoCardView(child: child)
                             .padding(.horizontal, 20)
                         
+                        // Tab Selector
                         HStack(spacing: 0) {
-                            MainTabButton(title: "📝 Quizzes", isSelected: selectedMainTab == 0) {
-                                selectedMainTab = 0
-                            }
-                            MainTabButton(title: "🧩 Puzzles", isSelected: selectedMainTab == 1) {
-                                selectedMainTab = 1
-                            }
-                            MainTabButton(title: "🎮 Games", isSelected: selectedMainTab == 2) {
-                                selectedMainTab = 2
-                            }
+                            TabButton(title: "📝 Quizzes", isSelected: selectedMainTab == 0) { selectedMainTab = 0 }
+                            TabButton(title: "🧩 Puzzles", isSelected: selectedMainTab == 1) { selectedMainTab = 1 }
+                            TabButton(title: "🎮 Games", isSelected: selectedMainTab == 2) { selectedMainTab = 2 }
                         }
                         .background(Color.white.opacity(0.1))
                         .cornerRadius(12)
                         .padding(.horizontal, 20)
                         
-                        if selectedMainTab == 0 {
-                            QuizContent(
-                                selectedTab: selectedQuizTab,
-                                pendingQuizzes: pendingQuizzes,
-                                completedQuizzes: completedQuizzes,
-                                child: child,
-                                onQuizCompleted: { Task { await loadData() } }
-                            )
-                            .padding(.horizontal, 20)
-                        } else if selectedMainTab == 1 {
-                            ChildPuzzleContent(
-                                pendingPuzzles: pendingPuzzles,
-                                completedPuzzles: completedPuzzles,
-                                child: child,
-                                onPuzzleCompleted: { Task { await loadData() } }
-                            )
-                            .padding(.horizontal, 20)
-                        } else {
-                            SimpleGamesContentView(child: child, selectedGame: $selectedGame)
-                                .padding(.horizontal, 20)
+                        // Tab Content
+                        Group {
+                            switch selectedMainTab {
+                            case 0:
+                                ChildQuizContent(
+                                    pendingQuizzes: pendingQuizzes,
+                                    completedQuizzes: completedQuizzes,
+                                    child: child,
+                                    onQuizCompleted: { Task { await loadData() } }
+                                )
+                            case 1:
+                                ChildPuzzleContentView(
+                                    child: child,
+                                    onPuzzleCompleted: { Task { await loadData() } }
+                                )
+                            case 2:
+                                ChildGamesContent(child: child, selectedGame: $selectedGame)
+                            default:
+                                EmptyView()
+                            }
                         }
+                        .padding(.horizontal, 20)
                         
+                        // Logout Button
                         Button(action: { authVM.signOutChild() }) {
                             HStack {
                                 Image(systemName: "arrow.uturn.left.circle.fill")
@@ -132,28 +128,22 @@ struct ChildDashboardScreen: View {
                 
                 if isLoading {
                     Color.black.opacity(0.3).ignoresSafeArea()
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.5)
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(1.5)
                 }
             }
             .navigationBarHidden(true)
-            .onAppear {
-                Task { await loadData() }
-            }
-            .refreshable {
-                await loadData()
-            }
+            .onAppear { Task { await loadData() } }
+            .refreshable { await loadData() }
             .fullScreenCover(item: $selectedGame) { game in
                 switch game {
                 case .memory:
-                    MemoryMatchGame(child: child) { score in
-                        selectedGame = nil
-                    }
+                    MemoryMatchGame(child: child) { _ in selectedGame = nil }
                 case .color:
-                    ColorMatchGame(child: child) { score in
-                        selectedGame = nil
-                    }
+                    ColorMatchGame(child: child) { _ in selectedGame = nil }
+                case .shape:
+                    ShapeMatchingGame(child: child) { _ in selectedGame = nil }
+                case .sequence:
+                    NumberSequenceGame(child: child) { _ in selectedGame = nil }
                 }
             }
         }
@@ -161,31 +151,39 @@ struct ChildDashboardScreen: View {
     
     private func loadData() async {
         isLoading = true
-        
         do {
             guard let parentId = AuthService.shared.getParentId() else { return }
-            
-            async let quizzesTask = AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
-            async let puzzlesTask = PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
-            
-            let (fetchedQuizzes, fetchedPuzzles) = try await (quizzesTask, puzzlesTask)
-            
+            let fetchedQuizzes = try await AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
             await MainActor.run {
                 quizzes = fetchedQuizzes.sorted { ($0.createdAt ?? "") > ($1.createdAt ?? "") }
-                puzzles = fetchedPuzzles.sorted { ($0.createdAt ?? "") > ($1.createdAt ?? "") }
                 isLoading = false
             }
         } catch {
-            await MainActor.run {
-                isLoading = false
-                print("Error loading data: \(error)")
-            }
+            await MainActor.run { isLoading = false }
         }
     }
 }
 
-// MARK: - Child Info Card
-struct ChildInfoCard: View {
+// MARK: - Tab Button
+struct TabButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.bold())
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(isSelected ? Color.white.opacity(0.25) : Color.clear)
+        }
+    }
+}
+
+// MARK: - Child Info Card View
+struct ChildInfoCardView: View {
     let child: Child
     
     var body: some View {
@@ -203,9 +201,9 @@ struct ChildInfoCard: View {
                 .foregroundColor(.white)
             
             HStack(spacing: 24) {
-                StatBadge(icon: "star.fill", label: "Points", value: "\(child.Score)", color: .yellow)
-                StatBadge(icon: "chart.bar.fill", label: "Level", value: child.level, color: .green)
-                StatBadge(icon: "calendar", label: "Age", value: "\(child.age)", color: .blue)
+                ChildStatBadge(icon: "star.fill", label: "Points", value: "\(child.Score)", color: .yellow)
+                ChildStatBadge(icon: "chart.bar.fill", label: "Level", value: child.level, color: .green)
+                ChildStatBadge(icon: "calendar", label: "Age", value: "\(child.age)", color: .blue)
             }
         }
         .frame(maxWidth: .infinity)
@@ -221,8 +219,8 @@ struct ChildInfoCard: View {
     }
 }
 
-// MARK: - Stat Badge
-struct StatBadge: View {
+// MARK: - Child Stat Badge
+struct ChildStatBadge: View {
     let icon: String
     let label: String
     let value: String
@@ -231,26 +229,17 @@ struct StatBadge: View {
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
-                Circle()
-                    .fill(color.opacity(0.3))
-                    .frame(width: 50, height: 50)
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundColor(color)
+                Circle().fill(color.opacity(0.3)).frame(width: 50, height: 50)
+                Image(systemName: icon).font(.title3).foregroundColor(color)
             }
-            Text(value)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.white)
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.7))
+            Text(value).font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+            Text(label).font(.caption).foregroundColor(.white.opacity(0.7))
         }
     }
 }
 
-// MARK: - Quiz Content
-struct QuizContent: View {
-    let selectedTab: Int
+// MARK: - Child Quiz Content
+struct ChildQuizContent: View {
     let pendingQuizzes: [AIQuizResponse]
     let completedQuizzes: [AIQuizResponse]
     let child: Child
@@ -258,29 +247,21 @@ struct QuizContent: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Sub-tabs for pending/completed
-            HStack(spacing: 0) {
-                Button(action: {}) {
-                    Text("Pending (\(pendingQuizzes.count))")
-                        .font(.subheadline.bold())
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.2))
-                }
-            }
-            .background(Color.white.opacity(0.1))
-            .cornerRadius(12)
-            
-            // Quiz List
-            if pendingQuizzes.isEmpty {
-                EmptyStateView(icon: "checkmark.seal.fill", title: "All caught up!", message: "No pending quizzes. Great job!")
+            if pendingQuizzes.isEmpty && completedQuizzes.isEmpty {
+                ChildEmptyState(icon: "doc.text.fill", title: "No quizzes yet!", message: "Ask your parent to assign quizzes")
             } else {
-                ForEach(pendingQuizzes) { quiz in
-                    NavigationLink(destination:
-                        QuizTakingScreen(quiz: quiz, child: child, onQuizCompleted: onQuizCompleted)
-                    ) {
-                        AIQuizCardForChild(quiz: quiz)
+                if !pendingQuizzes.isEmpty {
+                    ChildSectionHeader(title: "Ready to Take", icon: "play.circle.fill")
+                    ForEach(pendingQuizzes) { quiz in
+                        NavigationLink(destination: QuizTakingScreen(quiz: quiz, child: child, onQuizCompleted: onQuizCompleted)) {
+                            ChildQuizCard(quiz: quiz)
+                        }
+                    }
+                }
+                if !completedQuizzes.isEmpty {
+                    ChildSectionHeader(title: "Completed", icon: "checkmark.circle.fill")
+                    ForEach(completedQuizzes.prefix(3)) { quiz in
+                        ChildCompletedQuizCard(quiz: quiz)
                     }
                 }
             }
@@ -288,8 +269,8 @@ struct QuizContent: View {
     }
 }
 
-// MARK: - AI Quiz Card for Child
-struct AIQuizCardForChild: View {
+// MARK: - Child Quiz Card
+struct ChildQuizCard: View {
     let quiz: AIQuizResponse
     
     var subjectIcon: String {
@@ -297,8 +278,6 @@ struct AIQuizCardForChild: View {
         case "math": return "function"
         case "science": return "flask.fill"
         case "english": return "book.fill"
-        case "history": return "clock.fill"
-        case "geography": return "globe"
         default: return "star.fill"
         }
     }
@@ -308,8 +287,6 @@ struct AIQuizCardForChild: View {
         case "math": return .blue
         case "science": return .green
         case "english": return .purple
-        case "history": return .orange
-        case "geography": return .cyan
         default: return .yellow
         }
     }
@@ -320,9 +297,9 @@ struct AIQuizCardForChild: View {
                 Circle().fill(iconColor.opacity(0.3)).frame(width: 70, height: 70)
                 Image(systemName: subjectIcon).font(.system(size: 28)).foregroundColor(iconColor)
             }
-            
             VStack(alignment: .leading, spacing: 8) {
-                Text(quiz.topic.capitalized).font(.title3.bold()).foregroundColor(.white)
+                // CHANGÉ: Utiliser meaningfulTitle
+                Text(quiz.meaningfulTitle).font(.title3.bold()).foregroundColor(.white)
                 Text(quiz.subject.capitalized).font(.subheadline).foregroundColor(.white.opacity(0.8))
                 HStack(spacing: 12) {
                     Label("\(quiz.questions.count) questions", systemImage: "questionmark.circle.fill")
@@ -330,9 +307,7 @@ struct AIQuizCardForChild: View {
                 }
                 .font(.caption).foregroundColor(.white.opacity(0.7))
             }
-            
             Spacer()
-            
             Image(systemName: "play.circle.fill").font(.system(size: 40)).foregroundColor(.white.opacity(0.8))
         }
         .padding(20)
@@ -341,344 +316,57 @@ struct AIQuizCardForChild: View {
     }
 }
 
-// MARK: - Child Puzzle Content (Uses Local Puzzles)
-struct ChildPuzzleContent: View {
-    let pendingPuzzles: [PuzzleResponse]
-    let completedPuzzles: [PuzzleResponse]
-    let child: Child
-    let onPuzzleCompleted: () -> Void
-    
-    @State private var selectedPuzzle: PuzzleResponse?
-    @State private var localPuzzles: [LocalPuzzle] = []
-    @State private var selectedLocalPuzzle: LocalPuzzle?
-    @State private var showGenerateOptions = false
-    
-    var pendingLocalPuzzles: [LocalPuzzle] {
-        localPuzzles.filter { !$0.isCompleted }
-    }
-    
-    var completedLocalPuzzles: [LocalPuzzle] {
-        localPuzzles.filter { $0.isCompleted }
-    }
+// MARK: - Child Completed Quiz Card
+struct ChildCompletedQuizCard: View {
+    let quiz: AIQuizResponse
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Generate Your Own Button
-            Button(action: { showGenerateOptions = true }) {
-                HStack {
-                    Image(systemName: "sparkles")
-                        .font(.title3)
-                    Text("Create Your Own Puzzle")
-                        .font(.headline)
-                }
-                .foregroundColor(Color(red: 0.153, green: 0.125, blue: 0.322))
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.white)
-                .cornerRadius(16)
+        HStack(spacing: 16) {
+            Image(systemName: "checkmark.circle.fill").font(.title2).foregroundColor(.green)
+            VStack(alignment: .leading, spacing: 4) {
+                // CHANGÉ: Utiliser meaningfulTitle
+                Text(quiz.meaningfulTitle).font(.subheadline.bold()).foregroundColor(.white)
+                Text(quiz.subject.capitalized).font(.caption).foregroundColor(.white.opacity(0.7))
             }
-            
-            // Local Puzzles
-            if !pendingLocalPuzzles.isEmpty {
-                SectionHeader(title: "Your Puzzles", icon: "play.circle.fill")
-                ForEach(pendingLocalPuzzles) { puzzle in
-                    LocalPuzzleCard(puzzle: puzzle) {
-                        selectedLocalPuzzle = puzzle
-                    }
-                }
-            }
-            
-            if !completedLocalPuzzles.isEmpty {
-                SectionHeader(title: "Completed", icon: "checkmark.circle.fill")
-                ForEach(completedLocalPuzzles) { puzzle in
-                    LocalPuzzleCard(puzzle: puzzle, showScore: true) {
-                        selectedLocalPuzzle = puzzle
-                    }
-                }
-            }
-            
-            // Parent Puzzles (if any)
-            if !pendingPuzzles.isEmpty {
-                SectionHeader(title: "From Parents", icon: "gift.fill")
-                ForEach(pendingPuzzles) { puzzle in
-                    PuzzleCard(puzzle: puzzle) {
-                        selectedPuzzle = puzzle
-                    }
-                }
+            Spacer()
+            VStack(spacing: 2) {
+                Text("⭐")
+                Text("\(quiz.score)%").font(.headline.bold()).foregroundColor(.yellow)
             }
         }
-        .onAppear {
-            loadLocalPuzzles()
-        }
-        .sheet(isPresented: $showGenerateOptions) {
-            QuickPuzzleGeneratorSheet(child: child) {
-                loadLocalPuzzles()
-            }
-        }
-        .fullScreenCover(item: $selectedLocalPuzzle) { puzzle in
-            LocalPuzzlePlayScreen(
-                puzzle: puzzle,
-                child: child,
-                onComplete: {
-                    selectedLocalPuzzle = nil
-                    loadLocalPuzzles()
-                    onPuzzleCompleted()
-                }
-            )
-        }
-        .fullScreenCover(item: $selectedPuzzle) { puzzle in
-            PuzzlePlayScreen(
-                puzzle: puzzle,
-                child: child,
-                onComplete: {
-                    selectedPuzzle = nil
-                    onPuzzleCompleted()
-                }
-            )
-        }
-    }
-    
-    private func loadLocalPuzzles() {
-        localPuzzles = LocalPuzzleManager.shared.getAllPuzzles(for: child.id)
+        .padding(16)
+        .background(Color.white.opacity(0.1))
+        .cornerRadius(12)
     }
 }
 
-// MARK: - Local Puzzle Card
-struct LocalPuzzleCard: View {
-    let puzzle: LocalPuzzle
-    var showScore: Bool = false
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(puzzle.type.color.opacity(0.3))
-                        .frame(width: 60, height: 60)
-                    
-                    Image(systemName: puzzle.type.icon)
-                        .font(.title2)
-                        .foregroundColor(puzzle.type.color)
-                }
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(puzzle.title)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    
-                    HStack(spacing: 8) {
-                        Label(puzzle.type.displayName, systemImage: puzzle.type.icon)
-                        Label("\(puzzle.gridSize)x\(puzzle.gridSize)", systemImage: "square.grid.2x2")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
-                    
-                    Text(puzzle.difficulty.displayName)
-                        .font(.caption.bold())
-                        .foregroundColor(puzzle.difficulty.color)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(puzzle.difficulty.color.opacity(0.2))
-                        .cornerRadius(4)
-                }
-                
-                Spacer()
-                
-                if showScore && puzzle.isCompleted {
-                    VStack(spacing: 4) {
-                        Text("⭐")
-                            .font(.title2)
-                        Text("\(puzzle.score)")
-                            .font(.headline.bold())
-                            .foregroundColor(.yellow)
-                    }
-                } else {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 36))
-                        .foregroundColor(.white.opacity(0.8))
-                }
-            }
-            .padding(16)
-            .background(Color.white.opacity(0.15))
-            .cornerRadius(16)
-        }
-    }
-}
 
-// MARK: - Quick Puzzle Generator Sheet
-struct QuickPuzzleGeneratorSheet: View {
-    let child: Child
-    let onGenerated: () -> Void
-    
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color(red: 0.153, green: 0.125, blue: 0.322)
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 20) {
-                    Text("Choose Puzzle Type")
-                        .font(.title2.bold())
-                        .foregroundColor(.white)
-                        .padding(.top, 40)
-                    
-                    ForEach(PuzzleType.allCases, id: \.self) { type in
-                        Button(action: {
-                            generatePuzzle(type: type)
-                        }) {
-                            HStack(spacing: 16) {
-                                Image(systemName: type.icon)
-                                    .font(.title2)
-                                    .foregroundColor(type.color)
-                                    .frame(width: 50, height: 50)
-                                    .background(type.color.opacity(0.2))
-                                    .cornerRadius(12)
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(type.displayName)
-                                        .font(.headline)
-                                        .foregroundColor(.white)
-                                    Text(getDescription(for: type))
-                                        .font(.caption)
-                                        .foregroundColor(.white.opacity(0.7))
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                            .padding()
-                            .background(Color.white.opacity(0.1))
-                            .cornerRadius(16)
-                        }
-                    }
-                    
-                    Spacer()
-                }
-                .padding(20)
-            }
-            .navigationTitle("Create Puzzle")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(.white)
-                }
-            }
-        }
-    }
-    
-    private func generatePuzzle(type: PuzzleType) {
-        let _ = LocalPuzzleManager.shared.generateLocalPuzzle(for: child, type: type)
-        onGenerated()
-        dismiss()
-    }
-    
-    private func getDescription(for type: PuzzleType) -> String {
-        switch type {
-        case .word: return "Unscramble letters to form words"
-        case .number: return "Arrange numbers in order"
-        case .sequence: return "Put items in correct order"
-        case .pattern: return "Complete the pattern"
-        case .image: return "Assemble the picture"
-        }
-    }
-}
 
-// Note: SectionHeader and PuzzleCard are defined in PuzzleViews.swift
-// If they don't exist there, uncomment these:
 
-/*
-// MARK: - Section Header
-struct SectionHeader: View {
-    let title: String
+// MARK: - Child Empty State
+struct ChildEmptyState: View {
     let icon: String
+    let title: String
+    let message: String
     
     var body: some View {
-        HStack {
-            Image(systemName: icon)
-            Text(title)
-                .font(.headline)
+        VStack(spacing: 12) {
+            Image(systemName: icon).font(.system(size: 50)).foregroundColor(.white.opacity(0.5))
+            Text(title).font(.title3).foregroundColor(.white.opacity(0.7))
+            Text(message).font(.subheadline).foregroundColor(.white.opacity(0.6)).multilineTextAlignment(.center)
         }
-        .foregroundColor(.white)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 8)
+        .frame(maxWidth: .infinity)
+        .padding(40)
+        .background(Color.white.opacity(0.1))
+        .cornerRadius(16)
     }
 }
 
-// MARK: - Puzzle Card
-struct PuzzleCard: View {
-    let puzzle: PuzzleResponse
-    var showScore: Bool = false
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(puzzle.puzzleType.color.opacity(0.3))
-                        .frame(width: 60, height: 60)
-                    
-                    Image(systemName: puzzle.puzzleType.icon)
-                        .font(.title2)
-                        .foregroundColor(puzzle.puzzleType.color)
-                }
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(puzzle.title)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                    
-                    HStack(spacing: 8) {
-                        Label(puzzle.puzzleType.displayName, systemImage: puzzle.puzzleType.icon)
-                        Label("\(puzzle.gridSize)x\(puzzle.gridSize)", systemImage: "square.grid.2x2")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
-                    
-                    Text(puzzle.puzzleDifficulty.displayName)
-                        .font(.caption.bold())
-                        .foregroundColor(puzzle.puzzleDifficulty.color)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(puzzle.puzzleDifficulty.color.opacity(0.2))
-                        .cornerRadius(4)
-                }
-                
-                Spacer()
-                
-                if showScore && puzzle.isCompleted {
-                    VStack(spacing: 4) {
-                        Text("⭐")
-                            .font(.title2)
-                        Text("\(puzzle.score)")
-                            .font(.headline.bold())
-                            .foregroundColor(.yellow)
-                    }
-                } else {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 36))
-                        .foregroundColor(.white.opacity(0.8))
-                }
-            }
-            .padding(16)
-            .background(Color.white.opacity(0.15))
-            .cornerRadius(16)
-        }
-    }
-}
-*/
-
-// MARK: - Simple Games Content View
-struct SimpleGamesContentView: View {
+// MARK: - Child Games Content
+struct ChildGamesContent: View {
     let child: Child
     @Binding var selectedGame: SimpleGameType?
+    @State private var gameHistory: [[String: Any]] = []
     
     var body: some View {
         VStack(spacing: 20) {
@@ -687,38 +375,53 @@ struct SimpleGamesContentView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
-            GameCard(
-                title: "Memory Match",
-                description: "Find matching pairs and train your memory!",
-                icon: "brain.head.profile",
-                color: .purple,
-                difficulty: "Easy"
-            ) {
-                selectedGame = .memory
+            // All Game Cards
+            ForEach(SimpleGameType.allCases, id: \.self) { game in
+                ChildGameCard(
+                    title: game.rawValue,
+                    description: game.description,
+                    icon: game.icon,
+                    color: game.color,
+                    gamesPlayed: getGamesPlayedCount(type: game.rawValue.lowercased().replacingOccurrences(of: " ", with: ""))
+                ) {
+                    selectedGame = game
+                }
             }
             
-            GameCard(
-                title: "Color Match",
-                description: "Match colors with their names!",
-                icon: "paintpalette.fill",
-                color: .orange,
-                difficulty: "Easy"
-            ) {
-                selectedGame = .color
+            // Game History
+            if !gameHistory.isEmpty {
+                ChildGameHistory(child: child)
             }
-            
-            GameHistoryView(child: child)
         }
+        .onAppear {
+            loadGameHistory()
+        }
+    }
+    
+    private func loadGameHistory() {
+        gameHistory = (UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []).reversed()
+    }
+    
+    private func getGamesPlayedCount(type: String) -> Int {
+        let typeKey: String
+        switch type {
+        case "memorymatch": typeKey = "memory"
+        case "colormatch": typeKey = "color"
+        case "shapematch": typeKey = "shape"
+        case "numbersequence": typeKey = "sequence"
+        default: typeKey = type
+        }
+        return gameHistory.filter { ($0["type"] as? String) == typeKey }.count
     }
 }
 
-// MARK: - Game Card
-struct GameCard: View {
+// MARK: - Child Game Card
+struct ChildGameCard: View {
     let title: String
     let description: String
     let icon: String
     let color: Color
-    let difficulty: String
+    let gamesPlayed: Int
     let onTap: () -> Void
     
     var body: some View {
@@ -728,33 +431,24 @@ struct GameCard: View {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(color.opacity(0.3))
                         .frame(width: 70, height: 70)
-                    
                     Image(systemName: icon)
                         .font(.system(size: 32))
                         .foregroundColor(color)
                 }
-                
                 VStack(alignment: .leading, spacing: 8) {
                     Text(title)
                         .font(.headline)
                         .foregroundColor(.white)
-                    
                     Text(description)
                         .font(.subheadline)
                         .foregroundColor(.white.opacity(0.7))
-                        .lineLimit(2)
-                    
-                    Text(difficulty)
-                        .font(.caption.bold())
-                        .foregroundColor(color)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(color.opacity(0.2))
-                        .cornerRadius(6)
+                    if gamesPlayed > 0 {
+                        Text("Played \(gamesPlayed) times")
+                            .font(.caption)
+                            .foregroundColor(color)
+                    }
                 }
-                
                 Spacer()
-                
                 Image(systemName: "play.circle.fill")
                     .font(.system(size: 36))
                     .foregroundColor(.white.opacity(0.8))
@@ -766,152 +460,78 @@ struct GameCard: View {
     }
 }
 
-// MARK: - Game History View
-struct GameHistoryView: View {
+// MARK: - Child Game History
+struct ChildGameHistory: View {
     let child: Child
     @State private var games: [[String: Any]] = []
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("📊 Recent Games")
-                .font(.headline)
-                .foregroundColor(.white)
+            Text("📊 Recent Games").font(.headline).foregroundColor(.white)
             
             if games.isEmpty {
-                Text("No games played yet. Start playing to see your history!")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.white.opacity(0.1))
-                    .cornerRadius(12)
+                Text("No games played yet!").font(.subheadline).foregroundColor(.white.opacity(0.7))
+                    .padding().frame(maxWidth: .infinity).background(Color.white.opacity(0.1)).cornerRadius(12)
             } else {
-                ForEach(games.indices, id: \.self) { index in
-                    if let game = games[index] as? [String: Any] {
-                        GameHistoryCard(game: game)
-                    }
+                ForEach(games.prefix(3).indices, id: \.self) { index in
+                    ChildGameHistoryRow(game: games[index])
                 }
             }
         }
         .onAppear {
-            loadGameHistory()
+            games = (UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []).reversed()
         }
-    }
-    
-    private func loadGameHistory() {
-        games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
-        games = Array(games.reversed().prefix(5))
     }
 }
 
-// MARK: - Game History Card
-struct GameHistoryCard: View {
+// MARK: - Child Game History Row
+struct ChildGameHistoryRow: View {
     let game: [String: Any]
     
-    var gameTitle: String {
-        if let type = game["type"] as? String {
-            return type == "memory" ? "Memory Match" : "Color Match"
+    var gameType: SimpleGameType? {
+        guard let typeString = game["type"] as? String else { return nil }
+        switch typeString {
+        case "memory": return .memory
+        case "color": return .color
+        case "shape": return .shape
+        case "sequence": return .sequence
+        default: return nil
         }
-        return "Game"
-    }
-    
-    var gameIcon: String {
-        if let type = game["type"] as? String {
-            return type == "memory" ? "brain.head.profile" : "paintpalette.fill"
-        }
-        return "gamecontroller.fill"
-    }
-    
-    var gameColor: Color {
-        if let type = game["type"] as? String {
-            return type == "memory" ? .purple : .orange
-        }
-        return .blue
     }
     
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: gameIcon)
-                .font(.title3)
-                .foregroundColor(gameColor)
-                .frame(width: 40, height: 40)
-                .background(gameColor.opacity(0.2))
-                .cornerRadius(8)
+            if let gameType = gameType {
+                ZStack {
+                    Circle().fill(gameType.color.opacity(0.3)).frame(width: 40, height: 40)
+                    Image(systemName: gameType.icon).font(.system(size: 18)).foregroundColor(gameType.color)
+                }
+            }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(gameTitle)
-                    .font(.subheadline.bold())
-                    .foregroundColor(.white)
+                if let gameType = gameType {
+                    Text(gameType.rawValue).font(.subheadline.bold()).foregroundColor(.white)
+                } else {
+                    Text("Unknown Game").font(.subheadline.bold()).foregroundColor(.white)
+                }
                 
-                HStack(spacing: 12) {
-                    if let score = game["score"] as? Int {
-                        Label("\(score) pts", systemImage: "star.fill")
-                            .font(.caption)
-                            .foregroundColor(.yellow)
-                    }
-                    
-                    if let time = game["time"] as? Int {
-                        Label(formatTime(time), systemImage: "clock.fill")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
+                if let date = game["date"] as? String {
+                    Text("Recently played")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.7))
                 }
             }
             
             Spacer()
+            
+            if let score = game["score"] as? Int {
+                Text("\(score) pts")
+                    .font(.subheadline.bold())
+                    .foregroundColor(.yellow)
+            }
         }
         .padding(12)
         .background(Color.white.opacity(0.1))
-        .cornerRadius(12)
-    }
-    
-    private func formatTime(_ seconds: Int) -> String {
-        let mins = seconds / 60
-        let secs = seconds % 60
-        return String(format: "%d:%02d", mins, secs)
-    }
-}
-
-// MARK: - Main Tab Button
-struct MainTabButton: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline.bold())
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(isSelected ? Color.white.opacity(0.25) : Color.clear)
-        }
-    }
-}
-
-// MARK: - Empty State View
-struct EmptyStateView: View {
-    let icon: String
-    let title: String
-    let message: String
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 50))
-                .foregroundColor(.white.opacity(0.5))
-            Text(title)
-                .font(.title3)
-                .foregroundColor(.white.opacity(0.7))
-            Text(message)
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.6))
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(40)
-        .background(Color.white.opacity(0.1))
-        .cornerRadius(16)
+        .cornerRadius(10)
     }
 }

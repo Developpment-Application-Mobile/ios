@@ -78,7 +78,6 @@ struct MainNavigationView: View {
             ChildDetailScreen(
                 child: child,
                 onBackClick: { authVM.authState = .parentDashboard },
-                onAssignQuizClick: { },
                 onGenerateQRClick: { authVM.showQRCode(for: child) },
                 onEditClick: { authVM.authState = .editChildProfile(child) }
             )

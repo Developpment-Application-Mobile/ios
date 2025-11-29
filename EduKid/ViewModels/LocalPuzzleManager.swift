@@ -2,35 +2,49 @@
 //  LocalPuzzleManager.swift
 //  EduKid
 //
-//  Created by mac on 22/11/2025.
-//
-//  Manages puzzles locally when backend has issues
+//  FIXED: Support for custom images, proper piece generation
 //
 
 import Foundation
 import SwiftUI
+import UIKit
 
 class LocalPuzzleManager {
     static let shared = LocalPuzzleManager()
-    
     private init() {}
     
-    // MARK: - Local Puzzle Generation
-    func generateLocalPuzzle(for child: Child, type: PuzzleType? = nil, difficulty: PuzzleDifficulty? = nil) -> LocalPuzzle {
-        let puzzleType = type ?? getRandomType(for: child.age)
+    // MARK: - Generate Puzzle with Custom Image Support
+    func generateLocalPuzzle(
+        for child: Child,
+        type: PuzzleType? = nil,
+        difficulty: PuzzleDifficulty? = nil,
+        puzzleImage: PuzzleImage? = nil,
+        customImage: UIImage? = nil
+    ) -> LocalPuzzle {
+        let puzzleType = type ?? .image
         let puzzleDifficulty = difficulty ?? getDifficulty(for: child.level)
         let gridSize = puzzleDifficulty.gridSize
+        let totalPieces = gridSize * gridSize
+        
+        var savedImagePath: String?
+        if let customImage = customImage {
+            savedImagePath = saveCustomImage(customImage, childId: child.id)
+        }
+        
+        let image = puzzleImage ?? PuzzleImage.random()
         
         let puzzle = LocalPuzzle(
             id: UUID().uuidString,
             childId: child.id,
-            title: generateTitle(type: puzzleType),
+            title: generateTitle(type: puzzleType, image: image, hasCustomImage: savedImagePath != nil),
             type: puzzleType,
             difficulty: puzzleDifficulty,
             gridSize: gridSize,
-            pieces: generatePieces(type: puzzleType, gridSize: gridSize),
+            pieces: generatePieces(type: puzzleType, gridSize: gridSize, totalPieces: totalPieces),
             hint: generateHint(type: puzzleType),
             solution: generateSolution(type: puzzleType),
+            puzzleImage: image,
+            customImagePath: savedImagePath,
             isCompleted: false,
             attempts: 0,
             timeSpent: 0,
@@ -42,46 +56,99 @@ class LocalPuzzleManager {
         return puzzle
     }
     
-    // MARK: - Generate Pieces
-    private func generatePieces(type: PuzzleType, gridSize: Int) -> [LocalPuzzlePiece] {
-        let totalPieces = gridSize * gridSize
+    // MARK: - Save Custom Image
+    private func saveCustomImage(_ image: UIImage, childId: String) -> String? {
+        // Resize image if too large (max 2048px on longest side)
+        let resizedImage = resizeImage(image, maxDimension: 2048)
+        
+        guard let data = resizedImage.jpegData(compressionQuality: 0.85) else { return nil }
+        
+        let filename = "puzzle_\(UUID().uuidString).jpg"
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        let fileURL = paths[0].appendingPathComponent(filename)
+        
+        do {
+            try data.write(to: fileURL)
+            print("✅ Saved custom image: \(filename), size: \(data.count / 1024)KB")
+            return filename
+        } catch {
+            print("❌ Error saving image: \(error)")
+            return nil
+        }
+    }
+    
+    // MARK: - Resize Image Helper
+    private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let size = image.size
+        let maxSize = max(size.width, size.height)
+        
+        // If image is already small enough, return as-is
+        if maxSize <= maxDimension {
+            return image
+        }
+        
+        // Calculate new size maintaining aspect ratio
+        let scale = maxDimension / maxSize
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        
+        // Resize
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return resizedImage ?? image
+    }
+    
+    // MARK: - Load Custom Image
+    func loadCustomImage(path: String) -> UIImage? {
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        let fileURL = paths[0].appendingPathComponent(path)
+        
+        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        return UIImage(data: data)
+    }
+    
+    // MARK: - Generate Pieces (FIXED for all grid sizes)
+    private func generatePieces(type: PuzzleType, gridSize: Int, totalPieces: Int) -> [LocalPuzzlePiece] {
         var content: [String] = []
-        var imageContent: [String] = []
         
         switch type {
         case .word:
-            let words = ["CAT", "DOG", "SUN", "MOON", "STAR", "TREE", "BIRD", "FISH"]
-            let word = words.randomElement()!
-            content = Array(word).map { String($0) }
+            let words = ["CAT", "DOG", "SUN", "MOON", "STAR", "TREE", "BIRD", "FISH", "FROG", "BEAR",
+                        "APPLE", "BANANA", "ORANGE", "GRAPE", "MELON"]
+            let word = words.filter { $0.count >= totalPieces }.randomElement() ??
+                      (words.filter { $0.count >= gridSize }.randomElement() ?? "CATS")
+            content = Array(word.prefix(totalPieces)).map { String($0) }
             
         case .number:
             content = (1...totalPieces).map { String($0) }
             
         case .sequence:
             let sequences = [
-                ["Monday", "Tuesday", "Wednesday", "Thursday"],
-                ["Spring", "Summer", "Fall", "Winter"],
-                ["Morning", "Noon", "Evening", "Night"],
-                ["Red", "Orange", "Yellow", "Green", "Blue"]
+                ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Mon", "Tue"],
+                ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"],
+                ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"],
+                ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"]
             ]
-            let sequence = sequences.randomElement()!
-            content = Array(sequence.prefix(totalPieces))
+            let seq = sequences.randomElement()!
+            content = Array(seq.prefix(totalPieces))
             
         case .pattern:
-            let patterns = ["🔴", "🔵", "🟢", "🟡", "🟣", "🟠"]
-            content = (0..<totalPieces).map { _ in patterns.randomElement()! }
+            let patterns = ["🔴", "🔵", "🟢", "🟡", "🟣", "🟠", "⚫", "⚪"]
+            content = (0..<totalPieces).map { patterns[$0 % patterns.count] }
             
         case .image:
-            let emojis = ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼"]
-            content = (0..<totalPieces).map { _ in emojis.randomElement()! }
-            imageContent = content // For image puzzles, use emojis as image content
+            content = (0..<totalPieces).map { "\($0)" }
         }
         
-        // Ensure we have enough content
+        // Ensure we have exactly totalPieces elements
         while content.count < totalPieces {
             content.append("?")
         }
+        content = Array(content.prefix(totalPieces))
         
+        // Create pieces with correct positions
         var pieces: [LocalPuzzlePiece] = []
         for i in 0..<totalPieces {
             pieces.append(LocalPuzzlePiece(
@@ -89,57 +156,28 @@ class LocalPuzzleManager {
                 correctPosition: i,
                 currentPosition: i,
                 content: content[i],
-                emoji: type == .image ? content[i] : nil,
-                imageUrl: type == .image ? nil : "" // Add imageUrl field
+                emoji: type == .pattern ? content[i] : nil,
+                imageUrl: nil
             ))
         }
         
-        // Shuffle pieces
-        let shuffled = pieces.indices.shuffled()
-        for (index, newPos) in shuffled.enumerated() {
-            pieces[index].currentPosition = newPos
+        // Shuffle positions (Fisher-Yates)
+        var positions = Array(0..<totalPieces)
+        for i in (1..<positions.count).reversed() {
+            let j = Int.random(in: 0...i)
+            positions.swapAt(i, j)
+        }
+        
+        for (index, piece) in pieces.enumerated() {
+            pieces[index].currentPosition = positions[index]
         }
         
         return pieces
     }
     
-    // MARK: - Submit Solution
-    func submitSolution(puzzleId: String, positions: [Int], timeSpent: Int) -> LocalPuzzleResult {
-        guard var puzzle = getPuzzle(id: puzzleId) else {
-            return LocalPuzzleResult(isCorrect: false, score: 0, message: "Puzzle not found")
-        }
-        
-        puzzle.attempts += 1
-        puzzle.timeSpent += timeSpent
-        
-        // Check if correct - compare current positions with correct positions
-        let isCorrect = positions == puzzle.pieces.map { $0.correctPosition }
-        
-        if isCorrect {
-            puzzle.isCompleted = true
-            puzzle.completedAt = Date()
-            
-            // Calculate score
-            let baseScore = puzzle.difficulty == .hard ? 100 : (puzzle.difficulty == .medium ? 75 : 50)
-            let attemptPenalty = max(0, (puzzle.attempts - 1) * 5)
-            let timePenalty = min(20, timeSpent / 60)
-            puzzle.score = max(10, baseScore - attemptPenalty - timePenalty)
-        }
-        
-        // Update positions
-        for (index, pos) in positions.enumerated() {
-            if index < puzzle.pieces.count {
-                puzzle.pieces[index].currentPosition = pos
-            }
-        }
-        
+    // MARK: - Update Puzzle
+    func updatePuzzle(_ puzzle: LocalPuzzle) {
         savePuzzle(puzzle)
-        
-        return LocalPuzzleResult(
-            isCorrect: isCorrect,
-            score: isCorrect ? puzzle.score : 0,
-            message: isCorrect ? "🎉 Amazing! Puzzle completed!" : "Not quite right. Try again! 💪"
-        )
     }
     
     // MARK: - Storage
@@ -165,7 +203,6 @@ class LocalPuzzleManager {
     }
     
     func getPuzzle(id: String) -> LocalPuzzle? {
-        // Search in all stored puzzles
         let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
         for key in allKeys where key.starts(with: "local_puzzles_") {
             if let data = UserDefaults.standard.data(forKey: key),
@@ -177,44 +214,60 @@ class LocalPuzzleManager {
         return nil
     }
     
+    func deletePuzzle(id: String, childId: String) {
+        var puzzles = getAllPuzzles(for: childId)
+        
+        // Delete custom image if exists
+        if let puzzle = puzzles.first(where: { $0.id == id }),
+           let imagePath = puzzle.customImagePath {
+            deleteCustomImage(path: imagePath)
+        }
+        
+        puzzles.removeAll { $0.id == id }
+        
+        if let data = try? JSONEncoder().encode(puzzles) {
+            UserDefaults.standard.set(data, forKey: "local_puzzles_\(childId)")
+        }
+    }
+    
+    private func deleteCustomImage(path: String) {
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        let fileURL = paths[0].appendingPathComponent(path)
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+    
     // MARK: - Helpers
-    private func generateTitle(type: PuzzleType) -> String {
+    private func generateTitle(type: PuzzleType, image: PuzzleImage, hasCustomImage: Bool = false) -> String {
+        if hasCustomImage {
+            return "My Photo Puzzle"
+        }
+        
         switch type {
+        case .image: return "\(image.displayName) Puzzle"
         case .word: return "Word Puzzle"
-        case .number: return "Number Sequence"
-        case .sequence: return "Put in Order"
-        case .pattern: return "Pattern Match"
-        case .image: return "Image Puzzle"
+        case .number: return "Number Puzzle"
+        case .sequence: return "Sequence Puzzle"
+        case .pattern: return "Pattern Puzzle"
         }
     }
     
     private func generateHint(type: PuzzleType) -> String {
         switch type {
-        case .word: return "Arrange the letters to make a word!"
-        case .number: return "Put the numbers in order from smallest to largest!"
-        case .sequence: return "Put these items in the correct order!"
-        case .pattern: return "Match the pattern!"
-        case .image: return "Complete the picture!"
+        case .image: return "Put the picture pieces together!"
+        case .word: return "Arrange the letters to spell the word!"
+        case .number: return "Put numbers in order!"
+        case .sequence: return "Put items in the correct order!"
+        case .pattern: return "Complete the pattern!"
         }
     }
     
     private func generateSolution(type: PuzzleType) -> String {
         switch type {
+        case .image: return "Complete the picture"
         case .word: return "Spell the word correctly"
-        case .number: return "Numbers in ascending order"
+        case .number: return "Numbers in order"
         case .sequence: return "Items in logical order"
         case .pattern: return "Pattern completed"
-        case .image: return "Image assembled"
-        }
-    }
-    
-    private func getRandomType(for age: Int) -> PuzzleType {
-        if age <= 5 {
-            return [.word, .image].randomElement()!
-        } else if age <= 7 {
-            return [.word, .number, .image].randomElement()!
-        } else {
-            return PuzzleType.allCases.randomElement()!
         }
     }
     
@@ -223,287 +276,6 @@ class LocalPuzzleManager {
         case "advanced", "3": return .hard
         case "intermediate", "2": return .medium
         default: return .easy
-        }
-    }
-}
-
-// MARK: - Local Puzzle Models
-struct LocalPuzzle: Codable, Identifiable {
-    let id: String
-    let childId: String
-    let title: String
-    let type: PuzzleType
-    let difficulty: PuzzleDifficulty
-    let gridSize: Int
-    var pieces: [LocalPuzzlePiece]
-    let hint: String
-    let solution: String
-    var isCompleted: Bool
-    var attempts: Int
-    var timeSpent: Int
-    var score: Int
-    let createdAt: Date
-    var completedAt: Date?
-    
-    var puzzleType: PuzzleType { type }
-    var puzzleDifficulty: PuzzleDifficulty { difficulty }
-}
-
-struct LocalPuzzlePiece: Codable, Identifiable {
-    var id: Int
-    var correctPosition: Int
-    var currentPosition: Int
-    var content: String
-    var emoji: String?
-    var imageUrl: String? // Add this field
-}
-
-struct LocalPuzzleResult {
-    let isCorrect: Bool
-    let score: Int
-    let message: String
-}
-
-// MARK: - Local Puzzle Play Screen
-struct LocalPuzzlePlayScreen: View {
-    let puzzle: LocalPuzzle
-    let child: Child
-    let onComplete: () -> Void
-    
-    @Environment(\.dismiss) var dismiss
-    @State private var pieces: [LocalPuzzlePiece]
-    @State private var selectedPieceIndex: Int? = nil
-    @State private var timeElapsed: Int = 0
-    @State private var timer: Timer?
-    @State private var showResult = false
-    @State private var result: LocalPuzzleResult?
-    
-    init(puzzle: LocalPuzzle, child: Child, onComplete: @escaping () -> Void) {
-        self.puzzle = puzzle
-        self.child = child
-        self.onComplete = onComplete
-        _pieces = State(initialValue: puzzle.pieces)
-    }
-    
-    var gridColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 8), count: puzzle.gridSize)
-    }
-    
-    var sortedPieces: [LocalPuzzlePiece] {
-        pieces.sorted { $0.currentPosition < $1.currentPosition }
-    }
-    
-    var body: some View {
-        ZStack {
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
-                    Color(red: 0.153, green: 0.125, blue: 0.322)
-                ]),
-                center: .init(x: 0.3, y: 0.3),
-                startRadius: 50,
-                endRadius: 400
-            )
-            .ignoresSafeArea()
-            
-            VStack(spacing: 20) {
-                // Header
-                HStack {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.fill")
-                        Text(formatTime(timeElapsed))
-                            .font(.headline.monospacedDigit())
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(20)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "lightbulb.fill")
-                        .font(.title2)
-                        .foregroundColor(.yellow)
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 60)
-                
-                // Title
-                VStack(spacing: 8) {
-                    Text(puzzle.title)
-                        .font(.title2.bold())
-                        .foregroundColor(.white)
-                    
-                    Text(puzzle.hint)
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-                
-                Spacer()
-                
-                // Puzzle Grid
-                LazyVGrid(columns: gridColumns, spacing: 8) {
-                    ForEach(sortedPieces.indices, id: \.self) { index in
-                        let piece = sortedPieces[index]
-                        LocalPuzzlePieceView(
-                            piece: piece,
-                            isSelected: selectedPieceIndex == index,
-                            puzzleType: puzzle.type,
-                            gridSize: puzzle.gridSize
-                        ) {
-                            handlePieceTap(at: index)
-                        }
-                    }
-                }
-                .padding(20)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(20)
-                .padding(.horizontal, 20)
-                
-                Spacer()
-                
-                // Check Button
-                Button(action: checkSolution) {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                        Text("Check Solution")
-                            .font(.headline)
-                    }
-                    .foregroundColor(Color(red: 0.153, green: 0.125, blue: 0.322))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(Color.white)
-                    .cornerRadius(16)
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 40)
-            }
-        }
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            timer?.invalidate()
-        }
-        .alert(result?.message ?? "", isPresented: $showResult) {
-            Button(result?.isCorrect == true ? "Continue" : "Try Again") {
-                if result?.isCorrect == true {
-                    onComplete()
-                    dismiss()
-                }
-            }
-        }
-    }
-    
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            timeElapsed += 1
-        }
-    }
-    
-    private func formatTime(_ seconds: Int) -> String {
-        let mins = seconds / 60
-        let secs = seconds % 60
-        return String(format: "%02d:%02d", mins, secs)
-    }
-    
-    private func handlePieceTap(at index: Int) {
-        if let selected = selectedPieceIndex {
-            if selected != index {
-                swapPieces(from: selected, to: index)
-            }
-            selectedPieceIndex = nil
-        } else {
-            selectedPieceIndex = index
-        }
-    }
-    
-    private func swapPieces(from: Int, to: Int) {
-        let sortedIndices = sortedPieces.map { piece in
-            pieces.firstIndex(where: { $0.id == piece.id })!
-        }
-        
-        let fromIndex = sortedIndices[from]
-        let toIndex = sortedIndices[to]
-        
-        let temp = pieces[fromIndex].currentPosition
-        pieces[fromIndex].currentPosition = pieces[toIndex].currentPosition
-        pieces[toIndex].currentPosition = temp
-    }
-    
-    private func checkSolution() {
-        let positions = sortedPieces.map { $0.currentPosition }
-        let result = LocalPuzzleManager.shared.submitSolution(
-            puzzleId: puzzle.id,
-            positions: positions,
-            timeSpent: timeElapsed
-        )
-        
-        self.result = result
-        showResult = true
-    }
-}
-
-// MARK: - Local Puzzle Piece View (FIXED)
-struct LocalPuzzlePieceView: View {
-    let piece: LocalPuzzlePiece
-    let isSelected: Bool
-    let puzzleType: PuzzleType
-    let gridSize: Int
-    let onTap: () -> Void
-    
-    var pieceSize: CGFloat {
-        let screenWidth = UIScreen.main.bounds.width - 80
-        return (screenWidth - CGFloat(gridSize - 1) * 8) / CGFloat(gridSize)
-    }
-    
-    var body: some View {
-        Button(action: onTap) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? puzzleType.color : Color.white)
-                    .shadow(color: isSelected ? puzzleType.color.opacity(0.5) : .clear, radius: 8)
-                
-                // Handle different content types
-                if puzzleType == .image, let emoji = piece.emoji {
-                    Text(emoji)
-                        .font(.system(size: pieceSize * 0.5))
-                } else {
-                    Text(piece.content)
-                        .font(getFontForGridSize())
-                        .fontWeight(.bold) // FIXED: removed parentheses
-                        .foregroundColor(isSelected ? .white : puzzleType.color)
-                        .multilineTextAlignment(.center)
-                        .minimumScaleFactor(0.5)
-                        .padding(4)
-                }
-            }
-            .frame(width: pieceSize, height: pieceSize)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? puzzleType.color : Color.clear, lineWidth: 3)
-            )
-            .scaleEffect(isSelected ? 1.05 : 1.0)
-            .animation(.spring(response: 0.3), value: isSelected)
-        }
-    }
-    
-    private func getFontForGridSize() -> Font {
-        switch gridSize {
-        case 2: return .title
-        case 3: return .title2
-        default: return .headline
         }
     }
 }

@@ -2,7 +2,7 @@
 //  PuzzlePlayScreen.swift
 //  EduKid
 //
-//  Created by mac on 22/11/2025.
+//  FIXED: Score display for AI puzzles, sound effects
 //
 
 import SwiftUI
@@ -12,148 +12,148 @@ struct PuzzlePlayScreen: View {
     let child: Child
     let onComplete: () -> Void
     
-    @Environment(\.dismiss) var dismiss
+    @Environment(\.dismiss) private var dismiss
     @State private var pieces: [PuzzlePiece] = []
-    @State private var selectedPieceIndex: Int? = nil
-    @State private var timeElapsed: Int = 0
+    @State private var selectedIndex: Int?
+    @State private var timeElapsed = 0
     @State private var timer: Timer?
-    @State private var showHint = false
-    @State private var isSubmitting = false
-    @State private var submitResult: PuzzleSubmitResponse?
-    @State private var showResult = false
     @State private var attempts = 0
+    @State private var showResult = false
+    @State private var isCorrect = false
+    @State private var finalScore = 0
     
-    var gridColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 8), count: puzzle.gridSize)
-    }
+    private var gridSize: Int { puzzle.gridSize }
+    private var totalPieces: Int { gridSize * gridSize }
     
     var body: some View {
         ZStack {
-            // Background
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
-                    Color(red: 0.153, green: 0.125, blue: 0.322)
-                ]),
-                center: .init(x: 0.3, y: 0.3),
-                startRadius: 50,
-                endRadius: 400
+            LinearGradient(
+                colors: [
+                    Color(red: 0.4, green: 0.7, blue: 1.0),
+                    Color(red: 0.3, green: 0.5, blue: 0.9)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
             )
             .ignoresSafeArea()
             
             VStack(spacing: 20) {
                 // Header
                 HStack {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.white.opacity(0.8))
+                    Button { dismiss() } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.3))
+                                .frame(width: 50, height: 50)
+                            Image(systemName: "xmark")
+                                .font(.title2.bold())
+                                .foregroundColor(.white)
+                        }
                     }
                     
                     Spacer()
                     
-                    // Timer
-                    HStack(spacing: 4) {
+                    HStack(spacing: 8) {
                         Image(systemName: "clock.fill")
-                        Text(formatTime(timeElapsed))
-                            .font(.headline.monospacedDigit())
+                            .foregroundColor(.yellow)
+                        Text(timeString)
+                            .font(.title2.bold().monospacedDigit())
+                            .foregroundColor(.white)
                     }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(20)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Capsule().fill(Color.white.opacity(0.25)))
                     
                     Spacer()
                     
-                    // Hint Button
-                    Button(action: { showHint.toggle() }) {
-                        Image(systemName: "lightbulb.fill")
-                            .font(.title2)
-                            .foregroundColor(.yellow)
+                    Button { } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color.yellow)
+                                .frame(width: 50, height: 50)
+                            Image(systemName: "lightbulb.fill")
+                                .font(.title2)
+                                .foregroundColor(.orange)
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 60)
                 
-                // Title
-                VStack(spacing: 8) {
-                    Text(puzzle.title)
-                        .font(.title2.bold())
-                        .foregroundColor(.white)
+                Text(puzzle.title)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .shadow(radius: 4)
+                
+                Spacer()
+                
+                // Puzzle Grid - FIXED for all grid sizes
+                GeometryReader { geometry in
+                    let availableWidth = geometry.size.width
+                    let spacing: CGFloat = 8
+                    let totalSpacing = spacing * CGFloat(gridSize + 1)
+                    let pieceSize = (availableWidth - totalSpacing) / CGFloat(gridSize)
                     
-                    HStack(spacing: 12) {
-                        Label(puzzle.puzzleType.displayName, systemImage: puzzle.puzzleType.icon)
-                        Label(puzzle.puzzleDifficulty.displayName, systemImage: "star.fill")
-                    }
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
-                }
-                
-                // Hint
-                if showHint, let hint = puzzle.hint, !hint.isEmpty {
-                    HStack {
-                        Image(systemName: "lightbulb.fill")
-                            .foregroundColor(.yellow)
-                        Text(hint)
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                    }
-                    .padding()
-                    .background(Color.yellow.opacity(0.2))
-                    .cornerRadius(12)
-                    .padding(.horizontal, 20)
-                }
-                
-                Spacer()
-                
-                // Puzzle Grid
-                LazyVGrid(columns: gridColumns, spacing: 8) {
-                    ForEach(sortedPieces.indices, id: \.self) { index in
-                        let piece = sortedPieces[index]
-                        PuzzlePieceView(
-                            piece: piece,
-                            isSelected: selectedPieceIndex == index,
-                            puzzleType: puzzle.puzzleType,
-                            gridSize: puzzle.gridSize,
-                            puzzleTitle: puzzle.title
-                        ) {
-                            handlePieceTap(at: index)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 24)
+                            .fill(Color.white.opacity(0.2))
+                            .shadow(color: .black.opacity(0.2), radius: 20)
+                        
+                        VStack(spacing: spacing) {
+                            ForEach(0..<gridSize, id: \.self) { row in
+                                HStack(spacing: spacing) {
+                                    ForEach(0..<gridSize, id: \.self) { col in
+                                        let displayIndex = row * gridSize + col
+                                        if displayIndex < sortedPieces.count {
+                                            let piece = sortedPieces[displayIndex]
+                                            ImprovedPuzzlePieceView(
+                                                piece: piece,
+                                                isSelected: selectedIndex == displayIndex,
+                                                puzzleType: puzzle.puzzleType,
+                                                gridSize: gridSize,
+                                                pieceSize: pieceSize
+                                            ) {
+                                                handleTap(at: displayIndex)
+                                                PuzzleSoundManager.shared.playPiecePlaced()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
+                        .padding(spacing)
                     }
                 }
-                .padding(20)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(20)
-                .padding(.horizontal, 20)
+                .aspectRatio(1, contentMode: .fit)
+                .padding(.horizontal, 24)
                 
                 Spacer()
                 
-                // Attempts counter
-                Text("Attempts: \(attempts)")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
-                
-                // Check Solution Button
-                Button(action: submitSolution) {
-                    HStack {
-                        if isSubmitting {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.153, green: 0.125, blue: 0.322)))
-                        } else {
+                // Bottom Controls
+                VStack(spacing: 16) {
+                    HStack(spacing: 20) {
+                        StatPill(icon: "hand.tap.fill", value: "\(attempts)", label: "Tries")
+                        StatPill(icon: "puzzlepiece.fill", value: "\(matchedCount)/\(pieces.count)", label: "Placed")
+                    }
+                    
+                    Button(action: checkSolution) {
+                        HStack(spacing: 12) {
                             Image(systemName: "checkmark.circle.fill")
+                                .font(.title2)
+                            Text("Check Puzzle")
+                                .font(.title3.bold())
                         }
-                        Text(isSubmitting ? "Checking..." : "Check Solution")
-                            .font(.headline)
+                        .foregroundColor(Color(red: 0.2, green: 0.4, blue: 0.8))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 60)
+                        .background(
+                            Capsule()
+                                .fill(Color.white)
+                                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+                        )
                     }
-                    .foregroundColor(Color(red: 0.153, green: 0.125, blue: 0.322))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(Color.white)
-                    .cornerRadius(16)
+                    .padding(.horizontal, 40)
                 }
-                .disabled(isSubmitting)
-                .padding(.horizontal, 20)
                 .padding(.bottom, 40)
             }
         }
@@ -165,57 +165,58 @@ struct PuzzlePlayScreen: View {
             timer?.invalidate()
         }
         .fullScreenCover(isPresented: $showResult) {
-            if let result = submitResult {
-                PuzzleResultScreen(
-                    result: result,
-                    timeElapsed: timeElapsed,
-                    onDismiss: {
-                        showResult = false
-                        if result.isCorrect {
-                            onComplete()
-                            dismiss()
-                        }
-                    }
-                )
+            PuzzleResultScreen(
+                isCorrect: isCorrect,
+                timeElapsed: timeElapsed,
+                attempts: attempts,
+                score: finalScore
+            ) {
+                showResult = false
+                if isCorrect {
+                    PuzzleSoundManager.shared.playSuccess()
+                    onComplete()
+                }
             }
         }
     }
     
-    // Pieces sorted by current position
-    var sortedPieces: [PuzzlePiece] {
-        pieces.sorted { $0.currentPosition < $1.currentPosition }
+    private var timeString: String {
+        String(format: "%02d:%02d", timeElapsed / 60, timeElapsed % 60)
+    }
+    
+    private var sortedPieces: [PuzzlePiece] {
+        let sorted = pieces.sorted { $0.currentPosition < $1.currentPosition }
+        return Array(sorted.prefix(totalPieces))
+    }
+    
+    private var matchedCount: Int {
+        pieces.filter { $0.currentPosition == $0.correctPosition }.count
     }
     
     private func setupPuzzle() {
-        pieces = puzzle.pieces
-        print("🧩 PUZZLE SETUP:")
-        print("   Title: \(puzzle.title)")
-        print("   Type: \(puzzle.type)")
-        print("   Pieces: \(puzzle.pieces.map { $0.content })")
+        // FIXED: Ensure we have exactly gridSize² pieces
+        pieces = Array(puzzle.pieces.prefix(totalPieces))
         
-        // Debug each piece conversion
-        for (index, piece) in puzzle.pieces.enumerated() {
-            let testEmoji = convertToEmojiForDebug(piece.content, puzzleTitle: puzzle.title, puzzleType: puzzle.puzzleType)
-            print("   Piece \(index): '\(piece.content)' → '\(testEmoji)'")
-        }
-    }
-
-    // Helper function for debugging emoji conversion
-    private func convertToEmojiForDebug(_ content: String, puzzleTitle: String, puzzleType: PuzzleType) -> String {
-        // Use the same logic as in PuzzlePieceView
-        let lowerTitle = puzzleTitle.lowercased()
-        let lowerContent = content.lowercased()
-        
-        // Sports-themed content
-        if lowerContent.contains("football") || lowerContent.contains("soccer") {
-            return "⚽"
-        } else if lowerContent.contains("basketball") {
-            return "🏀"
+        // Ensure we have exactly the right number of pieces
+        while pieces.count < totalPieces {
+            pieces.append(PuzzlePiece(
+                id: pieces.count,
+                correctPosition: pieces.count,
+                currentPosition: pieces.count,
+                content: "\(pieces.count + 1)",
+                imageUrl: nil
+            ))
         }
         
-        // Add other conversion logic here...
-        
-        return content // Return original if no conversion
+        // Shuffle if not already shuffled
+        if pieces.allSatisfy({ $0.currentPosition == $0.correctPosition }) {
+            let shuffled = Array(0..<totalPieces).shuffled()
+            for (index, newPos) in shuffled.enumerated() {
+                if index < pieces.count {
+                    pieces[index].currentPosition = newPos
+                }
+            }
+        }
     }
     
     private func startTimer() {
@@ -224,96 +225,109 @@ struct PuzzlePlayScreen: View {
         }
     }
     
-    private func formatTime(_ seconds: Int) -> String {
-        let mins = seconds / 60
-        let secs = seconds % 60
-        return String(format: "%02d:%02d", mins, secs)
-    }
-    
-    private func handlePieceTap(at index: Int) {
-        if let selected = selectedPieceIndex {
-            // Swap pieces
-            if selected != index {
-                swapPieces(from: selected, to: index)
-            }
-            selectedPieceIndex = nil
+    private func handleTap(at displayIndex: Int) {
+        if let selected = selectedIndex, selected != displayIndex {
+            swapPieces(displayIndex1: selected, displayIndex2: displayIndex)
+            selectedIndex = nil
+        } else if selectedIndex == displayIndex {
+            selectedIndex = nil
         } else {
-            selectedPieceIndex = index
+            selectedIndex = displayIndex
         }
     }
     
-    private func swapPieces(from: Int, to: Int) {
-        let sortedIndices = sortedPieces.map { piece in
-            pieces.firstIndex(where: { $0.id == piece.id })!
-        }
+    private func swapPieces(displayIndex1: Int, displayIndex2: Int) {
+        guard displayIndex1 < sortedPieces.count && displayIndex2 < sortedPieces.count else { return }
+        let piece1 = sortedPieces[displayIndex1]
+        let piece2 = sortedPieces[displayIndex2]
         
-        let fromPieceIndex = sortedIndices[from]
-        let toPieceIndex = sortedIndices[to]
+        guard
+            let i1 = pieces.firstIndex(where: { $0.id == piece1.id }),
+            let i2 = pieces.firstIndex(where: { $0.id == piece2.id })
+        else { return }
         
-        let tempPosition = pieces[fromPieceIndex].currentPosition
-        pieces[fromPieceIndex].currentPosition = pieces[toPieceIndex].currentPosition
-        pieces[toPieceIndex].currentPosition = tempPosition
+        let temp = pieces[i1].currentPosition
+        pieces[i1].currentPosition = pieces[i2].currentPosition
+        pieces[i2].currentPosition = temp
     }
     
-    private func submitSolution() {
-        isSubmitting = true
+    private func checkSolution() {
         attempts += 1
+        isCorrect = sortedPieces.enumerated().allSatisfy { index, piece in
+            piece.correctPosition == index
+        }
         
+        if isCorrect {
+            savePuzzleResult()
+        } else {
+            showResult = true
+        }
+    }
+    
+    private func calculateScore() -> Int {
+        let baseScore = puzzle.difficulty == "hard" ? 100 : (puzzle.difficulty == "medium" ? 75 : 50)
+        let timePenalty = min(20, timeElapsed / 60)
+        let attemptsPenalty = max(0, (attempts - 1) * 5)
+        return max(10, baseScore - timePenalty - attemptsPenalty)
+    }
+    
+    private func savePuzzleResult() {
         Task {
             do {
-                guard let parentId = AuthService.shared.getParentId() else { return }
-                
-                // Get current positions in order
-                let positions = sortedPieces.map { $0.currentPosition }
-                
-                // Check if puzzle has temporary ID - if so, use local validation
-                if puzzle.hasTemporaryId {
-                    print("🧩 PUZZLE: Using local validation for temporary puzzle")
-                    let isCorrect = positions == puzzle.pieces.map { $0.correctPosition }
-                    
+                guard let parentId = AuthService.shared.getParentId() else {
                     await MainActor.run {
-                        isSubmitting = false
-                        submitResult = PuzzleSubmitResponse(
-                            puzzle: puzzle,
-                            isCorrect: isCorrect,
-                            score: isCorrect ? 100 : 0,
-                            attempts: attempts,
-                            message: isCorrect ? "🎉 Amazing! Puzzle completed!" : "Not quite right. Try again! 💪"
-                        )
+                        finalScore = calculateScore()
                         showResult = true
                     }
-                } else {
-                    // Use backend submission for real puzzles
-                    let result = try await PuzzleService.shared.submitSolution(
-                        parentId: parentId,
-                        kidId: child.id,
-                        puzzleId: puzzle.id,
-                        positions: positions,
-                        timeSpent: timeElapsed
-                    )
+                    return
+                }
+                
+                // Submit to backend and get score
+                let result = try await PuzzleService.shared.submitSolution(
+                    parentId: parentId,
+                    kidId: child.id,
+                    puzzleId: puzzle.id,
+                    positions: sortedPieces.map { $0.currentPosition },
+                    timeSpent: timeElapsed
+                )
+                
+                await MainActor.run {
+                    finalScore = result.score
                     
-                    await MainActor.run {
-                        isSubmitting = false
-                        submitResult = result
-                        showResult = true
-                    }
+                    // Save to games UserDefaults for unified results view
+                    var games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
+                    games.append([
+                        "type": "puzzle",
+                        "title": puzzle.title,
+                        "difficulty": puzzle.difficulty,
+                        "score": result.score,
+                        "attempts": attempts,
+                        "time": timeElapsed,
+                        "date": ISO8601DateFormatter().string(from: Date())
+                    ])
+                    UserDefaults.standard.set(games, forKey: "child_\(child.id)_games")
+                    
+                    showResult = true
                 }
             } catch {
+                print("Failed to save puzzle result: \(error)")
+                // Fallback to local calculation
                 await MainActor.run {
-                    isSubmitting = false
-                    print("Error submitting solution: \(error)")
+                    finalScore = calculateScore()
                     
-                    // Fallback to local validation if backend fails
-                    let positions = sortedPieces.map { $0.currentPosition }
-                    let isCorrect = positions == puzzle.pieces.map { $0.correctPosition }
+                    // Still save to games even if server fails
+                    var games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
+                    games.append([
+                        "type": "puzzle",
+                        "title": puzzle.title,
+                        "difficulty": puzzle.difficulty,
+                        "score": finalScore,
+                        "attempts": attempts,
+                        "time": timeElapsed,
+                        "date": ISO8601DateFormatter().string(from: Date())
+                    ])
+                    UserDefaults.standard.set(games, forKey: "child_\(child.id)_games")
                     
-                    submitResult = PuzzleSubmitResponse(
-                        puzzle: puzzle,
-                        isCorrect: isCorrect,
-                        score: isCorrect ? 100 : 0,
-                        attempts: attempts,
-                        message: isCorrect ? "🎉 Amazing! Puzzle completed!" : "Not quite right. Try again! 💪"
-                    )
                     showResult = true
                 }
             }
@@ -321,315 +335,135 @@ struct PuzzlePlayScreen: View {
     }
 }
 
-// MARK: - Puzzle Piece View with Auto-Emoji Conversion
-// MARK: - Puzzle Piece View with Universal Emoji Support
-struct PuzzlePieceView: View {
+// MARK: - Improved Puzzle Piece View
+struct ImprovedPuzzlePieceView: View {
     let piece: PuzzlePiece
     let isSelected: Bool
     let puzzleType: PuzzleType
     let gridSize: Int
-    let puzzleTitle: String
+    let pieceSize: CGFloat
     let onTap: () -> Void
-    
-    var pieceSize: CGFloat {
-        let screenWidth = UIScreen.main.bounds.width - 80
-        return (screenWidth - CGFloat(gridSize - 1) * 8) / CGFloat(gridSize)
-    }
-    
-    // Get the display content (auto-convert to emoji if possible)
-    private var displayContent: String {
-        // If it's already an emoji, use it as is
-        if piece.content.isSingleEmoji {
-            return piece.content
-        }
-        
-        // Try to convert text to emoji for ALL puzzle types
-        return convertToEmoji(piece.content, puzzleTitle: puzzleTitle, puzzleType: puzzleType)
-    }
-    
-    // Check if we should display as emoji/image
-    private var shouldShowAsEmoji: Bool {
-        // Show as emoji if:
-        // 1. It's already an emoji
-        // 2. We successfully converted it to an emoji
-        // 3. It's a single character that can be represented as emoji
-        return piece.content.isSingleEmoji || displayContent.isSingleEmoji || piece.content.count == 1
-    }
     
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                // Background
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? puzzleType.color : Color.white)
-                    .shadow(color: isSelected ? puzzleType.color.opacity(0.5) : .clear, radius: 8)
+                    .fill(
+                        LinearGradient(
+                            colors: isSelected ? [.yellow, .orange] : [.white, Color.white.opacity(0.9)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(
+                        color: isSelected ? .yellow.opacity(0.6) : .black.opacity(0.2),
+                        radius: isSelected ? 12 : 6
+                    )
                 
-                // Content
-                if shouldShowAsEmoji {
-                    // Show as emoji/image
-                    Text(displayContent)
-                        .font(.system(size: pieceSize * 0.5))
-                        .minimumScaleFactor(0.5)
-                } else {
-                    // Show as text
-                    Text(displayContent)
-                        .font(getFontForGridSize())
-                        .fontWeight(.bold)
-                        .foregroundColor(isSelected ? .white : puzzleType.color)
-                        .multilineTextAlignment(.center)
-                        .minimumScaleFactor(0.5)
-                        .padding(4)
-                }
+                PieceContentView(piece: piece, puzzleType: puzzleType, size: pieceSize)
+                    .padding(6)
+                
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected ? Color.yellow : Color.black.opacity(0.1),
+                        lineWidth: isSelected ? 4 : 2
+                    )
             }
             .frame(width: pieceSize, height: pieceSize)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? puzzleType.color : Color.clear, lineWidth: 3)
-            )
             .scaleEffect(isSelected ? 1.05 : 1.0)
-            .animation(.spring(response: 0.3), value: isSelected)
-        }
-    }
-    
-    // Convert text content to appropriate emoji based on puzzle title, content, and type
-    private func convertToEmoji(_ content: String, puzzleTitle: String, puzzleType: PuzzleType) -> String {
-        let lowerTitle = puzzleTitle.lowercased()
-        let lowerContent = content.lowercased()
-        
-        print("🧩 Converting to emoji: '\(content)' from puzzle '\(puzzleTitle)' type: \(puzzleType)")
-        
-        // Sports-themed content
-        if lowerContent.contains("football") || lowerContent.contains("soccer") {
-            return "⚽"
-        } else if lowerContent.contains("basketball") {
-            return "🏀"
-        } else if lowerContent.contains("tennis") {
-            return "🎾"
-        } else if lowerContent.contains("baseball") {
-            return "⚾"
-        } else if lowerContent.contains("volleyball") {
-            return "🏐"
-        }
-        
-        // Animal-themed content
-        if lowerContent.contains("cat") {
-            return "🐱"
-        } else if lowerContent.contains("dog") {
-            return "🐶"
-        } else if lowerContent.contains("bird") {
-            return "🐦"
-        } else if lowerContent.contains("fish") {
-            return "🐠"
-        } else if lowerContent.contains("lion") {
-            return "🦁"
-        } else if lowerContent.contains("tiger") {
-            return "🐯"
-        } else if lowerContent.contains("bear") {
-            return "🐻"
-        } else if lowerContent.contains("rabbit") || lowerContent.contains("bunny") {
-            return "🐰"
-        }
-        
-        // Food-themed content
-        if lowerContent.contains("apple") {
-            return "🍎"
-        } else if lowerContent.contains("banana") {
-            return "🍌"
-        } else if lowerContent.contains("orange") {
-            return "🍊"
-        } else if lowerContent.contains("grape") {
-            return "🍇"
-        } else if lowerContent.contains("strawberry") {
-            return "🍓"
-        } else if lowerContent.contains("watermelon") {
-            return "🍉"
-        } else if lowerContent.contains("pizza") {
-            return "🍕"
-        } else if lowerContent.contains("burger") || lowerContent.contains("hamburger") {
-            return "🍔"
-        } else if lowerContent.contains("ice cream") {
-            return "🍦"
-        } else if lowerContent.contains("cake") {
-            return "🍰"
-        }
-        
-        // Shape and color content
-        if lowerContent.contains("circle") || lowerContent.contains("round") {
-            return "⭕"
-        } else if lowerContent.contains("square") {
-            return "⬜"
-        } else if lowerContent.contains("triangle") {
-            return "🔺"
-        } else if lowerContent.contains("star") {
-            return "⭐"
-        } else if lowerContent.contains("heart") {
-            return "❤️"
-        }
-        
-        if lowerContent.contains("red") {
-            return "🔴"
-        } else if lowerContent.contains("blue") {
-            return "🔵"
-        } else if lowerContent.contains("green") {
-            return "🟢"
-        } else if lowerContent.contains("yellow") {
-            return "🟡"
-        } else if lowerContent.contains("purple") {
-            return "🟣"
-        } else if lowerContent.contains("orange") {
-            return "🟠"
-        }
-        
-        // Number content
-        if puzzleType == .number {
-            let numberEmojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
-            if let number = Int(content), number > 0 && number <= numberEmojis.count {
-                return numberEmojis[number - 1]
-            }
-            return numberEmojis.randomElement() ?? "🔢"
-        }
-        
-        // Single letter content (like "C", "A", "T")
-        if content.count == 1 {
-            let letter = content.uppercased()
-            let letterEmojis: [String: String] = [
-                "A": "🅰️", "B": "🅱️", "C": "©️", "D": "🇩", "E": "🇪",
-                "F": "🇫", "G": "🇬", "H": "🇭", "I": "ℹ️", "J": "🇯",
-                "K": "🇰", "L": "🇱", "M": "Ⓜ️", "N": "🇳", "O": "⭕",
-                "P": "🅿️", "Q": "🧩", "R": "®️", "S": "💲", "T": "✝️",
-                "U": "🇺", "V": "✅", "W": "〰️", "X": "❌", "Y": "🇾", "Z": "💤"
-            ]
-            return letterEmojis[letter] ?? "🔤"
-        }
-        
-        // Question mark
-        if content == "?" {
-            return "❓"
-        }
-        
-        // Default fallback based on puzzle type
-        switch puzzleType {
-        case .image:
-            let imageEmojis = ["🖼️", "🎨", "📷", "🖌️", "🎭", "🌟", "✨", "💫"]
-            return imageEmojis.randomElement() ?? "🖼️"
-        case .word:
-            let wordEmojis = ["🔤", "📝", "📚", "✏️", "🆎", "💬", "🗨️"]
-            return wordEmojis.randomElement() ?? "🔤"
-        case .number:
-            let numberEmojis = ["🔢", "123️⃣", "➗", "✖️", "➕", "➖", "💯"]
-            return numberEmojis.randomElement() ?? "🔢"
-        case .sequence:
-            let sequenceEmojis = ["🔁", "➡️", "⏩", "🔄", "📈", "🔼"]
-            return sequenceEmojis.randomElement() ?? "🔁"
-        case .pattern:
-            let patternEmojis = ["🔄", "♻️", "💠", "🔶", "🔷", "🎯", "🎪"]
-            return patternEmojis.randomElement() ?? "🔄"
-        }
-    }
-    
-    private func getFontForGridSize() -> Font {
-        switch gridSize {
-        case 2: return .title
-        case 3: return .title2
-        default: return .headline
+            .zIndex(isSelected ? 100 : 0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
         }
     }
 }
 
-
-
-// MARK: - Puzzle Result Screen
-struct PuzzleResultScreen: View {
-    let result: PuzzleSubmitResponse
-    let timeElapsed: Int
-    let onDismiss: () -> Void
+// MARK: - Piece Content View
+struct PieceContentView: View {
+    let piece: PuzzlePiece
+    let puzzleType: PuzzleType
+    let size: CGFloat
     
     var body: some View {
-        ZStack {
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
-                    Color(red: 0.153, green: 0.125, blue: 0.322)
-                ]),
-                center: .init(x: 0.3, y: 0.3),
-                startRadius: 50,
-                endRadius: 400
-            )
-            .ignoresSafeArea()
-            
-            VStack(spacing: 32) {
-                Spacer()
-                
-                // Result Icon
-                Text(result.isCorrect ? "🎉" : "🤔")
-                    .font(.system(size: 100))
-                
-                Text(result.isCorrect ? "Puzzle Solved!" : "Not Quite Right")
-                    .font(.title.bold())
-                    .foregroundColor(.white)
-                
-                Text(result.message)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
-                
-                if result.isCorrect {
-                    // Stats
-                    VStack(spacing: 16) {
-                        StatRow(icon: "star.fill", label: "Score", value: "\(result.score)", color: .yellow)
-                        StatRow(icon: "clock.fill", label: "Time", value: formatTime(timeElapsed), color: .blue)
-                        StatRow(icon: "arrow.counterclockwise", label: "Attempts", value: "\(result.attempts)", color: .orange)
+        Group {
+            if let imageUrl = piece.imageUrl, !imageUrl.isEmpty, let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView()
+                            .frame(width: size, height: size)
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: size, height: size)
+                            .clipped()
+                    case .failure:
+                        FallbackContent(piece: piece, puzzleType: puzzleType, size: size)
+                    @unknown default:
+                        FallbackContent(piece: piece, puzzleType: puzzleType, size: size)
                     }
-                    .padding(24)
-                    .background(Color.white.opacity(0.15))
-                    .cornerRadius(20)
-                    .padding(.horizontal, 40)
                 }
-                
-                Spacer()
-                
-                Button(action: onDismiss) {
-                    Text(result.isCorrect ? "Continue" : "Try Again")
-                        .font(.headline)
-                        .foregroundColor(Color(red: 0.153, green: 0.125, blue: 0.322))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(Color.white)
-                        .cornerRadius(16)
-                }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+            } else if piece.isEmoji {
+                Text(piece.content)
+                    .font(.system(size: size * 0.5))
+                    .frame(width: size, height: size)
+            } else {
+                FallbackContent(piece: piece, puzzleType: puzzleType, size: size)
             }
         }
     }
+}
+
+// MARK: - Fallback Content
+struct FallbackContent: View {
+    let piece: PuzzlePiece
+    let puzzleType: PuzzleType
+    let size: CGFloat
     
-    private func formatTime(_ seconds: Int) -> String {
-        let mins = seconds / 60
-        let secs = seconds % 60
-        return String(format: "%d:%02d", mins, secs)
+    var body: some View {
+        Text(piece.displayText)
+            .font(.system(size: fontSize, weight: .bold, design: .rounded))
+            .foregroundColor(puzzleType.color)
+            .frame(width: size, height: size)
+            .multilineTextAlignment(.center)
+            .minimumScaleFactor(0.4)
+            .lineLimit(2)
+    }
+    
+    private var fontSize: CGFloat {
+        let text = piece.displayText
+        if text.count <= 2 {
+            return size * 0.5
+        } else if text.count <= 5 {
+            return size * 0.35
+        } else {
+            return size * 0.25
+        }
     }
 }
 
-
-
-// MARK: - Stat Row
-struct StatRow: View {
+// MARK: - Stat Pill
+struct StatPill: View {
     let icon: String
-    let label: String
     let value: String
-    let color: Color
+    let label: String
     
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             Image(systemName: icon)
-                .foregroundColor(color)
-                .frame(width: 30)
-            Text(label)
-                .foregroundColor(.white.opacity(0.7))
-            Spacer()
-            Text(value)
-                .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(.yellow)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.headline.bold())
+                Text(label)
+                    .font(.caption)
+                    .opacity(0.8)
+            }
         }
+        .foregroundColor(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.2))
+        .cornerRadius(20)
     }
 }

@@ -2,10 +2,7 @@
 //  SimpleGames.swift
 //  EduKid
 //
-//  Created by mac on 22/11/2025.
-//
-//
-//  Simple games that don't require backend
+//  Complete with all 4 games: Memory, Color, Shape, Number Sequence
 //
 
 import SwiftUI
@@ -182,7 +179,6 @@ struct MemoryMatchGame: View {
     }
     
     private func saveGameResult(score: Int) {
-        // Save to UserDefaults for parent view
         var games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
         games.append([
             "type": "memory",
@@ -432,6 +428,494 @@ struct ColorOption: Identifiable {
     let color: Color
 }
 
+// MARK: - Shape Matching Game
+struct ShapeMatchingGame: View {
+    let child: Child
+    let onComplete: (Int) -> Void
+    
+    @Environment(\.dismiss) var dismiss
+    @State private var targetShape: ShapeType = .circle
+    @State private var options: [ShapeType] = []
+    @State private var score = 0
+    @State private var round = 0
+    @State private var timeElapsed = 0
+    @State private var timer: Timer?
+    @State private var showResult = false
+    @State private var feedback = ""
+    
+    let totalRounds = 10
+    
+    var body: some View {
+        ZStack {
+            RadialGradient(
+                gradient: Gradient(colors: [
+                    Color.green.opacity(0.6),
+                    Color(red: 0.153, green: 0.125, blue: 0.322)
+                ]),
+                center: .center,
+                startRadius: 50,
+                endRadius: 400
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 30) {
+                // Header
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(spacing: 4) {
+                        Text("Shape Match")
+                            .font(.title2.bold())
+                            .foregroundColor(.white)
+                        Text("Round \(round)/\(totalRounds)")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    
+                    Spacer()
+                    
+                    Text("⭐ \(score)")
+                        .font(.title3.bold())
+                        .foregroundColor(.yellow)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 60)
+                
+                Spacer()
+                
+                // Target Shape
+                VStack(spacing: 16) {
+                    Text("Find the:")
+                        .font(.title3)
+                        .foregroundColor(.white.opacity(0.8))
+                    
+                    Text(targetShape.name)
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 40)
+                        .padding(.vertical, 20)
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(20)
+                }
+                
+                // Feedback
+                if !feedback.isEmpty {
+                    Text(feedback)
+                        .font(.title2.bold())
+                        .foregroundColor(feedback.contains("✓") ? .green : .red)
+                        .padding()
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(12)
+                }
+                
+                Spacer()
+                
+                // Shape Options
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 2), spacing: 16) {
+                    ForEach(options, id: \.self) { shape in
+                        Button(action: { selectShape(shape) }) {
+                            shape.view
+                                .frame(height: 120)
+                                .background(Color.white)
+                                .cornerRadius(20)
+                                .shadow(radius: 8)
+                        }
+                    }
+                }
+                .padding(.horizontal, 40)
+                
+                Spacer()
+            }
+        }
+        .onAppear {
+            setupRound()
+            startTimer()
+        }
+        .onDisappear {
+            timer?.invalidate()
+        }
+        .fullScreenCover(isPresented: $showResult) {
+            GameResultScreen(
+                title: "Shape Match Complete!",
+                score: score,
+                moves: totalRounds,
+                time: timeElapsed,
+                emoji: "🔷"
+            ) {
+                saveGameResult()
+                onComplete(score)
+                dismiss()
+            }
+        }
+    }
+    
+    private func setupRound() {
+        round += 1
+        feedback = ""
+        
+        targetShape = ShapeType.allCases.randomElement()!
+        
+        var shapeOptions = [targetShape]
+        while shapeOptions.count < 4 {
+            let randomShape = ShapeType.allCases.randomElement()!
+            if !shapeOptions.contains(randomShape) {
+                shapeOptions.append(randomShape)
+            }
+        }
+        
+        options = shapeOptions.shuffled()
+    }
+    
+    private func selectShape(_ shape: ShapeType) {
+        if shape == targetShape {
+            score += 10
+            feedback = "✓ Correct!"
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if round < totalRounds {
+                    setupRound()
+                } else {
+                    timer?.invalidate()
+                    showResult = true
+                }
+            }
+        } else {
+            feedback = "✗ Try again!"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                feedback = ""
+            }
+        }
+    }
+    
+    private func startTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            timeElapsed += 1
+        }
+    }
+    
+    private func saveGameResult() {
+        var games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
+        games.append([
+            "type": "shape",
+            "score": score,
+            "rounds": totalRounds,
+            "time": timeElapsed,
+            "date": ISO8601DateFormatter().string(from: Date())
+        ])
+        UserDefaults.standard.set(games, forKey: "child_\(child.id)_games")
+    }
+}
+
+// MARK: - Shape Type
+enum ShapeType: String, CaseIterable {
+    case circle, square, triangle, star, heart, diamond
+    
+    var name: String { rawValue.capitalized }
+    
+    @ViewBuilder
+    var view: some View {
+        switch self {
+        case .circle:
+            Circle()
+                .fill(Color.blue)
+                .padding(20)
+        case .square:
+            Rectangle()
+                .fill(Color.red)
+                .padding(20)
+        case .triangle:
+            Triangle()
+                .fill(Color.green)
+                .padding(20)
+        case .star:
+            Star()
+                .fill(Color.yellow)
+                .padding(20)
+        case .heart:
+            Heart()
+                .fill(Color.pink)
+                .padding(20)
+        case .diamond:
+            Diamond()
+                .fill(Color.purple)
+                .padding(20)
+        }
+    }
+}
+
+// MARK: - Custom Shapes
+struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+struct Star: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let outerRadius = min(rect.width, rect.height) / 2
+        let innerRadius = outerRadius * 0.4
+        let points = 5
+        
+        for i in 0..<points * 2 {
+            let angle = CGFloat(i) * .pi / CGFloat(points) - .pi / 2
+            let radius = i % 2 == 0 ? outerRadius : innerRadius
+            let x = center.x + radius * cos(angle)
+            let y = center.y + radius * sin(angle)
+            
+            if i == 0 {
+                path.move(to: CGPoint(x: x, y: y))
+            } else {
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+        
+        path.closeSubpath()
+        return path
+    }
+}
+
+struct Heart: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        let width = rect.width
+        let height = rect.height
+        
+        path.move(to: CGPoint(x: width / 2, y: height * 0.3))
+        
+        path.addCurve(
+            to: CGPoint(x: 0, y: height * 0.25),
+            control1: CGPoint(x: width / 2, y: 0),
+            control2: CGPoint(x: 0, y: height * 0.1)
+        )
+        
+        path.addCurve(
+            to: CGPoint(x: width / 2, y: height),
+            control1: CGPoint(x: 0, y: height * 0.5),
+            control2: CGPoint(x: width / 2, y: height * 0.75)
+        )
+        
+        path.addCurve(
+            to: CGPoint(x: width, y: height * 0.25),
+            control1: CGPoint(x: width / 2, y: height * 0.75),
+            control2: CGPoint(x: width, y: height * 0.5)
+        )
+        
+        path.addCurve(
+            to: CGPoint(x: width / 2, y: height * 0.3),
+            control1: CGPoint(x: width, y: height * 0.1),
+            control2: CGPoint(x: width / 2, y: 0)
+        )
+        
+        return path
+    }
+}
+
+struct Diamond: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - Number Sequence Game
+struct NumberSequenceGame: View {
+    let child: Child
+    let onComplete: (Int) -> Void
+    
+    @Environment(\.dismiss) var dismiss
+    @State private var targetNumber: Int = 1
+    @State private var currentSequence: [Int] = []
+    @State private var availableNumbers: [Int] = []
+    @State private var score = 0
+    @State private var level = 1
+    @State private var timeElapsed = 0
+    @State private var timer: Timer?
+    @State private var showResult = false
+    
+    let maxLevel = 5
+    
+    var body: some View {
+        ZStack {
+            RadialGradient(
+                gradient: Gradient(colors: [
+                    Color.cyan.opacity(0.6),
+                    Color(red: 0.153, green: 0.125, blue: 0.322)
+                ]),
+                center: .center,
+                startRadius: 50,
+                endRadius: 400
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 30) {
+                // Header
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(spacing: 4) {
+                        Text("Number Sequence")
+                            .font(.title2.bold())
+                            .foregroundColor(.white)
+                        Text("Level \(level)/\(maxLevel)")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    
+                    Spacer()
+                    
+                    Text("⭐ \(score)")
+                        .font(.title3.bold())
+                        .foregroundColor(.yellow)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 60)
+                
+                Spacer()
+                
+                // Instructions
+                Text("Put numbers in order!")
+                    .font(.title3.bold())
+                    .foregroundColor(.white)
+                
+                // Current Sequence
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(currentSequence, id: \.self) { number in
+                            Text("\(number)")
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: 70, height: 70)
+                                .background(Color.green.opacity(0.8))
+                                .cornerRadius(16)
+                        }
+                        
+                        // Next slot
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.5), lineWidth: 3)
+                            .frame(width: 70, height: 70)
+                    }
+                    .padding(.horizontal, 20)
+                }
+                
+                Spacer()
+                
+                // Available Numbers
+                Text("Tap the next number:")
+                    .font(.headline)
+                    .foregroundColor(.white.opacity(0.8))
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
+                    ForEach(availableNumbers, id: \.self) { number in
+                        Button(action: { selectNumber(number) }) {
+                            Text("\(number)")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 70)
+                                .background(Color.blue.opacity(0.8))
+                                .cornerRadius(16)
+                        }
+                    }
+                }
+                .padding(.horizontal, 40)
+                
+                Spacer()
+            }
+        }
+        .onAppear {
+            setupLevel()
+            startTimer()
+        }
+        .onDisappear {
+            timer?.invalidate()
+        }
+        .fullScreenCover(isPresented: $showResult) {
+            GameResultScreen(
+                title: "Number Sequence Complete!",
+                score: score,
+                moves: level,
+                time: timeElapsed,
+                emoji: "🔢"
+            ) {
+                saveGameResult()
+                onComplete(score)
+                dismiss()
+            }
+        }
+    }
+    
+    private func setupLevel() {
+        let range = min(5 + level * 2, 15)
+        targetNumber = 1
+        currentSequence = []
+        availableNumbers = Array(1...range).shuffled()
+    }
+    
+    private func selectNumber(_ number: Int) {
+        if number == targetNumber {
+            currentSequence.append(number)
+            availableNumbers.removeAll { $0 == number }
+            targetNumber += 1
+            score += 10
+            
+            if availableNumbers.isEmpty {
+                if level < maxLevel {
+                    level += 1
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                        setupLevel()
+                    }
+                } else {
+                    timer?.invalidate()
+                    showResult = true
+                }
+            }
+        }
+    }
+    
+    private func startTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            timeElapsed += 1
+        }
+    }
+    
+    private func saveGameResult() {
+        var games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
+        games.append([
+            "type": "sequence",
+            "score": score,
+            "level": level,
+            "time": timeElapsed,
+            "date": ISO8601DateFormatter().string(from: Date())
+        ])
+        UserDefaults.standard.set(games, forKey: "child_\(child.id)_games")
+    }
+}
+
 // MARK: - Shared Components
 struct StatLabel: View {
     let icon: String
@@ -496,15 +980,15 @@ struct GameResultScreen: View {
                 
                 Spacer()
                 
-                Button(action: onDismiss) {
-                    Text("Continue")
-                        .font(.headline)
-                        .foregroundColor(Color(red: 0.153, green: 0.125, blue: 0.322))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(Color.white)
-                        .cornerRadius(16)
+                Button("Continue") {
+                    onDismiss()
                 }
+                .font(.headline.bold())
+                .foregroundColor(Color(red: 0.153, green: 0.125, blue: 0.322))
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(Color.white)
+                .cornerRadius(16)
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
             }
@@ -515,5 +999,33 @@ struct GameResultScreen: View {
         let mins = seconds / 60
         let secs = seconds % 60
         return String(format: "%d:%02d", mins, secs)
+    }
+}
+
+struct StatRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+                .frame(width: 36)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.9))
+                
+                Text(value)
+                    .font(.title2.bold())
+                    .foregroundColor(color)
+            }
+            
+            Spacer()
+        }
     }
 }

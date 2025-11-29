@@ -2,28 +2,23 @@
 //  PuzzleModels.swift
 //  EduKid
 //
-//  Fixed: Better ID handling and image support
+//  FIXED: Added custom image path support
 //
 
 import Foundation
 import SwiftUI
 
 // MARK: - Puzzle Piece
-struct PuzzlePiece: Codable, Identifiable {
+struct PuzzlePiece: Codable, Identifiable, Equatable {
     var id: Int
     var correctPosition: Int
     var currentPosition: Int
     var content: String
     var imageUrl: String?
     
-    // Helper to determine if this is emoji/image content
-    var isEmoji: Bool {
-        return content.isSingleEmoji
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case id, correctPosition, currentPosition, content, imageUrl
-    }
+    var isEmoji: Bool { content.isSingleEmoji }
+    var isImage: Bool { imageUrl?.isEmpty == false }
+    var displayText: String { content.trimmingCharacters(in: .whitespacesAndNewlines) }
 }
 
 // MARK: - Puzzle Type
@@ -71,9 +66,7 @@ enum PuzzleDifficulty: String, Codable, CaseIterable {
     case medium = "medium"
     case hard = "hard"
     
-    var displayName: String {
-        rawValue.capitalized
-    }
+    var displayName: String { rawValue.capitalized }
     
     var gridSize: Int {
         switch self {
@@ -92,7 +85,53 @@ enum PuzzleDifficulty: String, Codable, CaseIterable {
     }
 }
 
-// MARK: - Puzzle Response
+// MARK: - Puzzle Image (Codable)
+enum PuzzleImage: String, Codable, CaseIterable {
+    case lion = "puzzle_lion"
+    case turtle = "puzzle_turtle"
+    case elephant = "puzzle_elephant"
+    case rabbit = "puzzle_rabbit"
+    case cat = "puzzle_cat"
+    case dog = "puzzle_dog"
+    case bear = "puzzle_bear"
+    case panda = "puzzle_panda"
+    
+    var displayName: String {
+        rawValue.replacingOccurrences(of: "puzzle_", with: "").capitalized
+    }
+    
+    var emoji: String {
+        switch self {
+        case .lion: return "🦁"
+        case .turtle: return "🐢"
+        case .elephant: return "🐘"
+        case .rabbit: return "🐰"
+        case .cat: return "🐱"
+        case .dog: return "🐶"
+        case .bear: return "🐻"
+        case .panda: return "🐼"
+        }
+    }
+    
+    var backgroundColor: Color {
+        switch self {
+        case .lion: return Color(red: 0.5, green: 0.8, blue: 1.0)
+        case .turtle: return Color(red: 0.6, green: 0.9, blue: 0.95)
+        case .elephant: return Color(red: 0.7, green: 0.85, blue: 0.95)
+        case .rabbit: return Color(red: 0.95, green: 0.85, blue: 0.9)
+        case .cat: return Color(red: 1.0, green: 0.9, blue: 0.8)
+        case .dog: return Color(red: 0.9, green: 0.85, blue: 0.75)
+        case .bear: return Color(red: 0.85, green: 0.75, blue: 0.65)
+        case .panda: return Color(red: 0.9, green: 0.95, blue: 0.9)
+        }
+    }
+    
+    static func random() -> PuzzleImage {
+        allCases.randomElement()!
+    }
+}
+
+// MARK: - Puzzle Response (Server)
 struct PuzzleResponse: Codable, Identifiable {
     let id: String
     let title: String
@@ -121,52 +160,35 @@ struct PuzzleResponse: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Required fields
-        title = try container.decode(String.self, forKey: .title)
-        type = try container.decode(String.self, forKey: .type)
-        difficulty = try container.decode(String.self, forKey: .difficulty)
-        gridSize = try container.decode(Int.self, forKey: .gridSize)
-        pieces = try container.decode([PuzzlePiece].self, forKey: .pieces)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.type = try container.decode(String.self, forKey: .type)
+        self.difficulty = try container.decode(String.self, forKey: .difficulty)
+        self.gridSize = try container.decode(Int.self, forKey: .gridSize)
+        self.pieces = try container.decode([PuzzlePiece].self, forKey: .pieces)
         
-        // Try to get _id, fallback to generating temporary one
-        if let decodedId = try? container.decode(String.self, forKey: .id) {
-            id = decodedId
+        if let realId = try? container.decode(String.self, forKey: .id), !realId.isEmpty {
+            self.id = realId
         } else {
-            // Generate temporary ID - will be replaced after refetch
-            id = "temp_\(UUID().uuidString)"
-            print("⚠️ PUZZLE: No _id in response, using temporary: \(id)")
+            self.id = "temp_\(UUID().uuidString.prefix(8))"
         }
         
-        // Optional fields
-        hint = try? container.decodeIfPresent(String.self, forKey: .hint)
-        solution = try? container.decodeIfPresent(String.self, forKey: .solution)
-        imageUrl = try? container.decodeIfPresent(String.self, forKey: .imageUrl)
-        isCompleted = (try? container.decode(Bool.self, forKey: .isCompleted)) ?? false
-        attempts = (try? container.decode(Int.self, forKey: .attempts)) ?? 0
-        timeSpent = (try? container.decode(Int.self, forKey: .timeSpent)) ?? 0
-        score = (try? container.decode(Int.self, forKey: .score)) ?? 0
-        completedAt = try? container.decodeIfPresent(String.self, forKey: .completedAt)
-        createdAt = try? container.decodeIfPresent(String.self, forKey: .createdAt)
+        self.hint = try container.decodeIfPresent(String.self, forKey: .hint)
+        self.solution = try container.decodeIfPresent(String.self, forKey: .solution)
+        self.imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+        self.isCompleted = (try? container.decode(Bool.self, forKey: .isCompleted)) ?? false
+        self.attempts = (try? container.decode(Int.self, forKey: .attempts)) ?? 0
+        self.timeSpent = (try? container.decode(Int.self, forKey: .timeSpent)) ?? 0
+        self.score = (try? container.decode(Int.self, forKey: .score)) ?? 0
+        self.completedAt = try? container.decodeIfPresent(String.self, forKey: .completedAt)
+        self.createdAt = try? container.decodeIfPresent(String.self, forKey: .createdAt)
     }
     
-    var puzzleType: PuzzleType {
-        PuzzleType(rawValue: type) ?? .word
-    }
-    
-    var puzzleDifficulty: PuzzleDifficulty {
-        PuzzleDifficulty(rawValue: difficulty) ?? .easy
-    }
-    
-    var isSolved: Bool {
-        pieces.allSatisfy { $0.currentPosition == $0.correctPosition }
-    }
-    
-    var hasTemporaryId: Bool {
-        id.starts(with: "temp_")
-    }
+    var puzzleType: PuzzleType { PuzzleType(rawValue: type) ?? .word }
+    var puzzleDifficulty: PuzzleDifficulty { PuzzleDifficulty(rawValue: difficulty) ?? .easy }
+    var isSolved: Bool { pieces.allSatisfy { $0.currentPosition == $0.correctPosition } }
 }
 
-// MARK: - Puzzle Submit Response
+// MARK: - Submit Response
 struct PuzzleSubmitResponse: Codable {
     let puzzle: PuzzleResponse
     let isCorrect: Bool
@@ -175,56 +197,66 @@ struct PuzzleSubmitResponse: Codable {
     let message: String
 }
 
-// MARK: - Generate Puzzle Request
-struct GeneratePuzzleRequest: Codable {
-    let type: String?
-    let difficulty: String?
-    let topic: String?
-    let gridSize: Int?
+// MARK: - Local Puzzle Model (UPDATED with custom image path)
+struct LocalPuzzle: Codable, Identifiable {
+    let id: String
+    let childId: String
+    let title: String
+    let type: PuzzleType
+    let difficulty: PuzzleDifficulty
+    let gridSize: Int
+    var pieces: [LocalPuzzlePiece]
+    let hint: String
+    let solution: String
+    let puzzleImage: PuzzleImage
+    let customImagePath: String?
+    var isCompleted: Bool
+    var attempts: Int
+    var timeSpent: Int
+    var score: Int
+    let createdAt: Date
+    var completedAt: Date?
     
-    init(type: PuzzleType? = nil, difficulty: PuzzleDifficulty? = nil, topic: String? = nil) {
-        self.type = type?.rawValue
-        self.difficulty = difficulty?.rawValue
-        self.topic = topic
-        self.gridSize = difficulty?.gridSize
-    }
+    var puzzleType: PuzzleType { type }
+    var puzzleDifficulty: PuzzleDifficulty { difficulty }
 }
 
-// MARK: - Submit Puzzle Request
-struct SubmitPuzzleRequest: Codable {
-    let positions: [Int]
-    let timeSpent: Int?
+// MARK: - Local Puzzle Piece
+struct LocalPuzzlePiece: Codable, Identifiable {
+    var id: Int
+    var correctPosition: Int
+    var currentPosition: Int
+    var content: String
+    var emoji: String?
+    var imageUrl: String?
 }
 
-// MARK: - Extension for String to check emoji
+// MARK: - Local Puzzle Result
+struct LocalPuzzleResult {
+    let isCorrect: Bool
+    let score: Int
+    let message: String
+}
+
+// MARK: - String Extensions
 extension String {
     var isSingleEmoji: Bool {
-        guard count == 1 else { return false }
-        
-        let emojiRanges = [
-            0x1F600...0x1F64F, // Emoticons
-            0x1F300...0x1F5FF, // Misc Symbols and Pictographs
-            0x1F680...0x1F6FF, // Transport and Map
-            0x1F1E6...0x1F1FF, // Regional country flags
-            0x2600...0x26FF,   // Misc symbols
-            0x2700...0x27BF,   // Dingbats
-            0xFE00...0xFE0F,   // Variation Selectors
-            0x1F900...0x1F9FF, // Supplemental Symbols and Pictographs
-            0x1F018...0x1F270, // Various other emoji
-        ]
-        
-        for scalar in unicodeScalars {
-            let codePoint = Int(scalar.value)
-            for range in emojiRanges {
-                if range.contains(codePoint) {
-                    return true
-                }
-            }
-        }
-        return false
+        guard count == 1, let scalar = unicodeScalars.first else { return false }
+        return scalar.properties.isEmoji && (scalar.value > 0x238C || unicodeScalars.count > 1)
     }
     
-    var isEmptyOrNil: Bool {
-        return self.isEmpty || self == "null" || self == "undefined"
+    var containsEmoji: Bool { contains { $0.isEmoji } }
+}
+
+extension Character {
+    var isEmoji: Bool {
+        guard let scalar = unicodeScalars.first else { return false }
+        switch scalar.value {
+        case 0x1F600...0x1F64F, 0x1F300...0x1F5FF, 0x1F680...0x1F6FF,
+             0x1F1E6...0x1F1FF, 0x2600...0x26FF, 0x2700...0x27BF,
+             0xFE00...0xFE0F, 0x1F900...0x1F9FF:
+            return true
+        default: return false
+        }
     }
 }

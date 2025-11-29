@@ -187,12 +187,14 @@ struct ParentDashboardScreen: View {
     }
 }
 
-// MARK: - Child Card
+// MARK: - Child Card (UPDATED avec score total et activités)
 struct ChildCard: View {
     let child: Child
     let onClick: () -> Void
     let onDelete: () -> Void
     @State private var showingOptions = false
+    @State private var totalCompleted = 0
+    @State private var isLoading = false
     
     var body: some View {
         Button(action: onClick) {
@@ -211,6 +213,7 @@ struct ChildCard: View {
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text(child.name)
+                        
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
                         
@@ -243,44 +246,11 @@ struct ChildCard: View {
                 
                 Spacer().frame(height: 16)
                 
-                // Progress bar
-                VStack(spacing: 8) {
-                    HStack {
-                        Text("Quiz Progress")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
-                        
-                        Spacer()
-                        
-                        Text("\(child.getCompletedQuizzes().count)/\(child.quizzes.count)")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
-                    }
-                    
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color(red: 0.88, green: 0.88, blue: 0.88))
-                                .frame(height: 8)
-                            
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color(red: 0.686, green: 0.494, blue: 0.906))
-                                .frame(
-                                    width: geometry.size.width * (child.quizzes.isEmpty ? 0 : CGFloat(child.getCompletedQuizzes().count) / CGFloat(child.quizzes.count)),
-                                    height: 8
-                                )
-                        }
-                    }
-                    .frame(height: 8)
-                }
-                
-                Spacer().frame(height: 16)
-                
-                // Stats row
+                // NOUVEAU: Stats complètes
                 HStack(spacing: 0) {
                     StatItem(
-                        label: "Average Score",
-                        value: "\(child.Score)%",
+                        label: "Total Score",
+                        value: "\(child.Score)",
                         icon: "⭐"
                     )
                     
@@ -291,7 +261,7 @@ struct ChildCard: View {
                     
                     StatItem(
                         label: "Completed",
-                        value: "\(child.getCompletedQuizzes().count)",
+                        value: isLoading ? "..." : "\(totalCompleted)",
                         icon: "✅"
                     )
                 }
@@ -301,6 +271,46 @@ struct ChildCard: View {
             .cornerRadius(20)
         }
         .buttonStyle(PlainButtonStyle())
+        .onAppear {
+            loadTotalCompleted()
+        }
+    }
+    
+    private func loadTotalCompleted() {
+        isLoading = true
+        Task {
+            var completed = 0
+            
+            // Compter les quizzes complétés
+            if let parentId = AuthService.shared.getParentId() {
+                do {
+                    let quizzes = try await AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
+                    completed += quizzes.filter { $0.answered > 0 }.count
+                } catch {
+                    print("Failed to load quizzes: \(error)")
+                }
+                
+                // Compter les puzzles complétés (local + server)
+                let localPuzzles = LocalPuzzleManager.shared.getAllPuzzles(for: child.id)
+                completed += localPuzzles.filter { $0.isCompleted }.count
+                
+                do {
+                    let serverPuzzles = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
+                    completed += serverPuzzles.filter { $0.isCompleted }.count
+                } catch {
+                    print("Failed to load puzzles: \(error)")
+                }
+            }
+            
+            // Compter les jeux complétés
+            let games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
+            completed += games.count
+            
+            await MainActor.run {
+                totalCompleted = completed
+                isLoading = false
+            }
+        }
     }
 }
 

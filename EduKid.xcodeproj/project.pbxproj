@@ -30,6 +30,8 @@
 		04FB42E52ED1E53B00B2AC32 /* ChildDashboardScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42E42ED1E53800B2AC32 /* ChildDashboardScreen.swift */; };
 		04FB42E72ED1E5FB00B2AC32 /* EnhancedChildDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42E62ED1E5F600B2AC32 /* EnhancedChildDetailScreen.swift */; };
 		04FB42E92ED1E9CD00B2AC32 /* LocalPuzzleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42E82ED1E9CA00B2AC32 /* LocalPuzzleManager.swift */; };
+		04FB42EF2ED215A900B2AC32 /* ChildPuzzleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42EE2ED215A500B2AC32 /* ChildPuzzleViews.swift */; };
+		04FB42F12ED215C300B2AC32 /* ParentPuzzleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42F02ED215BF00B2AC32 /* ParentPuzzleViews.swift */; };
 		594352312EBCE356002EA9EE /* ParentSignUpScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 594352302EBCE356002EA9EE /* ParentSignUpScreen.swift */; };
 		595695B82EBA2FBA005DBD2D /* EduKidApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595695B72EBA2FBA005DBD2D /* EduKidApp.swift */; };
 		595695BA2EBA2FBA005DBD2D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595695B92EBA2FBA005DBD2D /* ContentView.swift */; };
@@ -103,6 +105,8 @@
 		04FB42E42ED1E53800B2AC32 /* ChildDashboardScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildDashboardScreen.swift; sourceTree = "<group>"; };
 		04FB42E62ED1E5F600B2AC32 /* EnhancedChildDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedChildDetailScreen.swift; sourceTree = "<group>"; };
 		04FB42E82ED1E9CA00B2AC32 /* LocalPuzzleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPuzzleManager.swift; sourceTree = "<group>"; };
+		04FB42EE2ED215A500B2AC32 /* ChildPuzzleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildPuzzleViews.swift; sourceTree = "<group>"; };
+		04FB42F02ED215BF00B2AC32 /* ParentPuzzleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentPuzzleViews.swift; sourceTree = "<group>"; };
 		594352302EBCE356002EA9EE /* ParentSignUpScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentSignUpScreen.swift; sourceTree = "<group>"; };
 		595695B42EBA2FBA005DBD2D /* EduKid.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EduKid.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		595695B72EBA2FBA005DBD2D /* EduKidApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EduKidApp.swift; sourceTree = "<group>"; };
@@ -270,6 +274,8 @@
 		595695E82EBA3246005DBD2D /* VIews */ = {
 			isa = PBXGroup;
 			children = (
+				04FB42F02ED215BF00B2AC32 /* ParentPuzzleViews.swift */,
+				04FB42EE2ED215A500B2AC32 /* ChildPuzzleViews.swift */,
 				04FB42E62ED1E5F600B2AC32 /* EnhancedChildDetailScreen.swift */,
 				04FB42E02ED1E4CD00B2AC32 /* SimpleGames.swift */,
 				04FB42E42ED1E53800B2AC32 /* ChildDashboardScreen.swift */,
@@ -453,6 +459,7 @@
 				0478BB252EC8F5C100AB6E6D /* Question.swift in Sources */,
 				59B85F8F2EBCEC60007264C5 /* QuizResult.swift in Sources */,
 				59B85F912EBCEEB2007264C5 /* Reward.swift in Sources */,
+				04FB42EF2ED215A900B2AC32 /* ChildPuzzleViews.swift in Sources */,
 				04B99C012ECB325400224AE7 /* ResetPasswordScreen.swift in Sources */,
 				595695F52EBA3BBA005DBD2D /* SplashView.swift in Sources */,
 				595695C42EBA2FBB005DBD2D /* EduKid.xcdatamodeld in Sources */,
@@ -488,6 +495,7 @@
 				04FB42DB2ED1D58300B2AC32 /* PuzzlePlayScreen.swift in Sources */,
 				595695BA2EBA2FBA005DBD2D /* ContentView.swift in Sources */,
 				04FB42E12ED1E4D100B2AC32 /* SimpleGames.swift in Sources */,
+				04FB42F12ED215C300B2AC32 /* ParentPuzzleViews.swift in Sources */,
 				595695B82EBA2FBA005DBD2D /* EduKidApp.swift in Sources */,
 				042C83B82ED075A700F6E0A8 /* AdaptiveQuizSystem.swift in Sources */,
 				595695FB2EBA3DCD005DBD2D /* ColorExtension.swift in Sources */,

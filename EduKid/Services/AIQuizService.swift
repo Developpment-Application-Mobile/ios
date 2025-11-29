@@ -11,8 +11,10 @@ import Foundation
 class AIQuizService {
     static let shared = AIQuizService()
     
-    private let baseURL = "https://accessorial-zaida-soggily.ngrok-free.dev"
+    private let baseURL = "https://preterrestrial-georgann-recappable.ngrok-free.dev"
     
+
+
     private init() {}
     
     // MARK: - Generate AI Quiz (Normal or Adaptive)
@@ -326,6 +328,28 @@ class AIQuizService {
             correctAnswers: correctAnswers,
             answers: answerDetails
         )
+    }
+}
+
+
+
+extension AIQuizResponse {
+    var meaningfulTitle: String {
+        // Si le titre existe et n'est pas "General", l'utiliser
+        if !title.isEmpty && !title.lowercased().contains("general") {
+            return title
+        }
+        
+        // Sinon, générer un titre basé sur subject, topic et difficulty
+        let subjectName = subject.capitalized
+        let topicName = topic.capitalized
+        let diffLevel = difficulty.capitalized
+        
+        if topicName != "General" && topicName != topic {
+            return "\(subjectName): \(topicName) - \(diffLevel)"
+        } else {
+            return "\(subjectName) Quiz - \(diffLevel)"
+        }
     }
 }
 

@@ -11,8 +11,8 @@ import Foundation
 class PuzzleService {
     static let shared = PuzzleService()
     
-    private let baseURL = "https://accessorial-zaida-soggily.ngrok-free.dev"
-    
+    private let baseURL =
+"https://preterrestrial-georgann-recappable.ngrok-free.dev"
     private init() {}
     
     // MARK: - Generate Puzzle
