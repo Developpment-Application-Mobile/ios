@@ -62,6 +62,8 @@
 		59B8D3472EC3AFD2004374A1 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B8D3462EC3AFD2004374A1 /* AuthViewModel.swift */; };
 		59B8D3492EC3B05B004374A1 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B8D3482EC3B05B004374A1 /* AuthService.swift */; };
 		59B8D34B2EC3C302004374A1 /* ParentProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B8D34A2EC3C302004374A1 /* ParentProfileScreen.swift */; };
+		849FD61A71CB9A20168F62BE /* CelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD21C95C24FC6422A46CB07 /* CelebrationView.swift */; };
+		92A6C352C146D8C5DC71AFBC /* SoundEffectManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D87CBC7676C27FB5944A6C7B /* SoundEffectManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -140,6 +142,8 @@
 		59B8D3462EC3AFD2004374A1 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
 		59B8D3482EC3B05B004374A1 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		59B8D34A2EC3C302004374A1 /* ParentProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentProfileScreen.swift; sourceTree = "<group>"; };
+		9CD21C95C24FC6422A46CB07 /* CelebrationView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CelebrationView.swift; path = Components/CelebrationView.swift; sourceTree = "<group>"; };
+		D87CBC7676C27FB5944A6C7B /* SoundEffectManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SoundEffectManager.swift; path = Managers/SoundEffectManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -175,6 +179,14 @@
 				042C83BA2ED0771600F6E0A8 /* ProfileBadge.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		380BB4AE72923C34050CF507 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				9CD21C95C24FC6422A46CB07 /* CelebrationView.swift */,
+			);
+			name = Components;
 			sourceTree = "<group>";
 		};
 		595695AB2EBA2FBA005DBD2D = {
@@ -214,6 +226,8 @@
 				595695FA2EBA3DCD005DBD2D /* ColorExtension.swift */,
 				595696022EBA503E005DBD2D /* DecorationElementView.swift */,
 				59B85F962EBCF3B2007264C5 /* MainNavigationView.swift */,
+				FC157B2D0CC1F79B074722B3 /* Managers */,
+				380BB4AE72923C34050CF507 /* Components */,
 			);
 			path = EduKid;
 			sourceTree = "<group>";
@@ -317,6 +331,14 @@
 			children = (
 			);
 			path = Utils;
+			sourceTree = "<group>";
+		};
+		FC157B2D0CC1F79B074722B3 /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				D87CBC7676C27FB5944A6C7B /* SoundEffectManager.swift */,
+			);
+			name = Managers;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -499,6 +521,8 @@
 				595695B82EBA2FBA005DBD2D /* EduKidApp.swift in Sources */,
 				042C83B82ED075A700F6E0A8 /* AdaptiveQuizSystem.swift in Sources */,
 				595695FB2EBA3DCD005DBD2D /* ColorExtension.swift in Sources */,
+				92A6C352C146D8C5DC71AFBC /* SoundEffectManager.swift in Sources */,
+				849FD61A71CB9A20168F62BE /* CelebrationView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -350,7 +350,7 @@ struct ImagePuzzlePlayScreen: View {
                                             pieceSize: pieceSize
                                         ) {
                                             handleTap(at: index)
-                                            PuzzleSoundManager.shared.playPiecePlaced()
+                                            SoundEffectManager.shared.playPop()
                                         }
                                     }
                                 }
@@ -811,6 +811,7 @@ struct PuzzleResultScreen: View {
     let isCorrect: Bool, timeElapsed: Int, attempts: Int, score: Int
     let onDismiss: () -> Void
     @State private var showConfetti = false
+    @State private var showCelebration = false
     
     var body: some View {
         ZStack {
@@ -839,8 +840,27 @@ struct PuzzleResultScreen: View {
                 }
                 .padding(.horizontal, 40).padding(.bottom, 50)
             }
+            
+            // Celebration overlay for success
+            if isCorrect && showCelebration {
+                CelebrationView {
+                    showCelebration = false
+                }
+            }
         }
-        .onAppear { showConfetti = true }
+        .onAppear {
+            showConfetti = true
+            
+            if isCorrect {
+                // Play kids clapping and cheering sound
+                SoundEffectManager.shared.playKidsClapping()
+                
+                // Show celebration animation
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showCelebration = true
+                }
+            }
+        }
     }
     private func formatTime(_ seconds: Int) -> String { String(format: "%d:%02d", seconds / 60, seconds % 60) }
 }

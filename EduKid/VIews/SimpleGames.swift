@@ -131,9 +131,14 @@ struct MemoryMatchGame: View {
     }
     
     private func cardTapped(at index: Int) {
-        guard !matchedIndices.contains(index),
+        guard cards[index].id != cards.first?.id,
+              matchedIndices.count < cards.count,
               flippedIndices.count < 2,
+              !matchedIndices.contains(index),
               !flippedIndices.contains(index) else { return }
+        
+        // Play fun pop sound when flipping card
+        SoundEffectManager.shared.playPop()
         
         flippedIndices.insert(index)
         
@@ -149,25 +154,28 @@ struct MemoryMatchGame: View {
         let second = cards[indices[1]]
         
         if first.emoji == second.emoji {
+            // Match found! Play cheerful ding
+            SoundEffectManager.shared.playDing()
+            
             matchedIndices.insert(indices[0])
             matchedIndices.insert(indices[1])
             flippedIndices.removeAll()
             
             if matchedIndices.count == cards.count {
                 timer?.invalidate()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showResult = true
-                }
+                showResult = true
             }
         } else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            // No match - play gentle oops
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                SoundEffectManager.shared.playOops()
                 flippedIndices.removeAll()
             }
         }
     }
     
     private func calculateScore() -> Int {
-        let timeBonus = max(0, 300 - timeElapsed) / 3
+        let timeBonus = max(0, 300 - timeElapsed)
         let movesPenalty = moves * 2
         return max(10, 100 + timeBonus - movesPenalty)
     }
@@ -384,6 +392,9 @@ struct ColorMatchGame: View {
     
     private func selectColor(_ option: ColorOption) {
         if option.name == targetColor {
+            // Correct answer! Play cheerful yay
+            SoundEffectManager.shared.playYay()
+            
             score += 10
             feedback = "✓ Correct!"
             
@@ -396,6 +407,9 @@ struct ColorMatchGame: View {
                 }
             }
         } else {
+            // Wrong answer - play gentle buzz
+            SoundEffectManager.shared.playBuzz()
+            
             feedback = "✗ Try again!"
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 feedback = ""
@@ -574,8 +588,11 @@ struct ShapeMatchingGame: View {
     
     private func selectShape(_ shape: ShapeType) {
         if shape == targetShape {
+            // Correct shape! Play cheerful ding
+            SoundEffectManager.shared.playDing()
+            
             score += 10
-            feedback = "✓ Correct!"
+            feedback = "✓ Perfect!"
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 if round < totalRounds {
@@ -586,6 +603,9 @@ struct ShapeMatchingGame: View {
                 }
             }
         } else {
+            // Wrong shape - play gentle oops
+            SoundEffectManager.shared.playOops()
+            
             feedback = "✗ Try again!"
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 feedback = ""
@@ -878,6 +898,9 @@ struct NumberSequenceGame: View {
     
     private func selectNumber(_ number: Int) {
         if number == targetNumber {
+            // Correct number! Play cheerful yay
+            SoundEffectManager.shared.playYay()
+            
             currentSequence.append(number)
             availableNumbers.removeAll { $0 == number }
             targetNumber += 1
@@ -894,6 +917,9 @@ struct NumberSequenceGame: View {
                     showResult = true
                 }
             }
+        } else {
+            // Wrong number - play buzz
+            SoundEffectManager.shared.playBuzz()
         }
     }
     
@@ -909,6 +935,411 @@ struct NumberSequenceGame: View {
             "type": "sequence",
             "score": score,
             "level": level,
+            "time": timeElapsed,
+            "date": ISO8601DateFormatter().string(from: Date())
+        ])
+        UserDefaults.standard.set(games, forKey: "child_\(child.id)_games")
+    }
+}
+
+// MARK: - Math Quiz Game
+struct MathQuizGame: View {
+    let child: Child
+    let onComplete: (Int) -> Void
+    
+    @Environment(\.dismiss) var dismiss
+    @State private var currentQuestion = 0
+    @State private var score = 0
+    @State private var timeElapsed = 0
+    @State private var timer: Timer?
+    @State private var showResult = false
+    @State private var feedback = ""
+    
+    @State private var num1 = 0
+    @State private var num2 = 0
+    @State private var operation = "+"
+    @State private var correctAnswer = 0
+    @State private var options: [Int] = []
+    
+    let totalQuestions = 10
+    
+    var body: some View {
+        ZStack {
+            RadialGradient(
+                gradient: Gradient(colors: [
+                    Color.blue.opacity(0.6),
+                    Color(red: 0.153, green: 0.125, blue: 0.322)
+                ]),
+                center: .center,
+                startRadius: 50,
+                endRadius: 400
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                // Header
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(spacing: 4) {
+                        Text("Math Quiz")
+                            .font(.title2.bold())
+                            .foregroundColor(.white)
+                        Text("Solve the problems!")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    
+                    Spacer()
+                    
+                    Text("⭐ \(score)")
+                        .font(.title3.bold())
+                        .foregroundColor(.yellow)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 60)
+                
+                // Progress
+                Text("Question \(currentQuestion + 1)/\(totalQuestions)")
+                    .font(.headline)
+                    .foregroundColor(.white.opacity(0.8))
+                
+                Spacer()
+                
+                // Math Problem
+                VStack(spacing: 20) {
+                    Text("\(num1) \(operation) \(num2) = ?")
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding(30)
+                        .background(Color.white.opacity(0.15))
+                        .cornerRadius(20)
+                    
+                    if !feedback.isEmpty {
+                        Text(feedback)
+                            .font(.title3.bold())
+                            .foregroundColor(feedback.contains("✓") ? .green : .orange)
+                    }
+                }
+                
+                Spacer()
+                
+                // Answer Options
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 2), spacing: 16) {
+                    ForEach(options, id: \.self) { option in
+                        Button(action: { selectAnswer(option) }) {
+                            Text("\(option)")
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 80)
+                                .background(Color.white.opacity(0.2))
+                                .cornerRadius(16)
+                        }
+                    }
+                }
+                .padding(.horizontal, 40)
+                
+                Spacer()
+            }
+        }
+        .onAppear {
+            setupQuestion()
+            startTimer()
+        }
+        .onDisappear {
+            timer?.invalidate()
+        }
+        .fullScreenCover(isPresented: $showResult) {
+            GameResultScreen(
+                title: "Math Quiz Complete!",
+                score: score,
+                moves: totalQuestions,
+                time: timeElapsed,
+                emoji: "🧮"
+            ) {
+                saveGameResult()
+                onComplete(score)
+                dismiss()
+            }
+        }
+    }
+    
+    private func setupQuestion() {
+        // Generate random math problem
+        num1 = Int.random(in: 1...10)
+        num2 = Int.random(in: 1...10)
+        operation = ["+", "-"].randomElement()!
+        
+        if operation == "+" {
+            correctAnswer = num1 + num2
+        } else {
+            // Ensure no negative results
+            if num1 < num2 {
+                swap(&num1, &num2)
+            }
+            correctAnswer = num1 - num2
+        }
+        
+        // Generate options
+        var optionSet = Set<Int>()
+        optionSet.insert(correctAnswer)
+        
+        while optionSet.count < 4 {
+            let offset = Int.random(in: -5...5)
+            let option = max(0, correctAnswer + offset)
+            optionSet.insert(option)
+        }
+        
+        options = Array(optionSet).shuffled()
+        feedback = ""
+    }
+    
+    private func selectAnswer(_ answer: Int) {
+        if answer == correctAnswer {
+            SoundEffectManager.shared.playDing()
+            score += 10
+            feedback = "✓ Correct!"
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                currentQuestion += 1
+                if currentQuestion < totalQuestions {
+                    setupQuestion()
+                } else {
+                    timer?.invalidate()
+                    showResult = true
+                }
+            }
+        } else {
+            SoundEffectManager.shared.playOops()
+            feedback = "✗ Try again!"
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                feedback = ""
+            }
+        }
+    }
+    
+    private func startTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            timeElapsed += 1
+        }
+    }
+    
+    private func saveGameResult() {
+        var games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
+        games.append([
+            "type": "math",
+            "score": score,
+            "questions": totalQuestions,
+            "time": timeElapsed,
+            "date": ISO8601DateFormatter().string(from: Date())
+        ])
+        UserDefaults.standard.set(games, forKey: "child_\(child.id)_games")
+    }
+}
+
+// MARK: - Emoji Match Game
+struct EmojiMatchGame: View {
+    let child: Child
+    let onComplete: (Int) -> Void
+    
+    @Environment(\.dismiss) var dismiss
+    @State private var currentRound = 0
+    @State private var score = 0
+    @State private var timeElapsed = 0
+    @State private var timer: Timer?
+    @State private var showResult = false
+    @State private var feedback = ""
+    
+    @State private var targetEmoji = ""
+    @State private var targetName = ""
+    @State private var options: [String] = []
+    
+    let totalRounds = 10
+    let emojiPairs: [(emoji: String, name: String)] = [
+        ("🐶", "Dog"), ("🐱", "Cat"), ("🐭", "Mouse"), ("🐹", "Hamster"),
+        ("🐰", "Rabbit"), ("🦊", "Fox"), ("🐻", "Bear"), ("🐼", "Panda"),
+        ("🐨", "Koala"), ("🐯", "Tiger"), ("🦁", "Lion"), ("🐮", "Cow"),
+        ("🐷", "Pig"), ("🐸", "Frog"), ("🐵", "Monkey"), ("🐔", "Chicken"),
+        ("🦆", "Duck"), ("🦅", "Eagle"), ("🦉", "Owl"), ("🦋", "Butterfly"),
+        ("🐝", "Bee"), ("🐞", "Ladybug"), ("🐢", "Turtle"), ("🐠", "Fish")
+    ]
+    
+    var body: some View {
+        ZStack {
+            RadialGradient(
+                gradient: Gradient(colors: [
+                    Color.pink.opacity(0.6),
+                    Color(red: 0.153, green: 0.125, blue: 0.322)
+                ]),
+                center: .center,
+                startRadius: 50,
+                endRadius: 400
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                // Header
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(spacing: 4) {
+                        Text("Emoji Match")
+                            .font(.title2.bold())
+                            .foregroundColor(.white)
+                        Text("Match emoji to name!")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    
+                    Spacer()
+                    
+                    Text("⭐ \(score)")
+                        .font(.title3.bold())
+                        .foregroundColor(.yellow)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 60)
+                
+                // Progress
+                Text("Round \(currentRound + 1)/\(totalRounds)")
+                    .font(.headline)
+                    .foregroundColor(.white.opacity(0.8))
+                
+                Spacer()
+                
+                // Target Emoji
+                VStack(spacing: 20) {
+                    Text(targetEmoji)
+                        .font(.system(size: 100))
+                        .padding(30)
+                        .background(Color.white.opacity(0.15))
+                        .cornerRadius(20)
+                    
+                    Text("What is this?")
+                        .font(.title2.bold())
+                        .foregroundColor(.white)
+                    
+                    if !feedback.isEmpty {
+                        Text(feedback)
+                            .font(.title3.bold())
+                            .foregroundColor(feedback.contains("✓") ? .green : .orange)
+                    }
+                }
+                
+                Spacer()
+                
+                // Name Options
+                VStack(spacing: 12) {
+                    ForEach(options, id: \.self) { option in
+                        Button(action: { selectName(option) }) {
+                            Text(option)
+                                .font(.title3.bold())
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 60)
+                                .background(Color.white.opacity(0.2))
+                                .cornerRadius(16)
+                        }
+                    }
+                }
+                .padding(.horizontal, 40)
+                
+                Spacer()
+            }
+        }
+        .onAppear {
+            setupRound()
+            startTimer()
+        }
+        .onDisappear {
+            timer?.invalidate()
+        }
+        .fullScreenCover(isPresented: $showResult) {
+            GameResultScreen(
+                title: "Emoji Match Complete!",
+                score: score,
+                moves: totalRounds,
+                time: timeElapsed,
+                emoji: "😊"
+            ) {
+                saveGameResult()
+                onComplete(score)
+                dismiss()
+            }
+        }
+    }
+    
+    private func setupRound() {
+        currentRound += 1
+        feedback = ""
+        
+        // Select random emoji
+        let pair = emojiPairs.randomElement()!
+        targetEmoji = pair.emoji
+        targetName = pair.name
+        
+        // Generate options
+        var optionNames = [targetName]
+        while optionNames.count < 4 {
+            let randomPair = emojiPairs.randomElement()!
+            if !optionNames.contains(randomPair.name) {
+                optionNames.append(randomPair.name)
+            }
+        }
+        
+        options = optionNames.shuffled()
+    }
+    
+    private func selectName(_ name: String) {
+        if name == targetName {
+            SoundEffectManager.shared.playYay()
+            score += 10
+            feedback = "✓ Correct!"
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                if currentRound < totalRounds {
+                    setupRound()
+                } else {
+                    timer?.invalidate()
+                    showResult = true
+                }
+            }
+        } else {
+            SoundEffectManager.shared.playBuzz()
+            feedback = "✗ Try again!"
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                feedback = ""
+            }
+        }
+    }
+    
+    private func startTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            timeElapsed += 1
+        }
+    }
+    
+    private func saveGameResult() {
+        var games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
+        games.append([
+            "type": "emoji",
+            "score": score,
+            "rounds": totalRounds,
             "time": timeElapsed,
             "date": ISO8601DateFormatter().string(from: Date())
         ])
@@ -945,6 +1376,9 @@ struct GameResultScreen: View {
     let emoji: String
     let onDismiss: () -> Void
     
+    @State private var showCelebration = false
+    @State private var animateEmoji = false
+    
     var body: some View {
         ZStack {
             RadialGradient(
@@ -963,6 +1397,8 @@ struct GameResultScreen: View {
                 
                 Text(emoji)
                     .font(.system(size: 100))
+                    .scaleEffect(animateEmoji ? 1 : 0.5)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.6), value: animateEmoji)
                 
                 Text(title)
                     .font(.title.bold())
@@ -991,6 +1427,25 @@ struct GameResultScreen: View {
                 .cornerRadius(16)
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
+            }
+            
+            // Celebration overlay
+            if showCelebration {
+                CelebrationView {
+                    showCelebration = false
+                }
+            }
+        }
+        .onAppear {
+            // Play kids clapping and cheering sound
+            SoundEffectManager.shared.playKidsClapping()
+            
+            // Animate emoji
+            animateEmoji = true
+            
+            // Show celebration after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                showCelebration = true
             }
         }
     }

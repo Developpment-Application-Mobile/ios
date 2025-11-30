@@ -13,6 +13,8 @@ enum SimpleGameType: String, Identifiable, CaseIterable {
     case color = "Color Match"
     case shape = "Shape Match"
     case sequence = "Number Sequence"
+    case math = "Math Quiz"
+    case emoji = "Emoji Match"
     
     var id: String { rawValue }
     var icon: String {
@@ -21,6 +23,8 @@ enum SimpleGameType: String, Identifiable, CaseIterable {
         case .color: return "paintpalette.fill"
         case .shape: return "square.on.circle"
         case .sequence: return "number.circle"
+        case .math: return "function"
+        case .emoji: return "face.smiling.fill"
         }
     }
     var color: Color {
@@ -29,6 +33,8 @@ enum SimpleGameType: String, Identifiable, CaseIterable {
         case .color: return .orange
         case .shape: return .green
         case .sequence: return .blue
+        case .math: return .cyan
+        case .emoji: return .pink
         }
     }
     var description: String {
@@ -37,6 +43,8 @@ enum SimpleGameType: String, Identifiable, CaseIterable {
         case .color: return "Match colors and patterns"
         case .shape: return "Identify matching shapes"
         case .sequence: return "Complete number patterns"
+        case .math: return "Solve math problems"
+        case .emoji: return "Match emoji to name"
         }
     }
 }
@@ -144,6 +152,10 @@ struct ChildDashboardScreen: View {
                     ShapeMatchingGame(child: child) { _ in selectedGame = nil }
                 case .sequence:
                     NumberSequenceGame(child: child) { _ in selectedGame = nil }
+                case .math:
+                    MathQuizGame(child: child) { _ in selectedGame = nil }
+                case .emoji:
+                    EmojiMatchGame(child: child) { _ in selectedGame = nil }
                 }
             }
         }
@@ -495,6 +507,8 @@ struct ChildGameHistoryRow: View {
         case "color": return .color
         case "shape": return .shape
         case "sequence": return .sequence
+        case "math": return .math
+        case "emoji": return .emoji
         default: return nil
         }
     }
