@@ -84,7 +84,9 @@ class SoundEffectManager {
     
     /// Play exciting celebration sound with kids cheering
     func playKidsClapping() {
-        // NO BEEPS! Use voice to make clapping sounds
+        // Play custom clapping sound from audio file
+        playCustomSound(named: "clapping")
+        
         // Exciting haptic celebration pattern
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
@@ -111,17 +113,44 @@ class SoundEffectManager {
         
         // Kids cheering voice - very high pitch!
         let bigPhrases = [
-            "Yaaay! Clap clap clap!",
-            "Woohoo! You did it!",
-            "Amazing! Clap clap clap!",
+            "Yaaay!",
+            "Woohoo!",
+            "You did it!",
+            "Amazing!",
             "You're a star!",
-            "Fantastic! Yaaay!",
-            "Super job! Clap clap!",
+            "Fantastic!",
+            "Super job!",
             "Way to go!",
             "You're awesome!"
         ]
         
-        speakAsKid(bigPhrases.randomElement()!, delay: 0.1)
+        speakAsKid(bigPhrases.randomElement()!, delay: 0.5)
+    }
+    
+    /// Play custom audio file
+    private func playCustomSound(named fileName: String) {
+        // Try to find the audio file in the bundle
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: "mp3") ??
+                        Bundle.main.url(forResource: fileName, withExtension: "wav") ??
+                        Bundle.main.url(forResource: fileName, withExtension: "m4a") else {
+            print("⚠️ Audio file '\(fileName)' not found in bundle")
+            return
+        }
+        
+        do {
+            // Create and configure audio player
+            let player = try AVAudioPlayer(contentsOf: url)
+            player.prepareToPlay()
+            player.volume = 1.0
+            player.play()
+            
+            // Store player to prevent deallocation
+            audioPlayers[fileName] = player
+            
+            print("🎵 Playing audio: \(fileName)")
+        } catch {
+            print("❌ Error playing audio '\(fileName)': \(error)")
+        }
     }
     
     /// Play victory fanfare (for level completion)

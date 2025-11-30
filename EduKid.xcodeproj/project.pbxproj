@@ -20,6 +20,7 @@
 		049625A82EC9ED5000C83F87 /* AIQuizGenerationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A72EC9ED4D00C83F87 /* AIQuizGenerationScreen.swift */; };
 		049625AA2EC9ED6E00C83F87 /* ChildQuizListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A92EC9ED6C00C83F87 /* ChildQuizListScreen.swift */; };
 		04B99C012ECB325400224AE7 /* ResetPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04B99C002ECB325100224AE7 /* ResetPasswordScreen.swift */; };
+		04E2162D2EDC7CCE00375768 /* clapping.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 04E2162C2EDC7CCD00375768 /* clapping.mp3 */; };
 		04ED24592EC635590047BA65 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */; };
 		04FB42D72ED1D4DE00B2AC32 /* PuzzleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42D62ED1D4D700B2AC32 /* PuzzleModels.swift */; };
 		04FB42D92ED1D51D00B2AC32 /* PuzzleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42D82ED1D51900B2AC32 /* PuzzleViews.swift */; };
@@ -97,6 +98,7 @@
 		049625A72EC9ED4D00C83F87 /* AIQuizGenerationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIQuizGenerationScreen.swift; sourceTree = "<group>"; };
 		049625A92EC9ED6C00C83F87 /* ChildQuizListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildQuizListScreen.swift; sourceTree = "<group>"; };
 		04B99C002ECB325100224AE7 /* ResetPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordScreen.swift; sourceTree = "<group>"; };
+		04E2162C2EDC7CCD00375768 /* clapping.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = clapping.mp3; sourceTree = "<group>"; };
 		04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
 		04FB42D62ED1D4D700B2AC32 /* PuzzleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleModels.swift; sourceTree = "<group>"; };
 		04FB42D82ED1D51900B2AC32 /* PuzzleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleViews.swift; sourceTree = "<group>"; };
@@ -212,6 +214,7 @@
 		595695B62EBA2FBA005DBD2D /* EduKid */ = {
 			isa = PBXGroup;
 			children = (
+				04E2162C2EDC7CCD00375768 /* clapping.mp3 */,
 				595696062EBA5444005DBD2D /* Utils */,
 				595695E92EBA3253005DBD2D /* Services */,
 				595695E82EBA3246005DBD2D /* VIews */,
@@ -445,6 +448,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				04E2162D2EDC7CCE00375768 /* clapping.mp3 in Resources */,
 				595695BF2EBA2FBB005DBD2D /* Preview Assets.xcassets in Resources */,
 				595695BC2EBA2FBB005DBD2D /* Assets.xcassets in Resources */,
 			);
