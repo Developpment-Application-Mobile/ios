@@ -57,6 +57,18 @@ struct ChildDashboardScreen: View {
     @State private var isLoading = false
     @State private var selectedMainTab = 0
     @State private var selectedGame: SimpleGameType?
+    @State private var localPuzzles: [LocalPuzzle] = []
+    @State private var serverPuzzles: [PuzzleResponse] = []
+    @State private var games: [[String: Any]] = []
+    
+    var calculatedTotalScore: Int {
+        let quizScore = completedQuizzes.reduce(0) { $0 + $1.score }
+        let localPuzzleScore = localPuzzles.filter { $0.isCompleted }.reduce(0) { $0 + $1.score }
+        let serverPuzzleScore = serverPuzzles.filter { $0.isCompleted }.reduce(0) { $0 + $1.score }
+        let gameScore = games.compactMap { $0["score"] as? Int }.reduce(0, +)
+        
+        return quizScore + localPuzzleScore + serverPuzzleScore + gameScore
+    }
     
     var pendingQuizzes: [AIQuizResponse] { quizzes.filter { $0.answered == 0 } }
     var completedQuizzes: [AIQuizResponse] { quizzes.filter { $0.answered > 0 } }
@@ -79,14 +91,15 @@ struct ChildDashboardScreen: View {
                     VStack(spacing: 24) {
                         Spacer().frame(height: 40)
                         
-                        ChildInfoCardView(child: child)
+                        ChildInfoCardView(child: child, totalScore: calculatedTotalScore)
                             .padding(.horizontal, 20)
                         
                         // Tab Selector
                         HStack(spacing: 0) {
-                            TabButton(title: "📝 Quizzes", isSelected: selectedMainTab == 0) { selectedMainTab = 0 }
-                            TabButton(title: "🧩 Puzzles", isSelected: selectedMainTab == 1) { selectedMainTab = 1 }
-                            TabButton(title: "🎮 Games", isSelected: selectedMainTab == 2) { selectedMainTab = 2 }
+                            TabButton(title: "📅 My Tasks", isSelected: selectedMainTab == 0) { selectedMainTab = 0 }
+                            TabButton(title: "📝 Quizzes", isSelected: selectedMainTab == 1) { selectedMainTab = 1 }
+                            TabButton(title: "🧩 Puzzles", isSelected: selectedMainTab == 2) { selectedMainTab = 2 }
+                            TabButton(title: "🎮 Games", isSelected: selectedMainTab == 3) { selectedMainTab = 3 }
                         }
                         .background(Color.white.opacity(0.1))
                         .cornerRadius(12)
@@ -96,18 +109,23 @@ struct ChildDashboardScreen: View {
                         Group {
                             switch selectedMainTab {
                             case 0:
+                                ChildScheduledActivitiesView(
+                                    child: child,
+                                    onQuizCompleted: { Task { await loadData() } }
+                                )
+                            case 1:
                                 ChildQuizContent(
                                     pendingQuizzes: pendingQuizzes,
                                     completedQuizzes: completedQuizzes,
                                     child: child,
                                     onQuizCompleted: { Task { await loadData() } }
                                 )
-                            case 1:
+                            case 2:
                                 ChildPuzzleContentView(
                                     child: child,
                                     onPuzzleCompleted: { Task { await loadData() } }
                                 )
-                            case 2:
+                            case 3:
                                 ChildGamesContent(child: child, selectedGame: $selectedGame)
                             default:
                                 EmptyView()
@@ -163,11 +181,28 @@ struct ChildDashboardScreen: View {
     
     private func loadData() async {
         isLoading = true
+        
+        // Load Games
+        if let loadedGames = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] {
+            games = loadedGames
+        }
+        
+        // Load Local Puzzles
+        localPuzzles = LocalPuzzleManager.shared.getAllPuzzles(for: child.id)
+        
         do {
             guard let parentId = AuthService.shared.getParentId() else { return }
-            let fetchedQuizzes = try await AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
+            
+            // Load Quizzes
+            async let quizzesTask = AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
+            // Load Server Puzzles
+            async let puzzlesTask = PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
+            
+            let (fetchedQuizzes, fetchedPuzzles) = try await (quizzesTask, puzzlesTask)
+            
             await MainActor.run {
                 quizzes = fetchedQuizzes.sorted { ($0.createdAt ?? "") > ($1.createdAt ?? "") }
+                serverPuzzles = fetchedPuzzles
                 isLoading = false
             }
         } catch {
@@ -197,6 +232,7 @@ struct TabButton: View {
 // MARK: - Child Info Card View
 struct ChildInfoCardView: View {
     let child: Child
+    let totalScore: Int
     
     var body: some View {
         VStack(spacing: 16) {
@@ -213,7 +249,7 @@ struct ChildInfoCardView: View {
                 .foregroundColor(.white)
             
             HStack(spacing: 24) {
-                ChildStatBadge(icon: "star.fill", label: "Points", value: "\(child.Score)", color: .yellow)
+                ChildStatBadge(icon: "star.fill", label: "Points", value: "\(totalScore)", color: .yellow)
                 ChildStatBadge(icon: "chart.bar.fill", label: "Level", value: child.level, color: .green)
                 ChildStatBadge(icon: "calendar", label: "Age", value: "\(child.age)", color: .blue)
             }

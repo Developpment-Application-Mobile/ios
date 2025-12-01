@@ -194,6 +194,7 @@ struct ChildCard: View {
     let onDelete: () -> Void
     @State private var showingOptions = false
     @State private var totalCompleted = 0
+    @State private var calculatedScore = 0
     @State private var isLoading = false
     
     var body: some View {
@@ -250,7 +251,7 @@ struct ChildCard: View {
                 HStack(spacing: 0) {
                     StatItem(
                         label: "Total Score",
-                        value: "\(child.Score)",
+                        value: isLoading ? "..." : "\(calculatedScore)",
                         icon: "⭐"
                     )
                     
@@ -280,23 +281,30 @@ struct ChildCard: View {
         isLoading = true
         Task {
             var completed = 0
+            var score = 0
             
             // Compter les quizzes complétés
             if let parentId = AuthService.shared.getParentId() {
                 do {
                     let quizzes = try await AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
-                    completed += quizzes.filter { $0.answered > 0 }.count
+                    let completedQuizzes = quizzes.filter { $0.answered > 0 }
+                    completed += completedQuizzes.count
+                    score += completedQuizzes.reduce(0) { $0 + $1.score }
                 } catch {
                     print("Failed to load quizzes: \(error)")
                 }
                 
                 // Compter les puzzles complétés (local + server)
                 let localPuzzles = LocalPuzzleManager.shared.getAllPuzzles(for: child.id)
-                completed += localPuzzles.filter { $0.isCompleted }.count
+                let completedLocalPuzzles = localPuzzles.filter { $0.isCompleted }
+                completed += completedLocalPuzzles.count
+                score += completedLocalPuzzles.reduce(0) { $0 + $1.score }
                 
                 do {
                     let serverPuzzles = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
-                    completed += serverPuzzles.filter { $0.isCompleted }.count
+                    let completedServerPuzzles = serverPuzzles.filter { $0.isCompleted }
+                    completed += completedServerPuzzles.count
+                    score += completedServerPuzzles.reduce(0) { $0 + $1.score }
                 } catch {
                     print("Failed to load puzzles: \(error)")
                 }
@@ -305,9 +313,11 @@ struct ChildCard: View {
             // Compter les jeux complétés
             let games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
             completed += games.count
+            score += games.compactMap { $0["score"] as? Int }.reduce(0, +)
             
             await MainActor.run {
                 totalCompleted = completed
+                calculatedScore = score
                 isLoading = false
             }
         }

@@ -446,7 +446,6 @@ struct AdaptiveQuizGenerationScreen_Previews: PreviewProvider {
     }
 }
 
-
 //
 //  ParentQuizListScreen.swift - UPDATED
 //  EduKid
@@ -455,8 +454,6 @@ struct AdaptiveQuizGenerationScreen_Previews: PreviewProvider {
 //  Now uses Adaptive AI Quiz Generation
 //
 
-import SwiftUI
-
 struct ParentQuizListScreen: View {
     let child: Child
     
@@ -464,6 +461,7 @@ struct ParentQuizListScreen: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showGenerateQuiz = false
+    @State private var showCreateCustomQuiz = false
     @State private var quizToDelete: AIQuizResponse?
     
     var body: some View {
@@ -492,30 +490,39 @@ struct ParentQuizListScreen: View {
                     Spacer()
                 }
                 
-                // Smart Generate Quiz Button
-                Button(action: { showGenerateQuiz = true }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "brain.head.profile")
-                            .font(.title2)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Generate Smart Quiz")
-                                .font(.system(size: 16, weight: .bold))
-                            Text("AI-powered adaptive learning")
-                                .font(.caption)
+                // Action Buttons Row
+                HStack(spacing: 12) {
+                    // Smart Generate Quiz Button
+                    Button(action: { showGenerateQuiz = true }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "brain.head.profile")
+                                .font(.title3)
+                            Text("Smart Quiz")
+                                .font(.system(size: 14, weight: .bold))
                         }
+                        .foregroundColor(Color(hex: "272052"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white)
+                        .cornerRadius(16)
+                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
                     }
-                    .foregroundColor(Color(hex: "272052"))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.white, Color.white.opacity(0.9)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .cornerRadius(28)
-                    .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+                    
+                    // Create Custom Quiz Button
+                    Button(action: { showCreateCustomQuiz = true }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                            Text("Custom Quiz")
+                                .font(.system(size: 14, weight: .bold))
+                        }
+                        .foregroundColor(Color(hex: "272052"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.9))
+                        .cornerRadius(16)
+                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                    }
                 }
             }
             .padding(.horizontal, 20)
@@ -589,6 +596,14 @@ struct ParentQuizListScreen: View {
                     child: child,
                     quizHistory: quizzes,
                     onQuizGenerated: loadQuizzes
+                )
+            }
+        }
+        .sheet(isPresented: $showCreateCustomQuiz) {
+            NavigationStack {
+                CreateCustomQuizScreen(
+                    child: child,
+                    onQuizCreated: loadQuizzes
                 )
             }
         }
@@ -855,6 +870,247 @@ struct EnhancedAIQuizCard: View {
         if scorePercentage >= 80 { return "star.fill" }
         else if scorePercentage >= 60 { return "hand.thumbsup.fill" }
         else { return "arrow.up.circle.fill" }
+    }
+}
+
+// MARK: - Create Custom Quiz Screen
+struct CreateCustomQuizScreen: View {
+    let child: Child
+    let onQuizCreated: () -> Void
+    
+    @Environment(\.dismiss) var dismiss
+    
+    @State private var subject = ""
+    @State private var topic = ""
+    @State private var difficulty = "beginner"
+    @State private var numberOfQuestions = 5
+    @State private var isGenerating = false
+    @State private var errorMessage: String?
+    @State private var showSuccess = false
+    
+    let difficulties = ["beginner", "intermediate", "advanced"]
+    
+    var isValid: Bool {
+        !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !topic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
+    var backgroundGradient: some View {
+        RadialGradient(
+            gradient: Gradient(colors: [
+                Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
+                Color(red: 0.153, green: 0.125, blue: 0.322)
+            ]),
+            center: .init(x: 0.3, y: 0.3),
+            startRadius: 50,
+            endRadius: 400
+        )
+        .ignoresSafeArea()
+    }
+    
+    var quizFormContent: some View {
+        VStack(spacing: 24) {
+            // Header
+            VStack(spacing: 8) {
+                Text("Create Custom Quiz")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.white)
+                
+                Text("Tailor a quiz specifically for \(child.name)")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.8))
+            }
+            .padding(.top, 20)
+            
+            // Form Card
+            VStack(spacing: 24) {
+                // Subject Input
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Subject")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    TextField("e.g., Math, Science, History", text: $subject)
+                        .padding()
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(12)
+                        .foregroundColor(.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                }
+                
+                // Topic Input
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Specific Topic")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    TextField("e.g., Dinosaurs, Fractions, Space", text: $topic)
+                        .padding()
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(12)
+                        .foregroundColor(.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                }
+                
+                // Difficulty Selector
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Difficulty Level")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    HStack(spacing: 0) {
+                        ForEach(difficulties, id: \.self) { level in
+                            Button(action: { difficulty = level }) {
+                                Text(level.capitalized)
+                                    .font(.subheadline.bold())
+                                    .foregroundColor(difficulty == level ? Color(hex: "272052") : .white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(difficulty == level ? Color.white : Color.clear)
+                            }
+                        }
+                    }
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                }
+                
+                // Number of Questions
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Number of Questions")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Spacer()
+                        Text("\(numberOfQuestions)")
+                            .font(.title3.bold())
+                            .foregroundColor(.white)
+                    }
+                    
+                    Stepper("", value: $numberOfQuestions, in: 3...15)
+                        .labelsHidden()
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(8)
+                        .colorScheme(.dark) // Make stepper visible on dark background
+                }
+            }
+            .padding(24)
+            .background(Color.white.opacity(0.15))
+            .cornerRadius(24)
+            .padding(.horizontal, 20)
+            
+            // Error Message
+            if let error = errorMessage {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    Text(error)
+                        .font(.subheadline)
+                }
+                .foregroundColor(.white)
+                .padding()
+                .background(Color.red.opacity(0.3))
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+            }
+            
+            Spacer()
+                .frame(height: 20)
+            
+            // Create Button
+            Button(action: createQuiz) {
+                HStack(spacing: 12) {
+                    if isGenerating {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "272052")))
+                    } else {
+                        Image(systemName: "wand.and.stars")
+                            .font(.title2)
+                    }
+                    Text(isGenerating ? "Creating Quiz..." : "Create Quiz")
+                        .font(.system(size: 18, weight: .bold))
+                }
+                .foregroundColor(Color(hex: "272052"))
+                .frame(maxWidth: .infinity)
+                .frame(height: 60)
+                .background(isValid ? Color.white : Color.white.opacity(0.5))
+                .cornerRadius(30)
+                .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+            }
+            .disabled(isGenerating || !isValid)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 40)
+        }
+    }
+    
+    var body: some View {
+        ZStack {
+            // Background
+            backgroundGradient
+            
+            ScrollView {
+                quizFormContent
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .foregroundColor(.white)
+                        .font(.title3)
+                }
+            }
+        }
+        .alert("Success! 🎉", isPresented: $showSuccess) {
+            Button("Done") {
+                onQuizCreated()
+                dismiss()
+            }
+        } message: {
+            Text("Your custom quiz has been created successfully.")
+        }
+    }
+    
+    private func createQuiz() {
+        isGenerating = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                guard let parentId = AuthService.shared.getParentId() else {
+                    throw QuizError.noToken
+                }
+                
+                _ = try await AIQuizService.shared.generateAIQuiz(
+                    parentId: parentId,
+                    kidId: child.id,
+                    subject: subject,
+                    difficulty: difficulty,
+                    nbrQuestions: numberOfQuestions,
+                    topic: topic
+                )
+                
+                await MainActor.run {
+                    isGenerating = false
+                    showSuccess = true
+                }
+            } catch {
+                await MainActor.run {
+                    isGenerating = false
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
     }
 }
 

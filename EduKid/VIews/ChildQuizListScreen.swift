@@ -676,6 +676,10 @@ struct EnhancedQuizResultScreen: View {
                 .cornerRadius(16)
             }
         }
+        .onAppear {
+            // Play clapping sound and celebration for quiz completion
+            SoundEffectManager.shared.playKidsClapping()
+        }
     }
 }
 

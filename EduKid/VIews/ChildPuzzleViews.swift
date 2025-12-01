@@ -680,24 +680,20 @@ struct CustomImagePieceContent: View {
         let correctRow = piece.correctPosition / gridSize
         let correctCol = piece.correctPosition % gridSize
         
-        // Total image size needs to account for all pieces + their extensions
+        // Total image size needs to account for all pieces
         let totalImageSize = size * CGFloat(gridSize)
         
         ZStack {
             if let imagePath = puzzle.customImagePath,
                let customImage = LocalPuzzleManager.shared.loadCustomImage(path: imagePath) {
-                GeometryReader { geometry in
-                    Image(uiImage: customImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: totalImageSize, height: totalImageSize)
-                        .clipped()
-                        .offset(
-                            // Offset to show the correct piece, accounting for the extend padding
-                            x: -CGFloat(correctCol) * size,
-                            y: -CGFloat(correctRow) * size
-                        )
-                }
+                Image(uiImage: customImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: totalImageSize, height: totalImageSize, alignment: .center) // FIXED: Center crop
+                    .position(
+                        x: totalImageSize / 2 - CGFloat(correctCol) * size + extend,
+                        y: totalImageSize / 2 - CGFloat(correctRow) * size + extend
+                    )
             } else {
                 // Emoji background
                 ZStack {
@@ -707,15 +703,15 @@ struct CustomImagePieceContent: View {
                     Text(puzzle.puzzleImage.emoji)
                         .font(.system(size: totalImageSize * 0.6))
                         .frame(width: totalImageSize, height: totalImageSize)
-                        .position(x: totalImageSize / 2, y: totalImageSize / 2)
-                        .offset(
-                            x: -CGFloat(correctCol) * size - size / 2,
-                            y: -CGFloat(correctRow) * size - size / 2
+                        .position(
+                            x: totalImageSize / 2 - CGFloat(correctCol) * size + extend,
+                            y: totalImageSize / 2 - CGFloat(correctRow) * size + extend
                         )
                 }
             }
         }
         .frame(width: size + extend * 2, height: size + extend * 2)
+        .clipped()
     }
 }
 

@@ -20,6 +20,9 @@
 		049625A82EC9ED5000C83F87 /* AIQuizGenerationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A72EC9ED4D00C83F87 /* AIQuizGenerationScreen.swift */; };
 		049625AA2EC9ED6E00C83F87 /* ChildQuizListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A92EC9ED6C00C83F87 /* ChildQuizListScreen.swift */; };
 		04B99C012ECB325400224AE7 /* ResetPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04B99C002ECB325100224AE7 /* ResetPasswordScreen.swift */; };
+		04D31C772EDDA73A00B9E05A /* ChildScheduledActivitiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D31C762EDDA73A00B9E05A /* ChildScheduledActivitiesView.swift */; };
+		04D31C792EDDA7E100B9E05A /* ScheduledActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D31C782EDDA7E100B9E05A /* ScheduledActivity.swift */; };
+		04D31C7B2EDDA88200B9E05A /* ParentActivitySchedulerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D31C7A2EDDA88200B9E05A /* ParentActivitySchedulerScreen.swift */; };
 		04E2162D2EDC7CCE00375768 /* clapping.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 04E2162C2EDC7CCD00375768 /* clapping.mp3 */; };
 		04ED24592EC635590047BA65 /* ForgotPasswordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */; };
 		04FB42D72ED1D4DE00B2AC32 /* PuzzleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FB42D62ED1D4D700B2AC32 /* PuzzleModels.swift */; };
@@ -98,6 +101,9 @@
 		049625A72EC9ED4D00C83F87 /* AIQuizGenerationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIQuizGenerationScreen.swift; sourceTree = "<group>"; };
 		049625A92EC9ED6C00C83F87 /* ChildQuizListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildQuizListScreen.swift; sourceTree = "<group>"; };
 		04B99C002ECB325100224AE7 /* ResetPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordScreen.swift; sourceTree = "<group>"; };
+		04D31C762EDDA73A00B9E05A /* ChildScheduledActivitiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildScheduledActivitiesView.swift; sourceTree = "<group>"; };
+		04D31C782EDDA7E100B9E05A /* ScheduledActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledActivity.swift; sourceTree = "<group>"; };
+		04D31C7A2EDDA88200B9E05A /* ParentActivitySchedulerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentActivitySchedulerScreen.swift; sourceTree = "<group>"; };
 		04E2162C2EDC7CCD00375768 /* clapping.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = clapping.mp3; sourceTree = "<group>"; };
 		04ED24582EC6353F0047BA65 /* ForgotPasswordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordScreen.swift; sourceTree = "<group>"; };
 		04FB42D62ED1D4D700B2AC32 /* PuzzleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleModels.swift; sourceTree = "<group>"; };
@@ -263,6 +269,7 @@
 		595695E62EBA321A005DBD2D /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				04D31C782EDDA7E100B9E05A /* ScheduledActivity.swift */,
 				04FB42D62ED1D4D700B2AC32 /* PuzzleModels.swift */,
 				0478BB242EC8F5A600AB6E6D /* Question.swift */,
 				595695F02EBA3B5B005DBD2D /* Child.swift */,
@@ -291,6 +298,8 @@
 		595695E82EBA3246005DBD2D /* VIews */ = {
 			isa = PBXGroup;
 			children = (
+				04D31C7A2EDDA88200B9E05A /* ParentActivitySchedulerScreen.swift */,
+				04D31C762EDDA73A00B9E05A /* ChildScheduledActivitiesView.swift */,
 				04FB42F02ED215BF00B2AC32 /* ParentPuzzleViews.swift */,
 				04FB42EE2ED215A500B2AC32 /* ChildPuzzleViews.swift */,
 				04FB42E62ED1E5F600B2AC32 /* EnhancedChildDetailScreen.swift */,
@@ -515,8 +524,11 @@
 				0478BB172EC7F59300AB6E6D /* EditParentProfileScreen.swift in Sources */,
 				59B85F972EBCF3B2007264C5 /* MainNavigationView.swift in Sources */,
 				04FB42E52ED1E53B00B2AC32 /* ChildDashboardScreen.swift in Sources */,
+				04D31C792EDDA7E100B9E05A /* ScheduledActivity.swift in Sources */,
+				04D31C772EDDA73A00B9E05A /* ChildScheduledActivitiesView.swift in Sources */,
 				59B85F8D2EBCEC24007264C5 /* QuizType.swift in Sources */,
 				59B8D3472EC3AFD2004374A1 /* AuthViewModel.swift in Sources */,
+				04D31C7B2EDDA88200B9E05A /* ParentActivitySchedulerScreen.swift in Sources */,
 				04FB42DD2ED1D66A00B2AC32 /* PuzzleService.swift in Sources */,
 				04FB42DB2ED1D58300B2AC32 /* PuzzlePlayScreen.swift in Sources */,
 				595695BA2EBA2FBA005DBD2D /* ContentView.swift in Sources */,

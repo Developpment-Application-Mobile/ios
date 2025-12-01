@@ -18,6 +18,7 @@ struct EnhancedChildDetailScreen: View {
     @State private var isLoading = false
     @State private var selectedQuiz: AIQuizResponse?
     @State private var showQuizDetail = false
+    @State private var showActivityScheduler = false
     @EnvironmentObject var authVM: AuthViewModel
     
     let tabs = ["Overview", "Quiz Results", "Puzzle Results", "Game Results"]
@@ -68,6 +69,15 @@ struct EnhancedChildDetailScreen: View {
         let scores = games.compactMap { $0["score"] as? Int }
         guard !scores.isEmpty else { return 0 }
         return scores.reduce(0, +) / scores.count
+    }
+    
+    var calculatedTotalScore: Int {
+        let quizScore = completedQuizzes.reduce(0) { $0 + $1.score }
+        let localPuzzleScore = completedPuzzles.reduce(0) { $0 + $1.score }
+        let serverPuzzleScore = completedServerPuzzles.reduce(0) { $0 + $1.score }
+        let gameScore = games.compactMap { $0["score"] as? Int }.reduce(0, +)
+        
+        return quizScore + localPuzzleScore + serverPuzzleScore + gameScore
     }
     
     var body: some View {
@@ -134,7 +144,7 @@ struct EnhancedChildDetailScreen: View {
                             .foregroundColor(.white.opacity(0.8))
                         
                         HStack(spacing: 8) {
-                            Label("\(child.Score) pts", systemImage: "star.fill")
+                            Label("\(calculatedTotalScore) pts", systemImage: "star.fill")
                                 .font(.caption.bold())
                                 .foregroundColor(.yellow)
                         }
@@ -150,10 +160,60 @@ struct EnhancedChildDetailScreen: View {
                 Spacer().frame(height: 16)
                 
                 // Action Buttons
-                HStack(spacing: 8) {
-                    ActionButton(title: "Quiz", icon: "doc.badge.plus") { onAssignQuizClick() }
-                    ActionButton(title: "Puzzle", icon: "puzzlepiece") { onCreatePuzzleClick() }
-                    ActionButton(title: "QR", icon: "qrcode") { onGenerateQRClick() }
+                HStack(spacing: 16) {
+                    // Programme Enfant Button
+                    Button(action: { showActivityScheduler = true }) {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.2))
+                                    .frame(width: 40, height: 40)
+                                Image(systemName: "calendar.badge.clock")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(Color(red: 0.686, green: 0.494, blue: 0.906))
+                            }
+                            
+                            Text("Schedule")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(Color(red: 0.153, green: 0.125, blue: 0.322))
+                                .multilineTextAlignment(.leading)
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 80)
+                        .background(Color.white)
+                        .cornerRadius(20)
+                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+                    }
+                    
+                    // QR Code Button
+                    Button(action: { onGenerateQRClick() }) {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.blue.opacity(0.1))
+                                    .frame(width: 40, height: 40)
+                                Image(systemName: "qrcode")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            Text("Code\nQR")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(Color(red: 0.153, green: 0.125, blue: 0.322))
+                                .multilineTextAlignment(.leading)
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 80)
+                        .background(Color.white)
+                        .cornerRadius(20)
+                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+                    }
                 }
                 .padding(.horizontal, 20)
                 
@@ -198,8 +258,9 @@ struct EnhancedChildDetailScreen: View {
                                 totalCompleted: totalCompleted,
                                 averageQuizScore: averageQuizScore,
                                 averagePuzzleScore: averagePuzzleScore,
-                                averageGameScore: averageGameScore
-                            )
+                            averageGameScore: averageGameScore,
+                            totalScore: calculatedTotalScore
+                        )
                         case 1:
                             QuizResultsTabView(quizzes: completedQuizzes) { quiz in
                                 selectedQuiz = quiz
@@ -224,6 +285,11 @@ struct EnhancedChildDetailScreen: View {
         .sheet(isPresented: $showQuizDetail) {
             if let quiz = selectedQuiz {
                 ParentQuizDetailView(quiz: quiz, child: child)
+            }
+        }
+        .sheet(isPresented: $showActivityScheduler) {
+            NavigationStack {
+                ParentActivitySchedulerScreen(child: child)
             }
         }
         .onAppear { loadAllData() }
@@ -294,6 +360,7 @@ struct OverviewTabView: View {
     let averageQuizScore: Int
     let averagePuzzleScore: Int
     let averageGameScore: Int
+    let totalScore: Int
     
     var body: some View {
         ScrollView {
@@ -306,7 +373,7 @@ struct OverviewTabView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        OverviewStatCard(title: "Total Score", value: "\(child.Score)", icon: "star.fill", color: .yellow)
+                        OverviewStatCard(title: "Total Score", value: "\(totalScore)", icon: "star.fill", color: .yellow)
                         OverviewStatCard(title: "Completed", value: "\(totalCompleted)", icon: "checkmark.circle.fill", color: .green)
                     }
                 }

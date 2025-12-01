@@ -75,11 +75,17 @@ struct MainNavigationView: View {
             .environmentObject(authVM)
 
         case .childDetail(let child):
-            ChildDetailScreen(
+            EnhancedChildDetailScreen(
                 child: child,
                 onBackClick: { authVM.authState = .parentDashboard },
+                onAssignQuizClick: {
+                    // Navigate to quiz creation if needed, or handle in view
+                },
                 onGenerateQRClick: { authVM.showQRCode(for: child) },
-                onEditClick: { authVM.authState = .editChildProfile(child) }
+                onEditClick: { authVM.authState = .editChildProfile(child) },
+                onCreatePuzzleClick: {
+                    // Navigate to puzzle creation if needed
+                }
             )
             .environmentObject(authVM)
         
