@@ -131,8 +131,7 @@ struct MemoryMatchGame: View {
     }
     
     private func cardTapped(at index: Int) {
-        guard cards[index].id != cards.first?.id,
-              matchedIndices.count < cards.count,
+        guard matchedIndices.count < cards.count,
               flippedIndices.count < 2,
               !matchedIndices.contains(index),
               !flippedIndices.contains(index) else { return }
@@ -157,6 +156,9 @@ struct MemoryMatchGame: View {
             // Match found! Play cheerful ding
             SoundEffectManager.shared.playDing()
             
+            // Speak the emoji name to help kids learn
+            SoundEffectManager.shared.speakWord(first.emoji)
+            
             matchedIndices.insert(indices[0])
             matchedIndices.insert(indices[1])
             flippedIndices.removeAll()
@@ -166,9 +168,10 @@ struct MemoryMatchGame: View {
                 showResult = true
             }
         } else {
-            // No match - play gentle oops
+            // No match - play gentle oops immediately
+            SoundEffectManager.shared.playOops()
+            
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                SoundEffectManager.shared.playOops()
                 flippedIndices.removeAll()
             }
         }
@@ -341,6 +344,12 @@ struct ColorMatchGame: View {
                                 .frame(height: 120)
                                 .shadow(radius: 8)
                         }
+                        .onHover { hovering in
+                            if hovering {
+                                // Speak color name when mouse hovers over it
+                                SoundEffectManager.shared.speakWord(option.name)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 40)
@@ -407,8 +416,8 @@ struct ColorMatchGame: View {
                 }
             }
         } else {
-            // Wrong answer - play gentle buzz
-            SoundEffectManager.shared.playBuzz()
+            // Wrong answer - play gentle oops
+            SoundEffectManager.shared.playOops()
             
             feedback = "✗ Try again!"
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
@@ -539,6 +548,12 @@ struct ShapeMatchingGame: View {
                                 .background(Color.white)
                                 .cornerRadius(20)
                                 .shadow(radius: 8)
+                        }
+                        .onHover { hovering in
+                            if hovering {
+                                // Speak shape name when mouse hovers over it
+                                SoundEffectManager.shared.speakWord(shape.name)
+                            }
                         }
                     }
                 }
@@ -918,8 +933,8 @@ struct NumberSequenceGame: View {
                 }
             }
         } else {
-            // Wrong number - play buzz
-            SoundEffectManager.shared.playBuzz()
+            // Wrong number - play oops
+            SoundEffectManager.shared.playOops()
         }
     }
     
@@ -1041,6 +1056,12 @@ struct MathQuizGame: View {
                                 .frame(height: 80)
                                 .background(Color.white.opacity(0.2))
                                 .cornerRadius(16)
+                        }
+                        .onHover { hovering in
+                            if hovering {
+                                // Speak number when mouse hovers over it
+                                SoundEffectManager.shared.speakWord("\(option)")
+                            }
                         }
                     }
                 }
@@ -1254,6 +1275,12 @@ struct EmojiMatchGame: View {
                                 .background(Color.white.opacity(0.2))
                                 .cornerRadius(16)
                         }
+                        .onHover { hovering in
+                            if hovering {
+                                // Speak emoji name when mouse hovers over it
+                                SoundEffectManager.shared.speakWord(option)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 40)
@@ -1319,7 +1346,7 @@ struct EmojiMatchGame: View {
                 }
             }
         } else {
-            SoundEffectManager.shared.playBuzz()
+            SoundEffectManager.shared.playOops()
             feedback = "✗ Try again!"
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {

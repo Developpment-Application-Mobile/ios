@@ -273,6 +273,30 @@ class SoundEffectManager {
         }
     }
     
+    /// Speak a specific word for learning (e.g. on hover/long press)
+    func speakWord(_ word: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now()) {
+            // Stop any current speech/sounds
+            self.stopAllSounds()
+            
+            let utterance = AVSpeechUtterance(string: word)
+            utterance.rate = 0.5 // Normal clear speed
+            utterance.pitchMultiplier = 1.4 // Friendly kid-like pitch, but clear
+            utterance.volume = 1.0
+            
+            if let voice = AVSpeechSynthesisVoice(language: "en-US") {
+                utterance.voice = voice
+            }
+            
+            print("🗣️ Speaking word: \(word)")
+            self.speechSynthesizer.speak(utterance)
+            
+            // Add a gentle haptic to confirm the "hover" action
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+        }
+    }
+    
     // MARK: - Stop All Sounds
     
     func stopAllSounds() {

@@ -100,6 +100,36 @@ struct QuizTakingScreen: View {
                     
                     ScrollView {
                         VStack(spacing: 24) {
+                            // Question Image (if available)
+                            if let imageUrl = currentQuestion.imageUrl, !imageUrl.isEmpty {
+                                AsyncImage(url: URL(string: imageUrl)) { phase in
+                                    switch phase {
+                                    case .empty:
+                                        ProgressView()
+                                            .frame(height: 200)
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(maxHeight: 250)
+                                            .cornerRadius(16)
+                                    case .failure:
+                                        VStack {
+                                            Image(systemName: "photo.fill")
+                                                .font(.largeTitle)
+                                                .foregroundColor(.white.opacity(0.5))
+                                            Text("Image unavailable")
+                                                .font(.caption)
+                                                .foregroundColor(.white.opacity(0.5))
+                                        }
+                                        .frame(height: 150)
+                                    @unknown default:
+                                        EmptyView()
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                            }
+                            
                             Text(currentQuestion.questionText)
                                 .font(.title2.bold())
                                 .foregroundColor(.white)
