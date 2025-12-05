@@ -344,12 +344,12 @@ struct ColorMatchGame: View {
                                 .frame(height: 120)
                                 .shadow(radius: 8)
                         }
-                        .onHover { hovering in
-                            if hovering {
-                                // Speak color name when mouse hovers over it
+                        .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
+                            if isPressing {
+                                // Speak immediately when press begins
                                 SoundEffectManager.shared.speakWord(option.name)
                             }
-                        }
+                        }, perform: {})
                     }
                 }
                 .padding(.horizontal, 40)
@@ -549,12 +549,12 @@ struct ShapeMatchingGame: View {
                                 .cornerRadius(20)
                                 .shadow(radius: 8)
                         }
-                        .onHover { hovering in
-                            if hovering {
-                                // Speak shape name when mouse hovers over it
+                        .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
+                            if isPressing {
+                                // Speak immediately when press begins
                                 SoundEffectManager.shared.speakWord(shape.name)
                             }
-                        }
+                        }, perform: {})
                     }
                 }
                 .padding(.horizontal, 40)
@@ -1057,12 +1057,12 @@ struct MathQuizGame: View {
                                 .background(Color.white.opacity(0.2))
                                 .cornerRadius(16)
                         }
-                        .onHover { hovering in
-                            if hovering {
-                                // Speak number when mouse hovers over it
+                        .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
+                            if isPressing {
+                                // Speak immediately when press begins
                                 SoundEffectManager.shared.speakWord("\(option)")
                             }
-                        }
+                        }, perform: {})
                     }
                 }
                 .padding(.horizontal, 40)
@@ -1275,12 +1275,12 @@ struct EmojiMatchGame: View {
                                 .background(Color.white.opacity(0.2))
                                 .cornerRadius(16)
                         }
-                        .onHover { hovering in
-                            if hovering {
-                                // Speak emoji name when mouse hovers over it
+                        .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
+                            if isPressing {
+                                // Speak immediately when press begins
                                 SoundEffectManager.shared.speakWord(option)
                             }
-                        }
+                        }, perform: {})
                     }
                 }
                 .padding(.horizontal, 40)
