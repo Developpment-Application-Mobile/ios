@@ -366,6 +366,14 @@ struct CreateActivityScreen: View {
     @State private var availableQuizzes: [AIQuizResponse] = []
     @State private var isLoadingQuizzes = false
     
+    // Game-specific states
+    @State private var showGameSelection = false
+    @State private var selectedGame: ScheduledActivity.GameType?
+    
+    // Puzzle-specific states
+    @State private var showPuzzleSelection = false
+    @State private var selectedPuzzle: ScheduledActivity.PuzzleType?
+    
     var body: some View {
         ZStack {
             // Background gradient
@@ -431,6 +439,66 @@ struct CreateActivityScreen: View {
                                             .foregroundColor(Color(hex: "272052"))
                                     } else {
                                         Text("Choose a quiz...")
+                                            .foregroundColor(Color(hex: "272052").opacity(0.5))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(Color(hex: "272052"))
+                                }
+                                .padding(16)
+                                .background(Color.white)
+                                .cornerRadius(16)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                    
+                    // Game Selection (only for game type)
+                    if activityType == .game {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Select Game")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            
+                            Button(action: { showGameSelection = true }) {
+                                HStack {
+                                    if let game = selectedGame {
+                                        Text(game.rawValue)
+                                            .foregroundColor(Color(hex: "272052"))
+                                    } else {
+                                        Text("Choose a game...")
+                                            .foregroundColor(Color(hex: "272052").opacity(0.5))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(Color(hex: "272052"))
+                                }
+                                .padding(16)
+                                .background(Color.white)
+                                .cornerRadius(16)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                    
+                    // Puzzle Selection (only for puzzle type)
+                    if activityType == .puzzle {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Select Puzzle")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            
+                            Button(action: { showPuzzleSelection = true }) {
+                                HStack {
+                                    if let puzzle = selectedPuzzle {
+                                        Text(puzzle.rawValue)
+                                            .foregroundColor(Color(hex: "272052"))
+                                    } else {
+                                        Text("Choose a puzzle...")
                                             .foregroundColor(Color(hex: "272052").opacity(0.5))
                                     }
                                     
@@ -545,8 +613,14 @@ struct CreateActivityScreen: View {
                         .cornerRadius(30)
                         .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
                     }
-                    .disabled(title.isEmpty || (activityType == .quiz && selectedQuiz == nil))
-                    .opacity(title.isEmpty || (activityType == .quiz && selectedQuiz == nil) ? 0.5 : 1.0)
+                    .disabled(title.isEmpty || 
+                             (activityType == .quiz && selectedQuiz == nil) ||
+                             (activityType == .game && selectedGame == nil) ||
+                             (activityType == .puzzle && selectedPuzzle == nil))
+                    .opacity(title.isEmpty || 
+                            (activityType == .quiz && selectedQuiz == nil) ||
+                            (activityType == .game && selectedGame == nil) ||
+                            (activityType == .puzzle && selectedPuzzle == nil) ? 0.5 : 1.0)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 40)
                 }
@@ -575,6 +649,30 @@ struct CreateActivityScreen: View {
                 }
             )
         }
+        .sheet(isPresented: $showGameSelection) {
+            GameSelectionSheet(
+                selectedGame: $selectedGame,
+                onSelect: {
+                    showGameSelection = false
+                    if let game = selectedGame {
+                        title = game.rawValue
+                        description = game.description
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showPuzzleSelection) {
+            PuzzleSelectionSheet(
+                selectedPuzzle: $selectedPuzzle,
+                onSelect: {
+                    showPuzzleSelection = false
+                    if let puzzle = selectedPuzzle {
+                        title = puzzle.rawValue
+                        description = puzzle.description
+                    }
+                }
+            )
+        }
     }
     
     private func createActivity() {
@@ -582,14 +680,16 @@ struct CreateActivityScreen: View {
         
         let activity = ScheduledActivity(
             id: UUID().uuidString,
-            childId: child.id,
+            childId:child.id,
             activityType: activityType,
             title: title,
             description: description,
             scheduledTime: scheduledTime,
             duration: duration,
             isCompleted: false,
-            quizData: selectedQuiz
+            quizData: selectedQuiz,
+            gameType: selectedGame,
+            puzzleType: selectedPuzzle
         )
         
         onActivityCreated(activity)
@@ -748,7 +848,7 @@ struct QuizSelectionSheet: View {
                 )
                 await MainActor.run {
                     // Only show quizzes that haven't been answered
-                    quizzes = fetchedQuizzes.filter { $0.answered == 0 }
+                    quizzes = fetchedQuizzes.filter { !$0.isAnswered }
                     isLoading = false
                 }
             } catch {
@@ -760,3 +860,162 @@ struct QuizSelectionSheet: View {
     }
 }
 
+
+// MARK: - Game Selection Sheet
+struct GameSelectionSheet: View {
+    @Binding var selectedGame: ScheduledActivity.GameType?
+    let onSelect: () -> Void
+    
+    @Environment(\.dismiss) var dismiss
+    
+    let allGames: [ScheduledActivity.GameType] = [
+        .memoryMatch, .colorMatch, .shapeMatch,
+        .numberSequence, .mathQuiz, .emojiMatch
+    ]
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                // Background
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
+                        Color(red: 0.153, green: 0.125, blue: 0.322)
+                    ]),
+                    center: .init(x: 0.3, y: 0.3),
+                    startRadius: 50,
+                    endRadius: 400
+                )
+                .ignoresSafeArea()
+                
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(allGames, id: \.self) { game in
+                            Button(action: {
+                                selectedGame = game
+                                onSelect()
+                            }) {
+                                HStack {
+                                    Image(systemName: game.icon)
+                                        .font(.title2)
+                                        .foregroundColor(Color(hex: "272052"))
+                                        .frame(width: 40)
+                                    
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(game.rawValue)
+                                            .font(.headline)
+                                            .foregroundColor(Color(hex: "272052"))
+                                        
+                                        Text(game.description)
+                                            .font(.subheadline)
+                                            .foregroundColor(Color(hex: "272052").opacity(0.7))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if selectedGame == game {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.title2)
+                                            .foregroundColor(.green)
+                                    }
+                                }
+                                .padding(16)
+                                .background(Color.white)
+                                .cornerRadius(16)
+                            }
+                        }
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("Select Game")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Puzzle Selection Sheet
+struct PuzzleSelectionSheet: View {
+    @Binding var selectedPuzzle: ScheduledActivity.PuzzleType?
+    let onSelect: () -> Void
+    
+    @Environment(\.dismiss) var dismiss
+    
+    let allPuzzles: [ScheduledActivity.PuzzleType] = [.easy, .medium]
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                // Background
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
+                        Color(red: 0.153, green: 0.125, blue: 0.322)
+                    ]),
+                    center: .init(x: 0.3, y: 0.3),
+                    startRadius: 50,
+                    endRadius: 400
+                )
+                .ignoresSafeArea()
+                
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(allPuzzles, id: \.self) { puzzle in
+                            Button(action: {
+                                selectedPuzzle = puzzle
+                                onSelect()
+                            }) {
+                                HStack {
+                                    Image(systemName: puzzle.icon)
+                                        .font(.title2)
+                                        .foregroundColor(Color(hex: "272052"))
+                                        .frame(width: 40)
+                                    
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(puzzle.rawValue)
+                                            .font(.headline)
+                                            .foregroundColor(Color(hex: "272052"))
+                                        
+                                        Text(puzzle.description)
+                                            .font(.subheadline)
+                                            .foregroundColor(Color(hex: "272052").opacity(0.7))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if selectedPuzzle == puzzle {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.title2)
+                                            .foregroundColor(.green)
+                                    }
+                                }
+                                .padding(16)
+                                .background(Color.white)
+                                .cornerRadius(16)
+                            }
+                        }
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("Select Puzzle")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+    }
+}

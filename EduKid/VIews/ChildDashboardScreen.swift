@@ -70,8 +70,16 @@ struct ChildDashboardScreen: View {
         return quizScore + localPuzzleScore + serverPuzzleScore + gameScore
     }
     
-    var pendingQuizzes: [AIQuizResponse] { quizzes.filter { $0.answered == 0 } }
-    var completedQuizzes: [AIQuizResponse] { quizzes.filter { $0.answered > 0 } }
+    var pendingQuizzes: [AIQuizResponse] {
+        let pending = quizzes.filter { !$0.isAnswered }
+        print("🔍 PENDING QUIZZES: \(pending.count) quizzes from total \(quizzes.count)")
+        return pending
+    }
+    var completedQuizzes: [AIQuizResponse] {
+        let completed = quizzes.filter { $0.isAnswered }
+        print("🔍 COMPLETED QUIZZES: \(completed.count) quizzes")
+        return completed
+    }
     
     var body: some View {
         NavigationStack {
@@ -190,24 +198,37 @@ struct ChildDashboardScreen: View {
         // Load Local Puzzles
         localPuzzles = LocalPuzzleManager.shared.getAllPuzzles(for: child.id)
         
+        guard let parentId = AuthService.shared.getParentId() else {
+            print("⚠️ No parentId found in AuthService - cannot load data")
+            await MainActor.run { isLoading = false }
+            return
+        }
+        
+        print("📚 Loading data for child: \(child.id), parent: \(parentId)")
+        
+        // Load Quizzes independently
         do {
-            guard let parentId = AuthService.shared.getParentId() else { return }
-            
-            // Load Quizzes
-            async let quizzesTask = AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
-            // Load Server Puzzles
-            async let puzzlesTask = PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
-            
-            let (fetchedQuizzes, fetchedPuzzles) = try await (quizzesTask, puzzlesTask)
-            
+            let fetchedQuizzes = try await AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
             await MainActor.run {
+                print("✅ Loaded \(fetchedQuizzes.count) quizzes for child dashboard")
                 quizzes = fetchedQuizzes.sorted { ($0.createdAt ?? "") > ($1.createdAt ?? "") }
-                serverPuzzles = fetchedPuzzles
-                isLoading = false
             }
         } catch {
-            await MainActor.run { isLoading = false }
+            print("❌ Error loading quizzes: \(error.localizedDescription)")
         }
+        
+        // Load Server Puzzles independently
+        do {
+            let fetchedPuzzles = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
+            await MainActor.run {
+                print("✅ Loaded \(fetchedPuzzles.count) puzzles for child dashboard")
+                serverPuzzles = fetchedPuzzles
+            }
+        } catch {
+            print("❌ Error loading puzzles: \(error.localizedDescription)")
+        }
+        
+        await MainActor.run { isLoading = false }
     }
 }
 

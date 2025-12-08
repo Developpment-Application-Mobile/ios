@@ -134,7 +134,8 @@ extension quiz: Codable {
 class QuizService {
     static let shared = QuizService()
     
-    private let baseURL = "https://preterrestrial-georgann-recappable.ngrok-free.dev"
+    private let baseURL =
+    "https://preterrestrial-georgann-recappable.ngrok-free.dev"
 
 
     private init() {}

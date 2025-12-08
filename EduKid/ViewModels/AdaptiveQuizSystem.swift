@@ -296,7 +296,8 @@ class AdaptiveQuizService {
                 age: child.age,
                 difficulty: analytics.recommendedDifficulty
             ),
-            topic: analytics.recommendedTopic
+            topic: analytics.recommendedTopic,
+            age: child.age
         )
         
         print("✅ ADAPTIVE QUIZ GENERATED")

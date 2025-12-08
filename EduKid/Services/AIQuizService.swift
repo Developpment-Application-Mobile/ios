@@ -24,7 +24,8 @@ class AIQuizService {
         subject: String,
         difficulty: String,
         nbrQuestions: Int,
-        topic: String
+        topic: String,
+        age: Int
     ) async throws -> AIQuizResponse {
         let endpoint = "\(baseURL)/parents/\(parentId)/kids/\(kidId)/quizzes"
         
@@ -46,7 +47,8 @@ class AIQuizService {
             "subject": subject,
             "difficulty": difficulty,
             "nbrQuestions": nbrQuestions,
-            "topic": topic
+            "topic": topic,
+            "kidAge": age
         ]
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)

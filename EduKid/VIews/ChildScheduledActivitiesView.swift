@@ -18,6 +18,8 @@ struct ChildScheduledActivitiesView: View {
     @State private var scheduledActivities: [ScheduledActivity] = []
     @State private var selectedActivity: ScheduledActivity?
     @State private var showQuizTaking = false
+    @State private var showGameScreen = false
+    @State private var showPuzzleScreen = false
     @State private var currentTime = Date()
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -107,6 +109,101 @@ struct ChildScheduledActivitiesView: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $showGameScreen) {
+            if let activity = selectedActivity,
+               let gameType = activity.gameType {
+                NavigationStack {
+                    gameView(for: gameType)
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showPuzzleScreen) {
+            if let activity = selectedActivity,
+               let puzzleType = activity.puzzleType {
+                NavigationStack {
+                    puzzleView(for: puzzleType)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func gameView(for gameType: ScheduledActivity.GameType) -> some View {
+        switch gameType {
+        case .memoryMatch:
+            MemoryMatchGame(child: child, onComplete: { score in
+                if let activity = selectedActivity {
+                    markActivityCompleted(activity)
+                }
+                showGameScreen = false
+            })
+        case .colorMatch:
+            ColorMatchGame(child: child, onComplete: { score in
+                if let activity = selectedActivity {
+                    markActivityCompleted(activity)
+                }
+                showGameScreen = false
+            })
+        case .shapeMatch:
+            ShapeMatchingGame(child: child, onComplete: { score in
+                if let activity = selectedActivity {
+                    markActivityCompleted(activity)
+                }
+                showGameScreen = false
+            })
+        case .numberSequence:
+            NumberSequenceGame(child: child, onComplete: { score in
+                if let activity = selectedActivity {
+                    markActivityCompleted(activity)
+                }
+                showGameScreen = false
+            })
+        case .mathQuiz:
+            MathQuizGame(child: child, onComplete: { score in
+                if let activity = selectedActivity {
+                    markActivityCompleted(activity)
+                }
+                showGameScreen = false
+            })
+        case .emojiMatch:
+            EmojiMatchGame(child: child, onComplete: { score in
+                if let activity = selectedActivity {
+                    markActivityCompleted(activity)
+                }
+                showGameScreen = false
+            })
+        }
+    }
+    
+    @ViewBuilder
+    private func puzzleView(for puzzleType: ScheduledActivity.PuzzleType) -> some View {
+        // Create a temporary puzzle with the scheduled difficulty
+        let tempPuzzle = LocalPuzzle(
+            id: UUID().uuidString,
+            childId: child.id,
+            title: "Scheduled Puzzle",
+            type: .pattern,
+            difficulty: puzzleType == .easy ? .easy : .medium,
+            gridSize: puzzleType == .easy ? 3 : 4,
+            pieces: [],
+            hint: "Complete the puzzle!",
+            solution: "",
+            puzzleImage: .lion,
+            customImagePath: nil,
+            isCompleted: false,
+            attempts: 0,
+            timeSpent: 0,
+            score: 0,
+            createdAt: Date(),
+            completedAt: nil
+        )
+        
+        ImagePuzzlePlayScreen(puzzle: tempPuzzle, child: child) {
+            if let activity = selectedActivity {
+                markActivityCompleted(activity)
+            }
+            showPuzzleScreen = false
+        }
     }
     
     private func loadActivities() {
@@ -131,11 +228,11 @@ struct ChildScheduledActivitiesView: View {
                 showQuizTaking = true
             }
         case .game:
-            // TODO: Navigate to game
-            print("Starting game: \(activity.title)")
+            // Launch the specific game
+            showGameScreen = true
         case .puzzle:
-            // TODO: Navigate to puzzle
-            print("Starting puzzle: \(activity.title)")
+            // Launch the specific puzzle
+            showPuzzleScreen = true
         }
     }
     

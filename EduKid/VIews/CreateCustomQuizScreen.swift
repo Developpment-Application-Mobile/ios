@@ -215,7 +215,8 @@ struct CreateCustomQuizScreen: View {
                     subject: subject,
                     difficulty: difficulty,
                     nbrQuestions: numberOfQuestions,
-                    topic: topic
+                    topic: topic,
+                    age: child.age
                 )
                 
                 await MainActor.run {

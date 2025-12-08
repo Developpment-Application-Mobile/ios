@@ -34,7 +34,7 @@ struct QuizTakingScreen: View {
     
     // CHECK: Si le quiz est déjà complété, afficher seulement les résultats
     var isAlreadyCompleted: Bool {
-        quiz.answered > 0
+        quiz.isAnswered
     }
     
     init(quiz: AIQuizResponse, child: Child, onQuizCompleted: (() -> Void)? = nil) {
@@ -451,6 +451,35 @@ struct CompletedQuestionReviewCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Question Image (if available)
+            if let imageUrl = question.imageUrl, !imageUrl.isEmpty {
+                AsyncImage(url: URL(string: imageUrl)) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView()
+                            .frame(height: 120)
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 150)
+                            .cornerRadius(12)
+                    case .failure:
+                        VStack {
+                            Image(systemName: "photo.fill")
+                                .font(.title3)
+                                .foregroundColor(.white.opacity(0.5))
+                            Text("Image unavailable")
+                                .font(.caption2)
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .frame(height: 100)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+            }
+            
             HStack(alignment: .top, spacing: 8) {
                 Text("\(questionNumber).")
                     .font(.headline)
@@ -779,6 +808,35 @@ struct IncorrectAnswerCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Question Image (if available)
+            if let imageUrl = question.imageUrl, !imageUrl.isEmpty {
+                AsyncImage(url: URL(string: imageUrl)) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView()
+                            .frame(height: 120)
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 150)
+                            .cornerRadius(12)
+                    case .failure:
+                        VStack {
+                            Image(systemName: "photo.fill")
+                                .font(.title3)
+                                .foregroundColor(.white.opacity(0.5))
+                            Text("Image unavailable")
+                                .font(.caption2)
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .frame(height: 100)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+            }
+            
             HStack(alignment: .top, spacing: 8) {
                 Text("\(questionNumber).")
                     .font(.headline)

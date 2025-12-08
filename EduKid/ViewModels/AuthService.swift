@@ -4,7 +4,8 @@ import UIKit
 class AuthService {
     static let shared = AuthService()
     
-    private let baseURL =     "https://preterrestrial-georgann-recappable.ngrok-free.dev"
+    private let baseURL =
+    "https://preterrestrial-georgann-recappable.ngrok-free.dev"
 
 
 
@@ -1020,8 +1021,8 @@ private struct ParentFullResponse: Codable {
     let name: String
     let email: String
     let children: [ChildInParent]
-    let totalScore: Int
-    let isActive: Bool
+    let totalScore: Int?
+    let isActive: Bool?
     
     private enum CodingKeys: String, CodingKey {
         case _id, name, email, children, totalScore, isActive
@@ -1031,24 +1032,27 @@ private struct ParentFullResponse: Codable {
 private struct ChildInParent: Codable {
     let _id: String?
     let id: String?
-    let name: String
-    let age: Int
+    let name: String?
+    let age: Int?
     let level: String?
     let avatarEmoji: String?
     let connectionToken: String?
-    let Score: Int?
+    let score: Int? // Renamed from Score and made optional
+    let totalPoints: Int?
+    let shopCatalog: [Gift]?
+    let inventory: [PurchasedGift]?
     
     private enum CodingKeys: String, CodingKey {
-        case _id, id, name, age, level, avatarEmoji, connectionToken, Score
+        case _id, id, name, age, level, avatarEmoji, connectionToken, score = "Score", totalPoints, shopCatalog, inventory
     }
 }
 
 struct ChildLoginResponse: Codable {
-    let success: Bool
+    let success: Bool?
     let message: String?
     let token: String?
     let parentId: String?
-    let child: ChildResponse
+    let child: ChildResponse?
     
     enum CodingKeys: String, CodingKey {
         case success
