@@ -13,6 +13,9 @@ struct Child: Identifiable, Codable {
     let connectionToken: String
     var rewards: [Reward]
     let parentId: String?  // Parent's ID for API calls
+    var shopCatalog: [Gift]?
+    var inventory: [Gift]?
+    var quests: [Quest]?
 
     init(
         id: String = UUID().uuidString,
@@ -25,7 +28,10 @@ struct Child: Identifiable, Codable {
         totalPoints: Int = 0,
         connectionToken: String = UUID().uuidString,
         rewards: [Reward] = [],
-        parentId: String? = nil
+        parentId: String? = nil,
+        shopCatalog: [Gift]? = nil,
+        inventory: [Gift]? = nil,
+        quests: [Quest]? = nil
     ) {
         self.id = id
         self.name = name
@@ -38,6 +44,9 @@ struct Child: Identifiable, Codable {
         self.connectionToken = connectionToken
         self.rewards = rewards
         self.parentId = parentId
+        self.shopCatalog = shopCatalog
+        self.inventory = inventory
+        self.quests = quests
     }
 
     func getCompletedQuizzes() -> [quiz] {

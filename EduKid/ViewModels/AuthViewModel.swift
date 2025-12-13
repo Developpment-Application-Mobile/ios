@@ -457,14 +457,17 @@ class AuthViewModel: ObservableObject {
         
         let newChild = Child(
             id: childResponse.id ?? UUID().uuidString,
-            name: childResponse.name ?? trimmedName,
-            age: childResponse.age ?? age,
+            name: childResponse.name,
+            age: childResponse.age,
             level: "\(age - 3)",
-            avatarEmoji: childResponse.avatarEmoji ?? avatarEmoji,
+            avatarEmoji: childResponse.avatarEmoji,
             Score: 0,
             quizzes: [],
             totalPoints: 0,
-            connectionToken: childResponse.connectionToken ?? UUID().uuidString
+            connectionToken: childResponse.connectionToken ?? UUID().uuidString,
+            shopCatalog: childResponse.shopCatalog,
+            inventory: childResponse.inventory,
+            quests: childResponse.quests
         )
         
         await MainActor.run {
@@ -512,14 +515,17 @@ class AuthViewModel: ObservableObject {
             if let index = currentUser?.children.firstIndex(where: { $0.id == childId }) {
                 let updatedChild = Child(
                     id: childResponse.id ?? childId,
-                    name: childResponse.name ?? trimmedName,
-                    age: childResponse.age ?? age,
+                    name: childResponse.name,
+                    age: childResponse.age,
                     level: "\(age - 3)",
-                    avatarEmoji: childResponse.avatarEmoji ?? avatarEmoji,
+                    avatarEmoji: childResponse.avatarEmoji,
                     Score: currentUser?.children[index].Score ?? 0,
                     quizzes: currentUser?.children[index].quizzes ?? [],
                     totalPoints: currentUser?.children[index].totalPoints ?? 0,
-                    connectionToken: childResponse.connectionToken ?? currentUser?.children[index].connectionToken ?? ""
+                    connectionToken: childResponse.connectionToken ?? currentUser?.children[index].connectionToken ?? "",
+                    shopCatalog: childResponse.shopCatalog ?? currentUser?.children[index].shopCatalog,
+                    inventory: childResponse.inventory ?? currentUser?.children[index].inventory,
+                    quests: childResponse.quests ?? currentUser?.children[index].quests
                 )
                 
                 currentUser?.children[index] = updatedChild
@@ -584,14 +590,17 @@ class AuthViewModel: ObservableObject {
             let childModels = childrenResponse.map { child in
                 Child(
                     id: child.id ?? UUID().uuidString,
-                    name: child.name ?? "Enfant",
-                    age: child.age ?? 5,
-                    level: "\( (child.age ?? 8) - 3)",
-                    avatarEmoji: child.avatarEmoji ?? "😀",
+                    name: child.name,
+                    age: child.age,
+                    level: "\(child.age - 3)",
+                    avatarEmoji: child.avatarEmoji,
                     Score: 0,
                     quizzes: [],
                     totalPoints: 0,
-                    connectionToken: child.connectionToken ?? UUID().uuidString
+                    connectionToken: child.connectionToken ?? UUID().uuidString,
+                    shopCatalog: child.shopCatalog,
+                    inventory: child.inventory,
+                    quests: child.quests
                 )
             }
             
@@ -763,15 +772,18 @@ class AuthViewModel: ObservableObject {
             
             let child = Child(
                 id: result.child.id ?? UUID().uuidString,
-                name: result.child.name ?? "Enfant",
-                age: result.child.age ?? 5,
-                level: result.child.level ?? "\( (result.child.age ?? 8) - 3)",
-                avatarEmoji: result.child.avatarEmoji ?? "😀",
+                name: result.child.name,
+                age: result.child.age,
+                level: result.child.level ?? "\(result.child.age - 3)",
+                avatarEmoji: result.child.avatarEmoji,
                 Score: 0,
                 quizzes: [],
                 totalPoints: 0,
                 connectionToken: result.child.connectionToken ?? token,
-                parentId: result.parentId  // 🆕 Also store in the child model
+                parentId: result.parentId,  // 🆕 Also store in the child model
+                shopCatalog: result.child.shopCatalog,
+                inventory: result.child.inventory,
+                quests: result.child.quests
             )
             
             print("✅ LOGIN CHILD: Successfully logged in via API - \(child.name)")
@@ -797,7 +809,10 @@ class AuthViewModel: ObservableObject {
                 Score: 0,
                 quizzes: [],
                 totalPoints: 0,
-                connectionToken: childData.connectionToken ?? token
+                connectionToken: childData.connectionToken ?? token,
+                shopCatalog: childData.shopCatalog,
+                inventory: childData.inventory,
+                quests: childData.quests
             )
             
             print("✅ LOGIN CHILD: Loaded child from cache - \(child.name)")

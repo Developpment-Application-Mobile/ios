@@ -595,7 +595,10 @@ class AuthService {
             age: newChildDict.age,
             level: newChildDict.level,
             avatarEmoji: newChildDict.avatarEmoji ?? "",
-            connectionToken: childId  // 🆕 Use the child's ID as the token!
+            connectionToken: childId,  // 🆕 Use the child's ID as the token!
+            shopCatalog: nil,
+            inventory: nil,
+            quests: nil
         )
     }
     
@@ -626,7 +629,10 @@ class AuthService {
                 age: child.age,
                 level: child.level,
                 avatarEmoji: child.avatarEmoji ?? "",
-                connectionToken: childId  // 🆕 Use the child's ID as the token!
+                connectionToken: childId,  // 🆕 Use the child's ID as the token!
+                shopCatalog: child.shopCatalog,
+                inventory: child.inventory,
+                quests: child.quests
             )
         }
         
@@ -686,7 +692,10 @@ class AuthService {
                 age: childDict["age"] as? Int ?? 0,
                 level: childDict["level"] as? String,
                 avatarEmoji: childDict["avatarEmoji"] as? String ?? "",
-                connectionToken: id  // 🆕 Use the child's ID
+                connectionToken: id,  // 🆕 Use the child's ID
+                shopCatalog: nil,
+                inventory: nil,
+                quests: nil
             )
         }
         
@@ -706,7 +715,10 @@ class AuthService {
             age: updatedChildDict.age,
             level: updatedChildDict.level,
             avatarEmoji: updatedChildDict.avatarEmoji ?? "",
-            connectionToken: id  // 🆕 Use the child's ID
+            connectionToken: id,  // 🆕 Use the child's ID
+            shopCatalog: updatedChildDict.shopCatalog,
+            inventory: updatedChildDict.inventory,
+            quests: updatedChildDict.quests
         )
     }
     // MARK: - Delete Child (DELETE /parents/:id/kids/:kidId)
@@ -900,7 +912,10 @@ class AuthService {
                     age: childDict["age"] as? Int ?? 0,
                     level: childDict["level"] as? String,
                     avatarEmoji: childDict["avatarEmoji"] as? String ?? "",
-                    connectionToken: childDict["connectionToken"] as? String
+                    connectionToken: childDict["connectionToken"] as? String,
+                    shopCatalog: nil, // TODO: Parse if needed from login
+                    inventory: nil,
+                    quests: nil
                 )
             }
             throw AuthError.serverError("Failed to decode child data")
@@ -974,7 +989,10 @@ class AuthService {
                 age: childDict["age"] as? Int ?? 0,
                 level: childDict["level"] as? String,
                 avatarEmoji: childDict["avatarEmoji"] as? String ?? "",
-                connectionToken: childDict["connectionToken"] as? String
+                connectionToken: childDict["connectionToken"] as? String,
+                shopCatalog: nil, // TODO: Parse if needed
+                inventory: nil,
+                quests: nil
             )
             
             let parentId = childDict["parentId"] as? String ?? json["parentId"] as? String
@@ -1013,6 +1031,9 @@ struct ChildResponse: Codable {
     let level: String?
     let avatarEmoji: String
     let connectionToken: String?
+    let shopCatalog: [Gift]?
+    let inventory: [Gift]?
+    let quests: [Quest]?
 }
 
 // MARK: - Helper models for parent response
@@ -1021,8 +1042,8 @@ private struct ParentFullResponse: Codable {
     let name: String
     let email: String
     let children: [ChildInParent]
-    let totalScore: Int?
-    let isActive: Bool?
+    let totalScore: Int
+    let isActive: Bool
     
     private enum CodingKeys: String, CodingKey {
         case _id, name, email, children, totalScore, isActive
@@ -1032,27 +1053,27 @@ private struct ParentFullResponse: Codable {
 private struct ChildInParent: Codable {
     let _id: String?
     let id: String?
-    let name: String?
-    let age: Int?
+    let name: String
+    let age: Int
     let level: String?
     let avatarEmoji: String?
     let connectionToken: String?
-    let score: Int? // Renamed from Score and made optional
-    let totalPoints: Int?
+    let Score: Int?
     let shopCatalog: [Gift]?
-    let inventory: [PurchasedGift]?
+    let inventory: [Gift]?
+    let quests: [Quest]?
     
     private enum CodingKeys: String, CodingKey {
-        case _id, id, name, age, level, avatarEmoji, connectionToken, score = "Score", totalPoints, shopCatalog, inventory
+        case _id, id, name, age, level, avatarEmoji, connectionToken, Score, shopCatalog, inventory, quests
     }
 }
 
 struct ChildLoginResponse: Codable {
-    let success: Bool?
+    let success: Bool
     let message: String?
     let token: String?
     let parentId: String?
-    let child: ChildResponse?
+    let child: ChildResponse
     
     enum CodingKeys: String, CodingKey {
         case success

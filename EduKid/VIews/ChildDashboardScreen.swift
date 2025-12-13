@@ -60,14 +60,26 @@ struct ChildDashboardScreen: View {
     @State private var localPuzzles: [LocalPuzzle] = []
     @State private var serverPuzzles: [PuzzleResponse] = []
     @State private var games: [[String: Any]] = []
+    @State private var inventory: [Gift] = [] // Add inventory state
     
-    var calculatedTotalScore: Int {
+    // Calculate total earnings (Gross) for passing to Shop
+    var grossTotalScore: Int {
         let quizScore = completedQuizzes.reduce(0) { $0 + $1.score }
         let localPuzzleScore = localPuzzles.filter { $0.isCompleted }.reduce(0) { $0 + $1.score }
         let serverPuzzleScore = serverPuzzles.filter { $0.isCompleted }.reduce(0) { $0 + $1.score }
         let gameScore = games.compactMap { $0["score"] as? Int }.reduce(0, +)
-        
         return quizScore + localPuzzleScore + serverPuzzleScore + gameScore
+    }
+    
+    var calculatedTotalScore: Int {
+        // Calculate total earnings (Gross)
+        let grossScore = grossTotalScore
+        
+        // Calculate spending (new logic)
+        let totalSpent = inventory.reduce(0) { $0 + $1.cost }
+        
+        // Return Net Score (Available Balance)
+        return max(0, grossScore - totalSpent)
     }
     
     var pendingQuizzes: [AIQuizResponse] {
@@ -103,15 +115,17 @@ struct ChildDashboardScreen: View {
                             .padding(.horizontal, 20)
                         
                         // Tab Selector
-                        HStack(spacing: 0) {
-                            TabButton(title: "📅 My Tasks", isSelected: selectedMainTab == 0) { selectedMainTab = 0 }
-                            TabButton(title: "📝 Quizzes", isSelected: selectedMainTab == 1) { selectedMainTab = 1 }
-                            TabButton(title: "🧩 Puzzles", isSelected: selectedMainTab == 2) { selectedMainTab = 2 }
-                            TabButton(title: "🎮 Games", isSelected: selectedMainTab == 3) { selectedMainTab = 3 }
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                TabButton(title: "📅 My Tasks", isSelected: selectedMainTab == 0) { selectedMainTab = 0 }
+                                TabButton(title: "📝 Quizzes", isSelected: selectedMainTab == 1) { selectedMainTab = 1 }
+                                TabButton(title: "🧩 Puzzles", isSelected: selectedMainTab == 2) { selectedMainTab = 2 }
+                                TabButton(title: "🎮 Games", isSelected: selectedMainTab == 3) { selectedMainTab = 3 }
+                                TabButton(title: "🗺️ Quests", isSelected: selectedMainTab == 4) { selectedMainTab = 4 }
+                                TabButton(title: "🛍️ Shop", isSelected: selectedMainTab == 5) { selectedMainTab = 5 }
+                            }
+                            .padding(.horizontal, 20)
                         }
-                        .background(Color.white.opacity(0.1))
-                        .cornerRadius(12)
-                        .padding(.horizontal, 20)
                         
                         // Tab Content
                         Group {
@@ -135,6 +149,18 @@ struct ChildDashboardScreen: View {
                                 )
                             case 3:
                                 ChildGamesContent(child: child, selectedGame: $selectedGame)
+                            case 4:
+                                if let parentId = AuthService.shared.getParentId() {
+                                    QuestListView(childId: child.id, parentId: parentId)
+                                } else {
+                                    Text("Error: Parent not found")
+                                }
+                            case 5:
+                                if let parentId = AuthService.shared.getParentId() {
+                                    ShopView(childId: child.id, parentId: parentId, initialPoints: grossTotalScore)
+                                } else {
+                                    Text("Error: Parent not found")
+                                }
                             default:
                                 EmptyView()
                             }
@@ -167,6 +193,9 @@ struct ChildDashboardScreen: View {
             }
             .navigationBarHidden(true)
             .onAppear { Task { await loadData() } }
+            .onChange(of: selectedMainTab) { _ in
+                Task { await loadData() }
+            }
             .refreshable { await loadData() }
             .fullScreenCover(item: $selectedGame) { game in
                 switch game {
@@ -226,6 +255,34 @@ struct ChildDashboardScreen: View {
             }
         } catch {
             print("❌ Error loading puzzles: \(error.localizedDescription)")
+        }
+        
+        // Load Inventory for Net Point Calculation
+        if let token = AuthService.shared.getToken() {
+            let baseURL = "https://preterrestrial-georgann-recappable.ngrok-free.dev"
+            let pUrl = URL(string: "\(baseURL)/parents/\(parentId)")!
+            var req = URLRequest(url: pUrl)
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            req.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
+            
+            do {
+                let (d, _) = try await URLSession.shared.data(for: req)
+                if let json = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                   let childrenArr = json["children"] as? [[String: Any]] {
+                    if let childDict = childrenArr.first(where: { ($0["_id"] as? String) == child.id || ($0["id"] as? String) == child.id }) {
+                        if let invArr = childDict["inventory"] as? [[String: Any]] {
+                            let data = try JSONSerialization.data(withJSONObject: invArr)
+                            let loadedInventory = try JSONDecoder().decode([Gift].self, from: data)
+                            await MainActor.run {
+                                self.inventory = loadedInventory
+                                print("✅ Loaded \(loadedInventory.count) items in inventory for point calculation")
+                            }
+                        }
+                    }
+                }
+            } catch {
+                print("❌ Error loading inventory: \(error.localizedDescription)")
+            }
         }
         
         await MainActor.run { isLoading = false }

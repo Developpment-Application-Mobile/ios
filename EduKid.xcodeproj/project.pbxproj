@@ -15,6 +15,13 @@
 		0478BB192EC7F62300AB6E6D /* EditChildProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */; };
 		0478BB212EC8F1F100AB6E6D /* QuizzManagementViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB202EC8F1E200AB6E6D /* QuizzManagementViews.swift */; };
 		0478BB252EC8F5C100AB6E6D /* Question.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB242EC8F5A600AB6E6D /* Question.swift */; };
+		048011FE2EED747D00C7653E /* QuestListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048011FD2EED747D00C7653E /* QuestListView.swift */; };
+		048012002EED749200C7653E /* ShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048011FF2EED749200C7653E /* ShopView.swift */; };
+		048012022EED74AA00C7653E /* GiftManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048012012EED74AA00C7653E /* GiftManagementView.swift */; };
+		048012052EED74C000C7653E /* GiftService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048012032EED74C000C7653E /* GiftService.swift */; };
+		048012062EED74C000C7653E /* QuestService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048012042EED74C000C7653E /* QuestService.swift */; };
+		048012092EED74FC00C7653E /* Gift.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048012072EED74FC00C7653E /* Gift.swift */; };
+		0480120A2EED74FC00C7653E /* Quest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048012082EED74FC00C7653E /* Quest.swift */; };
 		049625A42EC9E71100C83F87 /* ParentTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A32EC9E70E00C83F87 /* ParentTabView.swift */; };
 		049625A62EC9ED1E00C83F87 /* AIQuizService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A52EC9ED1C00C83F87 /* AIQuizService.swift */; };
 		049625A82EC9ED5000C83F87 /* AIQuizGenerationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A72EC9ED4D00C83F87 /* AIQuizGenerationScreen.swift */; };
@@ -96,6 +103,13 @@
 		0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditChildProfileScreen.swift; sourceTree = "<group>"; };
 		0478BB202EC8F1E200AB6E6D /* QuizzManagementViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizzManagementViews.swift; sourceTree = "<group>"; };
 		0478BB242EC8F5A600AB6E6D /* Question.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Question.swift; sourceTree = "<group>"; };
+		048011FD2EED747D00C7653E /* QuestListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestListView.swift; sourceTree = "<group>"; };
+		048011FF2EED749200C7653E /* ShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopView.swift; sourceTree = "<group>"; };
+		048012012EED74AA00C7653E /* GiftManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiftManagementView.swift; sourceTree = "<group>"; };
+		048012032EED74C000C7653E /* GiftService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiftService.swift; sourceTree = "<group>"; };
+		048012042EED74C000C7653E /* QuestService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestService.swift; sourceTree = "<group>"; };
+		048012072EED74FC00C7653E /* Gift.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Gift.swift; sourceTree = "<group>"; };
+		048012082EED74FC00C7653E /* Quest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Quest.swift; sourceTree = "<group>"; };
 		049625A32EC9E70E00C83F87 /* ParentTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentTabView.swift; sourceTree = "<group>"; };
 		049625A52EC9ED1C00C83F87 /* AIQuizService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIQuizService.swift; sourceTree = "<group>"; };
 		049625A72EC9ED4D00C83F87 /* AIQuizGenerationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIQuizGenerationScreen.swift; sourceTree = "<group>"; };
@@ -269,6 +283,8 @@
 		595695E62EBA321A005DBD2D /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				048012072EED74FC00C7653E /* Gift.swift */,
+				048012082EED74FC00C7653E /* Quest.swift */,
 				04D31C782EDDA7E100B9E05A /* ScheduledActivity.swift */,
 				04FB42D62ED1D4D700B2AC32 /* PuzzleModels.swift */,
 				0478BB242EC8F5A600AB6E6D /* Question.swift */,
@@ -298,6 +314,9 @@
 		595695E82EBA3246005DBD2D /* VIews */ = {
 			isa = PBXGroup;
 			children = (
+				048012012EED74AA00C7653E /* GiftManagementView.swift */,
+				048011FF2EED749200C7653E /* ShopView.swift */,
+				048011FD2EED747D00C7653E /* QuestListView.swift */,
 				04D31C7A2EDDA88200B9E05A /* ParentActivitySchedulerScreen.swift */,
 				04D31C762EDDA73A00B9E05A /* ChildScheduledActivitiesView.swift */,
 				04FB42F02ED215BF00B2AC32 /* ParentPuzzleViews.swift */,
@@ -332,6 +351,8 @@
 		595695E92EBA3253005DBD2D /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				048012032EED74C000C7653E /* GiftService.swift */,
+				048012042EED74C000C7653E /* QuestService.swift */,
 				04FB42DC2ED1D66600B2AC32 /* PuzzleService.swift */,
 				049625A52EC9ED1C00C83F87 /* AIQuizService.swift */,
 			);
@@ -485,12 +506,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				049625A42EC9E71100C83F87 /* ParentTabView.swift in Sources */,
+				048012052EED74C000C7653E /* GiftService.swift in Sources */,
+				048012062EED74C000C7653E /* QuestService.swift in Sources */,
 				042C83BB2ED0772B00F6E0A8 /* ProfileBadge.swift in Sources */,
 				595695C12EBA2FBB005DBD2D /* Persistence.swift in Sources */,
 				04FB42E92ED1E9CD00B2AC32 /* LocalPuzzleManager.swift in Sources */,
 				049625A82EC9ED5000C83F87 /* AIQuizGenerationScreen.swift in Sources */,
 				59B8D34B2EC3C302004374A1 /* ParentProfileScreen.swift in Sources */,
 				59B85F812EBCE7FD007264C5 /* ParentDashboardScreen.swift in Sources */,
+				048011FE2EED747D00C7653E /* QuestListView.swift in Sources */,
 				0478BB252EC8F5C100AB6E6D /* Question.swift in Sources */,
 				59B85F8F2EBCEC60007264C5 /* QuizResult.swift in Sources */,
 				59B85F912EBCEEB2007264C5 /* Reward.swift in Sources */,
@@ -502,6 +526,8 @@
 				04FB42D72ED1D4DE00B2AC32 /* PuzzleModels.swift in Sources */,
 				0478BB192EC7F62300AB6E6D /* EditChildProfileScreen.swift in Sources */,
 				049625A62EC9ED1E00C83F87 /* AIQuizService.swift in Sources */,
+				048012092EED74FC00C7653E /* Gift.swift in Sources */,
+				0480120A2EED74FC00C7653E /* Quest.swift in Sources */,
 				594352312EBCE356002EA9EE /* ParentSignUpScreen.swift in Sources */,
 				59B85F832EBCE9BC007264C5 /* ChildQRLoginScreen.swift in Sources */,
 				59B85F892EBCEAF0007264C5 /* Parent.swift in Sources */,
@@ -525,6 +551,7 @@
 				59B85F972EBCF3B2007264C5 /* MainNavigationView.swift in Sources */,
 				04FB42E52ED1E53B00B2AC32 /* ChildDashboardScreen.swift in Sources */,
 				04D31C792EDDA7E100B9E05A /* ScheduledActivity.swift in Sources */,
+				048012002EED749200C7653E /* ShopView.swift in Sources */,
 				04D31C772EDDA73A00B9E05A /* ChildScheduledActivitiesView.swift in Sources */,
 				59B85F8D2EBCEC24007264C5 /* QuizType.swift in Sources */,
 				59B8D3472EC3AFD2004374A1 /* AuthViewModel.swift in Sources */,
@@ -533,6 +560,7 @@
 				04FB42DB2ED1D58300B2AC32 /* PuzzlePlayScreen.swift in Sources */,
 				595695BA2EBA2FBA005DBD2D /* ContentView.swift in Sources */,
 				04FB42E12ED1E4D100B2AC32 /* SimpleGames.swift in Sources */,
+				048012022EED74AA00C7653E /* GiftManagementView.swift in Sources */,
 				04FB42F12ED215C300B2AC32 /* ParentPuzzleViews.swift in Sources */,
 				595695B82EBA2FBA005DBD2D /* EduKidApp.swift in Sources */,
 				042C83B82ED075A700F6E0A8 /* AdaptiveQuizSystem.swift in Sources */,
