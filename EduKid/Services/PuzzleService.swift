@@ -12,7 +12,8 @@ class PuzzleService {
     static let shared = PuzzleService()
     
     private let baseURL =
-"https://preterrestrial-georgann-recappable.ngrok-free.dev"
+    "https://preterrestrial-georgann-recappable.ngrok-free.dev"
+    
     private init() {}
     
     // MARK: - Generate Puzzle
@@ -213,7 +214,15 @@ class PuzzleService {
         
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
-            throw PuzzleError.serverError("Failed to fetch puzzles")
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let message = errorJson["message"] as? String {
+                print("❌ PUZZLE FETCH ERROR: \(message)")
+                throw PuzzleError.serverError("Server error: \(message)")
+            }
+            if let raw = String(data: data, encoding: .utf8) {
+                print("❌ PUZZLE FETCH RAW: \(raw)")
+            }
+            throw PuzzleError.serverError("Failed to fetch puzzles (Status: \((response as? HTTPURLResponse)?.statusCode ?? 0))")
         }
         
         let puzzles = try JSONDecoder().decode([PuzzleResponse].self, from: data)

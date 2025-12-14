@@ -587,7 +587,9 @@ class AuthService {
             throw AuthError.serverError("Child not found in response")
         }
         
-        let childId = newChildDict.id ?? newChildDict._id ?? UUID().uuidString
+        guard let childId = newChildDict.id ?? newChildDict._id else {
+            throw AuthError.serverError("Server returned child without ID")
+        }
         
         return ChildResponse(
             id: childId,
@@ -622,7 +624,27 @@ class AuthService {
         
         let parent = try JSONDecoder().decode(ParentFullResponse.self, from: data)
         let children = parent.children.map { child -> ChildResponse in
-            let childId = child.id ?? child._id ?? UUID().uuidString
+            guard let childId = child.id ?? child._id else {
+                print("⚠️ Skipping child without ID")
+                // In a map, we can't easily throw, so we might return a placeholder or filter it out. 
+                // Better approach: return a result and compactMap. 
+                // For minimally invasive change, let's use an empty string and filter later if needed, 
+                // OR technically if this happens, the backend data is corrupt. 
+                // Let's force a crash/fail for the specific item or handle it safely.
+                // Given the map context, let's return a dummy or handle it. 
+                // Actually, let's look at the map closure.
+                return ChildResponse(
+                    id: "", // Invalid ID that will fail intentionally if used
+                    name: child.name,
+                    age: child.age,
+                    level: child.level,
+                    avatarEmoji: child.avatarEmoji ?? "",
+                    connectionToken: "", 
+                    shopCatalog: child.shopCatalog,
+                    inventory: child.inventory,
+                    quests: child.quests
+                )
+            }
             return ChildResponse(
                 id: childId,
                 name: child.name,
@@ -635,6 +657,7 @@ class AuthService {
                 quests: child.quests
             )
         }
+        .filter { !($0.id?.isEmpty ?? true) } // Filter out invalid children
         
         // Cache the children data
         cacheChildrenData(children)

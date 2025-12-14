@@ -276,10 +276,10 @@ struct ComprehensiveOverview: View {
                     
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         Button(action: onGamesTap) {
-                            OverviewStatCard(title: "Games", value: "\(totalGamesCompleted)", icon: "gamecontroller.fill", color: .orange)
+                            OverviewStatCard(title: "Games", value: "\(totalGamesCompleted)", icon: "gamecontroller.fill", color: .orange, gradient: [Color.orange, Color.red])
                         }
                         
-                        OverviewStatCard(title: "Score", value: "\(child.Score)", icon: "star.fill", color: .yellow)
+                        OverviewStatCard(title: "Score", value: "\(child.Score)", icon: "star.fill", color: .yellow, gradient: [Color.yellow, Color.orange])
                     }
                 }
                 .padding(16)
@@ -1021,6 +1021,31 @@ struct DecorativeElementsDetail: View {
                 .frame(width: 45, height: 45)
                 .rotationEffect(.degrees(38.66))
                 .offset(x: -150, y: 360)
+        }
+    }
+    
+struct OverviewStatCard: View {
+        let title: String
+        let value: String
+        let icon: String
+        let color: Color
+        
+        var body: some View {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(color)
+                Text(value)
+                    .font(.title.bold())
+                    .foregroundColor(.white)
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.white.opacity(0.1))
+            .cornerRadius(12)
         }
     }
 }
