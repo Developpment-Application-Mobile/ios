@@ -5,9 +5,8 @@ struct ParentSignInScreen: View {
     @State private var email = ""
     @State private var password = ""
     @State private var passwordVisible = false
-    @State private var rememberMe = false
     
-    var onSignInClick: (String, String, Bool) -> Void = { _, _, _ in }
+    var onSignInClick: (String, String) -> Void = { _, _ in }
     var onSignUpClick: () -> Void = {}
     var onForgotPasswordClick: () -> Void = {}
     var isLoading: Bool = false
@@ -105,18 +104,8 @@ struct ParentSignInScreen: View {
                     
                     Spacer().frame(height: 12)
                     
-                    // Remember Me and Forgot Password
+                    // Forgot Password
                     HStack {
-                        Button(action: { rememberMe.toggle() }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: rememberMe ? "checkmark.square.fill" : "square")
-                                    .foregroundColor(rememberMe ? .white : .white.opacity(0.7))
-                                    .font(.system(size: 18))
-                                Text("Remember Me")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.white.opacity(0.9))
-                            }
-                        }
                         Spacer()
                         Button(action: onForgotPasswordClick) {
                             Text("Forgot Password?")
@@ -140,7 +129,7 @@ struct ParentSignInScreen: View {
                     // Sign in button
                     Button(action: {
                         guard !isLoading else { return }
-                        onSignInClick(email, password, rememberMe)
+                        onSignInClick(email, password)
                     }) {
                         HStack {
                             if isLoading {
@@ -182,22 +171,13 @@ struct ParentSignInScreen: View {
         .onAppear {
             print("\n📱 SIGN IN SCREEN: onAppear called")
             
-            // Check for saved credentials
-            let rememberMeState = AuthService.shared.getRememberMeState()
-            let savedEmail = AuthService.shared.getSavedEmail()
-            
-            print("📱 SIGN IN SCREEN: Remember Me State: \(rememberMeState)")
-            print("📱 SIGN IN SCREEN: Saved Email: \(savedEmail ?? "none")")
-            
-            // Only restore if remember me was checked
-            if rememberMeState, let savedEmail = savedEmail, !savedEmail.isEmpty {
+            // Auto-restore saved email for mobile convenience
+            if let savedEmail = AuthService.shared.getSavedEmail(), !savedEmail.isEmpty {
                 print("📱 SIGN IN SCREEN: Restoring email: \(savedEmail)")
                 email = savedEmail
-                rememberMe = true
             } else {
-                print("📱 SIGN IN SCREEN: No saved credentials to restore")
+                print("📱 SIGN IN SCREEN: No saved email to restore")
                 email = ""
-                rememberMe = false
             }
         }
     }

@@ -26,6 +26,7 @@
 		048012102EEDA69000C7653E /* ChildReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0480120F2EEDA69000C7653E /* ChildReviewView.swift */; };
 		048012122EEEE5B600C7653E /* ChildReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048012112EEEE5B600C7653E /* ChildReviewService.swift */; };
 		048012142EEEEC3000C7653E /* ParentIdHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048012132EEEEC2D00C7653E /* ParentIdHelper.swift */; };
+		048012162EEEF76A00C7653E /* OfflineArcadeGamesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048012152EEEF76600C7653E /* OfflineArcadeGamesView.swift */; };
 		049625A42EC9E71100C83F87 /* ParentTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A32EC9E70E00C83F87 /* ParentTabView.swift */; };
 		049625A62EC9ED1E00C83F87 /* AIQuizService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A52EC9ED1C00C83F87 /* AIQuizService.swift */; };
 		049625A82EC9ED5000C83F87 /* AIQuizGenerationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049625A72EC9ED4D00C83F87 /* AIQuizGenerationScreen.swift */; };
@@ -118,6 +119,7 @@
 		0480120F2EEDA69000C7653E /* ChildReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildReviewView.swift; sourceTree = "<group>"; };
 		048012112EEEE5B600C7653E /* ChildReviewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildReviewService.swift; sourceTree = "<group>"; };
 		048012132EEEEC2D00C7653E /* ParentIdHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentIdHelper.swift; sourceTree = "<group>"; };
+		048012152EEEF76600C7653E /* OfflineArcadeGamesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineArcadeGamesView.swift; sourceTree = "<group>"; };
 		049625A32EC9E70E00C83F87 /* ParentTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentTabView.swift; sourceTree = "<group>"; };
 		049625A52EC9ED1C00C83F87 /* AIQuizService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIQuizService.swift; sourceTree = "<group>"; };
 		049625A72EC9ED4D00C83F87 /* AIQuizGenerationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIQuizGenerationScreen.swift; sourceTree = "<group>"; };
@@ -323,6 +325,7 @@
 		595695E82EBA3246005DBD2D /* VIews */ = {
 			isa = PBXGroup;
 			children = (
+				048012152EEEF76600C7653E /* OfflineArcadeGamesView.swift */,
 				0480120F2EEDA69000C7653E /* ChildReviewView.swift */,
 				048012012EED74AA00C7653E /* GiftManagementView.swift */,
 				048011FF2EED749200C7653E /* ShopView.swift */,
@@ -521,6 +524,7 @@
 				048012052EED74C000C7653E /* GiftService.swift in Sources */,
 				048012062EED74C000C7653E /* QuestService.swift in Sources */,
 				042C83BB2ED0772B00F6E0A8 /* ProfileBadge.swift in Sources */,
+				048012162EEEF76A00C7653E /* OfflineArcadeGamesView.swift in Sources */,
 				595695C12EBA2FBB005DBD2D /* Persistence.swift in Sources */,
 				04FB42E92ED1E9CD00B2AC32 /* LocalPuzzleManager.swift in Sources */,
 				049625A82EC9ED5000C83F87 /* AIQuizGenerationScreen.swift in Sources */,

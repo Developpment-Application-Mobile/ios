@@ -72,8 +72,12 @@ class AuthViewModel: ObservableObject {
         print("\n🔐 INITIALIZE SESSION: Starting...")
         authService.printCurrentSessionState()
         
-        if authService.shouldRestoreSession() {
-            print("✅ Should restore session - Starting restoration...")
+        // Check if there's an active child session first
+        if authService.shouldRestoreSession() && authService.hasActiveChildSession() {
+            print("✅ Has active child session - restoring child")
+            await restoreChildSession()
+        } else if authService.shouldRestoreSession() {
+            print("✅ Should restore parent session - Starting restoration...")
             await restoreSession()
         } else {
             print("❌ Should NOT restore session - Going to welcome")
@@ -176,6 +180,52 @@ class AuthViewModel: ObservableObject {
                 }
             } catch {
                 print("⚠️ Background refresh failed: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // MARK: - Child Session Restoration
+    private func restoreChildSession() async {
+        guard let childSession = authService.getActiveChildSession() else {
+            print("⚠️ RESTORE CHILD SESSION: No child session data found")
+            await MainActor.run {
+                authState = .welcome
+            }
+            return
+        }
+        
+        print("👶 RESTORE CHILD SESSION: Restoring child: \(childSession.name)")
+        
+        // Try to load child from cache
+        do {
+            let childData = try authService.getChildByConnectionToken(childSession.id)
+            
+            let child = Child(
+                id: childData.id ?? childSession.id,
+                name: childData.name,
+                age: childData.age,
+                level: childData.level ?? "\(childData.age - 3)",
+                avatarEmoji: childData.avatarEmoji,
+                Score: 0,
+                quizzes: [],
+                totalPoints: 0,
+                connectionToken: childData.connectionToken ?? childSession.id,
+                shopCatalog: childData.shopCatalog,
+                inventory: childData.inventory,
+                quests: childData.quests
+            )
+            
+            await MainActor.run {
+                selectedChild = child
+                authState = .childHome(child)
+                print("✅ RESTORE CHILD SESSION: Successfully restored - \(child.name)")
+            }
+        } catch {
+            print("❌ RESTORE CHILD SESSION: Failed - \(error.localizedDescription)")
+            // Clear the invalid child session
+            authService.clearActiveChildSession()
+            await MainActor.run {
+                authState = .welcome
             }
         }
     }
@@ -746,6 +796,7 @@ class AuthViewModel: ObservableObject {
     
     
     func signOutChild() {
+        authService.clearActiveChildSession()
         selectedChild = nil
         authState = .welcome
     }
@@ -758,10 +809,10 @@ class AuthViewModel: ObservableObject {
         do {
             let result = try await authService.loginChildByToken(token)
             
-            // Save the child session token
+            // Save the child session token with persistence enabled
             if let childToken = result.token {
-                authService.saveToken(childToken, rememberMe: false)
-                print("✅ LOGIN CHILD: Saved child session token")
+                authService.saveToken(childToken, rememberMe: true)
+                print("✅ LOGIN CHILD: Saved child session token (persistent)")
             }
             
             // 🆕 CRITICAL FIX: Save the parent ID from the login response
@@ -786,6 +837,13 @@ class AuthViewModel: ObservableObject {
                 quests: result.child.quests
             )
             
+            // Save child session for persistence
+            authService.saveActiveChildSession(
+                childId: child.id,
+                childName: child.name,
+                childAge: child.age
+            )
+            
             print("✅ LOGIN CHILD: Successfully logged in via API - \(child.name)")
             return child
             
@@ -795,9 +853,9 @@ class AuthViewModel: ObservableObject {
             // Fallback to cached data if API fails
             let childData = try authService.getChildByConnectionToken(token)
             
-            // 🆕 CRITICAL FIX: Create a mock token for child session
+            // 🆕 CRITICAL FIX: Create a mock token for child session with persistence
             let mockChildToken = "child_\(token)_\(UUID().uuidString)"
-            authService.saveToken(mockChildToken, rememberMe: false)
+            authService.saveToken(mockChildToken, rememberMe: true)
             print("✅ LOGIN CHILD: Created mock child session token")
             
             let child = Child(
@@ -813,6 +871,13 @@ class AuthViewModel: ObservableObject {
                 shopCatalog: childData.shopCatalog,
                 inventory: childData.inventory,
                 quests: childData.quests
+            )
+            
+            // Save child session for persistence
+            authService.saveActiveChildSession(
+                childId: child.id,
+                childName: child.name,
+                childAge: child.age
             )
             
             print("✅ LOGIN CHILD: Loaded child from cache - \(child.name)")

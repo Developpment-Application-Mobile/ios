@@ -16,6 +16,9 @@ class AuthService {
     private let userEmailKey = "user_email"
     private let parentIdKey = "parent_id"
     private let cachedChildrenKey = "cached_children_data"
+    private let activeChildIdKey = "active_child_id"
+    private let activeChildNameKey = "active_child_name"
+    private let activeChildAgeKey = "active_child_age"
     
     var useMockMode: Bool = false
     
@@ -95,6 +98,9 @@ class AuthService {
         print("CLEAR TOKEN: Removing token and remember-me (keeping cached children)")
         UserDefaults.standard.removeObject(forKey: tokenKey)
         UserDefaults.standard.removeObject(forKey: rememberMeKey)
+        UserDefaults.standard.removeObject(forKey: activeChildIdKey)
+        UserDefaults.standard.removeObject(forKey: activeChildNameKey)
+        UserDefaults.standard.removeObject(forKey: activeChildAgeKey)
         // Don't clear cache here - children need it to login!
         UserDefaults.standard.synchronize()
         printCurrentSessionState()
@@ -156,6 +162,38 @@ class AuthService {
     
     func getRememberMeState() -> Bool {
         return UserDefaults.standard.bool(forKey: rememberMeKey)
+    }
+    
+    // MARK: - Child Session Management
+    func saveActiveChildSession(childId: String, childName: String, childAge: Int) {
+        print("👶 SAVE CHILD SESSION: id=\(childId), name=\(childName), age=\(childAge)")
+        UserDefaults.standard.set(childId, forKey: activeChildIdKey)
+        UserDefaults.standard.set(childName, forKey: activeChildNameKey)
+        UserDefaults.standard.set(childAge, forKey: activeChildAgeKey)
+        UserDefaults.standard.synchronize()
+    }
+    
+    func getActiveChildSession() -> (id: String, name: String, age: Int)? {
+        guard let childId = UserDefaults.standard.string(forKey: activeChildIdKey),
+              let childName = UserDefaults.standard.string(forKey: activeChildNameKey),
+              UserDefaults.standard.object(forKey: activeChildAgeKey) != nil else {
+            return nil
+        }
+        let childAge = UserDefaults.standard.integer(forKey: activeChildAgeKey)
+        print("👶 GET CHILD SESSION: id=\(childId), name=\(childName), age=\(childAge)")
+        return (childId, childName, childAge)
+    }
+    
+    func hasActiveChildSession() -> Bool {
+        return getActiveChildSession() != nil
+    }
+    
+    func clearActiveChildSession() {
+        print("👶 CLEAR CHILD SESSION")
+        UserDefaults.standard.removeObject(forKey: activeChildIdKey)
+        UserDefaults.standard.removeObject(forKey: activeChildNameKey)
+        UserDefaults.standard.removeObject(forKey: activeChildAgeKey)
+        UserDefaults.standard.synchronize()
     }
     
     

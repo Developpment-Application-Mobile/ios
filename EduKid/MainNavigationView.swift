@@ -1,11 +1,89 @@
 import SwiftUI
+import Network
+
+// Network Monitor to detect offline status
+class NetworkMonitor: ObservableObject {
+    private let monitor = NWPathMonitor()
+    private let queue = DispatchQueue(label: "NetworkMonitor")
+    
+    @Published var isConnected: Bool = true
+    
+    init() {
+        monitor.pathUpdateHandler = { [weak self] path in
+            DispatchQueue.main.async {
+                self?.isConnected = path.status == .satisfied
+            }
+        }
+        monitor.start(queue: queue)
+    }
+    
+    deinit {
+        monitor.cancel()
+    }
+}
 
 struct MainNavigationView: View {
     @EnvironmentObject var authVM: AuthViewModel
+    @StateObject private var networkMonitor = NetworkMonitor()
+    @State private var showArcadeGames = false
 
     var body: some View {
-        content
-            .animation(.easeInOut, value: authVM.authState)
+        ZStack {
+            content
+                .animation(.easeInOut, value: authVM.authState)
+            
+            // Floating Arcade Button (visible on most screens)
+            if shouldShowArcadeButton {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button(action: { showArcadeGames = true }) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [Color.purple, Color.pink]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 70, height: 70)
+                                    .shadow(color: Color.purple.opacity(0.5), radius: 10, x: 0, y: 5)
+                                
+                                VStack(spacing: 4) {
+                                    Text("🎮")
+                                        .font(.system(size: 30))
+                                    Text("Arcade")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
+                    }
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .fullScreenCover(isPresented: $showArcadeGames) {
+            OfflineArcadeGamesView()
+        }
+    }
+    
+    var shouldShowArcadeButton: Bool {
+        // Only show arcade button when user is offline
+        guard !networkMonitor.isConnected else {
+            return false
+        }
+        
+        switch authVM.authState {
+        case .parentDashboard, .childHome, .childDetail:
+            return true
+        default:
+            return false
+        }
     }
 
     @ViewBuilder
@@ -33,8 +111,8 @@ struct MainNavigationView: View {
 
         case .parentSignIn:
             ParentSignInScreen(
-                onSignInClick: { email, password, rememberMe in
-                    authVM.signIn(email: email, password: password, rememberMe: rememberMe)
+                onSignInClick: { email, password in
+                    authVM.signIn(email: email, password: password, rememberMe: true)
                 },
                 onSignUpClick: { authVM.authState = .parentSignUp },
                 onForgotPasswordClick: { authVM.authState = .forgotPassword },
