@@ -6,6 +6,10 @@ struct ParentSignInScreen: View {
     @State private var password = ""
     @State private var passwordVisible = false
     
+    // Field-specific error messages
+    @State private var emailError: String? = nil
+    @State private var passwordError: String? = nil
+    
     var onSignInClick: (String, String) -> Void = { _, _ in }
     var onSignUpClick: () -> Void = {}
     var onForgotPasswordClick: () -> Void = {}
@@ -51,56 +55,74 @@ struct ParentSignInScreen: View {
                     Spacer().frame(height: 40)
                     
                     // Email field
-                    TextField(
-                        "",
-                        text: $email,
-                        prompt: Text("Email")
-                            .foregroundColor(Color.white.opacity(0.6))
-                    )
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField(
+                            "",
+                            text: $email,
+                            prompt: Text("Email")
+                                .foregroundColor(Color.white.opacity(0.6))
+                        )
+                            .foregroundColor(.white)
+                            .frame(height: 60)
+                            .padding(.horizontal, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(emailError != nil ? Color.red : Color.white.opacity(0.5), lineWidth: 1)
+                            )
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        
+                        if let error = emailError {
+                            Text(error)
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
+                                .padding(.leading, 4)
+                        }
+                    }
+                    
+                    Spacer().frame(height: 16)
+                    
+                    // Password field
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            if passwordVisible {
+                                TextField(
+                                    "",
+                                    text: $password,
+                                    prompt: Text("Password")
+                                        .foregroundColor(Color.white.opacity(0.6))
+                                )
+                            } else {
+                                SecureField(
+                                    "",
+                                    text: $password,
+                                    prompt: Text("Password")
+                                        .foregroundColor(Color.white.opacity(0.6))
+                                )
+                            }
+                            
+                            Button(action: { passwordVisible.toggle() }) {
+                                Image(systemName: passwordVisible ? "eye.fill" : "eye.slash.fill")
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .font(.system(size: 18))
+                            }
+                        }
                         .foregroundColor(.white)
                         .frame(height: 60)
                         .padding(.horizontal, 16)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                                .stroke(passwordError != nil ? Color.red : Color.white.opacity(0.5), lineWidth: 1)
                         )
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    
-                    Spacer().frame(height: 16)
-                    
-                    // Password field
-                    HStack {
-                        if passwordVisible {
-                            TextField(
-                                "",
-                                text: $password,
-                                prompt: Text("Password")
-                                    .foregroundColor(Color.white.opacity(0.6))
-                            )
-                        } else {
-                            SecureField(
-                                "",
-                                text: $password,
-                                prompt: Text("Password")
-                                    .foregroundColor(Color.white.opacity(0.6))
-                            )
-                        }
                         
-                        Button(action: { passwordVisible.toggle() }) {
-                            Image(systemName: passwordVisible ? "eye.fill" : "eye.slash.fill")
-                                .foregroundColor(.white.opacity(0.7))
-                                .font(.system(size: 18))
+                        if let error = passwordError {
+                            Text(error)
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
+                                .padding(.leading, 4)
                         }
                     }
-                    .foregroundColor(.white)
-                    .frame(height: 60)
-                    .padding(.horizontal, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.5), lineWidth: 1)
-                    )
                     
                     Spacer().frame(height: 12)
                     
@@ -129,7 +151,33 @@ struct ParentSignInScreen: View {
                     // Sign in button
                     Button(action: {
                         guard !isLoading else { return }
-                        onSignInClick(email, password)
+                        
+                        // Clear all previous errors
+                        emailError = nil
+                        passwordError = nil
+                        
+                        // Validate each field
+                        var hasError = false
+                        
+                        // Validate email
+                        if email.trimmingCharacters(in: .whitespaces).isEmpty {
+                            emailError = "Email cannot be blank"
+                            hasError = true
+                        } else if !isValidEmail(email) {
+                            emailError = "Please enter a valid email address"
+                            hasError = true
+                        }
+                        
+                        // Validate password
+                        if password.isEmpty {
+                            passwordError = "Password cannot be blank"
+                            hasError = true
+                        }
+                        
+                        // Only proceed if there are no errors
+                        if !hasError {
+                            onSignInClick(email, password)
+                        }
                     }) {
                         HStack {
                             if isLoading {
@@ -180,6 +228,13 @@ struct ParentSignInScreen: View {
                 email = ""
             }
         }
+    }
+    
+    // Helper function for email validation
+    private func isValidEmail(_ email: String) -> Bool {
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+        return emailPredicate.evaluate(with: email)
     }
 }
 

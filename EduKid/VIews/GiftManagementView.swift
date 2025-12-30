@@ -33,15 +33,6 @@ struct GiftManagementView: View {
             VStack(spacing: 0) {
                 // Header
                 HStack(spacing: 16) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.title3)
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.white.opacity(0.2))
-                            .clipShape(Circle())
-                    }
-                    
                     Text("Gift Shop")
                         .font(.title2.bold())
                         .foregroundColor(.white)
@@ -58,7 +49,7 @@ struct GiftManagementView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 60)
+                .padding(.top, 20)
                 
                 Spacer().frame(height: 30)
                 

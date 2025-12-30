@@ -33,8 +33,8 @@ struct ParentTabView: View {
                 ParentDashboardContent(parent: parent)
                     .tag(0)
                 
-                // Games Management Tab (Quizzes + Puzzles)
-                ParentGamesManagementScreen(parent: parent)
+                // Games and Activities Tab (Quizzes + Puzzles + Schedule + Shop)
+                ParentGamesAndActivitiesScreen(parent: parent)
                     .tag(1)
                 
                 // Profile Tab
@@ -67,7 +67,7 @@ struct CustomBottomNavBar: View {
             
             NavBarItem(
                 icon: "gamecontroller.fill",
-                title: "Games",
+                title: "Activities",
                 isSelected: selectedTab == 1,
                 action: { selectedTab = 1 }
             )
@@ -236,23 +236,23 @@ struct ParentDashboardContent: View {
     }
 }
 
-// MARK: - Parent Games Management Screen (Quizzes + Puzzles)
-struct ParentGamesManagementScreen: View {
+// MARK: - Parent Games and Activities Screen (Quizzes + Puzzles + Schedule + Shop)
+struct ParentGamesAndActivitiesScreen: View {
     let parent: Parent
     @EnvironmentObject var authVM: AuthViewModel
     @State private var selectedChild: Child?
-    @State private var selectedGameType = 0 // 0: Quizzes, 1: Puzzles
+    @State private var selectedActivityType = 0 // 0: Quizzes, 1: Puzzles, 2: Schedule, 3: Shop
     
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
                 // Header
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Games Management")
+                    Text("Games & Activities")
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)
                     
-                    Text("Create quizzes and puzzles for your children")
+                    Text("Manage learning activities for your children")
                         .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.85))
                 }
@@ -271,7 +271,7 @@ struct ParentGamesManagementScreen: View {
                         Text("No children added")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(.white)
-                        Text("Add a child first to create games")
+                        Text("Add a child first to create activities")
                             .font(.system(size: 14))
                             .foregroundColor(.white.opacity(0.8))
                         Spacer()
@@ -285,7 +285,7 @@ struct ParentGamesManagementScreen: View {
                         Text("Select a child")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(.white)
-                        Text("Choose which child to create games for")
+                        Text("Choose which child to manage activities for")
                             .font(.system(size: 14))
                             .foregroundColor(.white.opacity(0.8))
                         
@@ -330,77 +330,225 @@ struct ParentGamesManagementScreen: View {
                         Spacer()
                     }
                 } else {
-                    // Game Type Selector + Content
+                    // Activity Type Selector + Content
                     VStack(spacing: 0) {
-                        // Change Child button
-                        HStack {
+                        // Child Info Header with Activity Title
+                        HStack(spacing: 12) {
+                            Image(selectedChild!.avatarEmoji)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 50, height: 50)
+                                .background(Color.white.opacity(0.2))
+                                .clipShape(Circle())
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(selectedChild!.name)'s \(getActivityTitle())")
+                                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                
+                                Text("Age \(selectedChild!.age) • Level \(selectedChild!.level)")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                            
                             Spacer()
+                            
                             Button(action: { selectedChild = nil }) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "arrow.left")
-                                        .font(.system(size: 12))
-                                    Text("Change Child")
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .font(.system(size: 11))
+                                    Text("Change")
+                                        .font(.system(size: 12, weight: .semibold))
                                 }
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
                                 .background(Color.white.opacity(0.2))
-                                .cornerRadius(20)
+                                .cornerRadius(16)
                             }
                         }
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 12)
+                        .padding(.bottom, 16)
                         
-                        // Game Type Tabs
-                        HStack(spacing: 0) {
-                            GameTypeTab(
-                                title: "📝 Quizzes",
-                                isSelected: selectedGameType == 0
+                        // Activity Type Tabs - Non-scrollable, all visible
+                        HStack(spacing: 8) {
+                            ModernActivityTab(
+                                title: "Quizzes",
+                                icon: "doc.text.fill",
+                                color: Color.green,
+                                isSelected: selectedActivityType == 0
                             ) {
-                                selectedGameType = 0
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    selectedActivityType = 0
+                                }
                             }
                             
-                            GameTypeTab(
-                                title: "🧩 Puzzles",
-                                isSelected: selectedGameType == 1
+                            ModernActivityTab(
+                                title: "Puzzles",
+                                icon: "puzzlepiece.fill",
+                                color: Color.orange,
+                                isSelected: selectedActivityType == 1
                             ) {
-                                selectedGameType = 1
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    selectedActivityType = 1
+                                }
+                            }
+                            
+                            ModernActivityTab(
+                                title: "Schedule",
+                                icon: "calendar.badge.clock",
+                                color: Color.blue,
+                                isSelected: selectedActivityType == 2
+                            ) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    selectedActivityType = 2
+                                }
+                            }
+                            
+                            ModernActivityTab(
+                                title: "Shop",
+                                icon: "cart.fill",
+                                color: Color.pink,
+                                isSelected: selectedActivityType == 3
+                            ) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    selectedActivityType = 3
+                                }
                             }
                         }
-                        .background(Color.white.opacity(0.1))
-                        .cornerRadius(12)
                         .padding(.horizontal, 20)
                         .padding(.bottom, 16)
                         
                         // Content based on selected type
-                        if selectedGameType == 0 {
+                        if selectedActivityType == 0 {
                             ParentQuizListScreen(child: selectedChild!)
-                        } else {
+                        } else if selectedActivityType == 1 {
                             ParentPuzzleListScreen(child: selectedChild!)
+                        } else if selectedActivityType == 2 {
+                            ParentScheduleScreen(child: selectedChild!)
+                        } else {
+                            ParentShopManagementScreen(child: selectedChild!)
                         }
                     }
                 }
             }
         }
     }
+    
+    // Helper function to get activity title
+    private func getActivityTitle() -> String {
+        switch selectedActivityType {
+        case 0: return "Quizzes"
+        case 1: return "Puzzles"
+        case 2: return "Schedule"
+        case 3: return "Shop"
+        default: return "Activities"
+        }
+    }
 }
 
-// MARK: - Game Type Tab
-struct GameTypeTab: View {
+// MARK: - Modern Activity Tab
+struct ModernActivityTab: View {
     let title: String
+    let icon: String
+    let color: Color
     let isSelected: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(size: 15, weight: isSelected ? .bold : .regular))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(isSelected ? Color.white.opacity(0.2) : Color.clear)
+            VStack(spacing: 6) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    color.opacity(isSelected ? 0.3 : 0.15),
+                                    color.opacity(isSelected ? 0.15 : 0.08)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(isSelected ? color : color.opacity(0.7))
+                }
+                
+                // Title
+                Text(title)
+                    .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .rounded))
+                    .foregroundColor(isSelected ? .white : .white.opacity(0.8))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(
+                        isSelected ?
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0.25),
+                                Color.white.opacity(0.15)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ) :
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0.12),
+                                Color.white.opacity(0.08)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(
+                        isSelected ? color.opacity(0.5) : Color.white.opacity(0.15),
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            )
+            .shadow(
+                color: isSelected ? color.opacity(0.3) : Color.black.opacity(0.05),
+                radius: isSelected ? 8 : 4,
+                x: 0,
+                y: isSelected ? 4 : 2
+            )
+            .scaleEffect(isSelected ? 1.0 : 0.98)
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
+
+
+// MARK: - Parent Schedule Screen
+struct ParentScheduleScreen: View {
+    let child: Child
+    
+    var body: some View {
+        ParentScheduleTabView(child: child)
+    }
+}
+
+// MARK: - Parent Shop Management Screen
+struct ParentShopManagementScreen: View {
+    let child: Child
+    
+    var body: some View {
+        if let parentId = AuthService.shared.getParentId() {
+            GiftManagementView(childId: child.id, parentId: parentId)
+        } else {
+            Text("Error: Parent not found")
+                .foregroundColor(.white)
+        }
+    }
+}

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0426C2F82F030890004907AC /* ParentChildGamesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0426C2F72F030890004907AC /* ParentChildGamesScreen.swift */; };
 		042C83B82ED075A700F6E0A8 /* AdaptiveQuizSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042C83B72ED075A400F6E0A8 /* AdaptiveQuizSystem.swift */; };
 		042C83BB2ED0772B00F6E0A8 /* ProfileBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042C83BA2ED0771600F6E0A8 /* ProfileBadge.swift */; };
 		042C83BD2ED0773E00F6E0A8 /* EmptyQuizStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042C83BC2ED0773A00F6E0A8 /* EmptyQuizStateView.swift */; };
@@ -100,6 +101,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0426C2F72F030890004907AC /* ParentChildGamesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentChildGamesScreen.swift; sourceTree = "<group>"; };
 		042C83B72ED075A400F6E0A8 /* AdaptiveQuizSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveQuizSystem.swift; sourceTree = "<group>"; };
 		042C83BA2ED0771600F6E0A8 /* ProfileBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileBadge.swift; sourceTree = "<group>"; };
 		042C83BC2ED0773A00F6E0A8 /* EmptyQuizStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyQuizStateView.swift; sourceTree = "<group>"; };
@@ -325,6 +327,7 @@
 		595695E82EBA3246005DBD2D /* VIews */ = {
 			isa = PBXGroup;
 			children = (
+				0426C2F72F030890004907AC /* ParentChildGamesScreen.swift */,
 				048012152EEEF76600C7653E /* OfflineArcadeGamesView.swift */,
 				0480120F2EEDA69000C7653E /* ChildReviewView.swift */,
 				048012012EED74AA00C7653E /* GiftManagementView.swift */,
@@ -530,6 +533,7 @@
 				049625A82EC9ED5000C83F87 /* AIQuizGenerationScreen.swift in Sources */,
 				59B8D34B2EC3C302004374A1 /* ParentProfileScreen.swift in Sources */,
 				59B85F812EBCE7FD007264C5 /* ParentDashboardScreen.swift in Sources */,
+				0426C2F82F030890004907AC /* ParentChildGamesScreen.swift in Sources */,
 				048011FE2EED747D00C7653E /* QuestListView.swift in Sources */,
 				0478BB252EC8F5C100AB6E6D /* Question.swift in Sources */,
 				59B85F8F2EBCEC60007264C5 /* QuizResult.swift in Sources */,

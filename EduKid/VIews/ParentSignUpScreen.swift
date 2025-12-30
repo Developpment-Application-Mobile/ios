@@ -16,8 +16,15 @@ struct ParentSignUpScreen: View {
     @State private var passwordVisible = false
     @State private var confirmPasswordVisible = false
     
+    // Field-specific error messages
+    @State private var fullNameError: String? = nil
+    @State private var emailError: String? = nil
+    @State private var passwordError: String? = nil
+    @State private var confirmPasswordError: String? = nil
+    
     var onSignUpClick: (String, String, String, String) -> Void = { _, _, _, _ in }
     var onSignInClick: () -> Void = {}
+    var onBackToWelcome: () -> Void = {}
     var isLoading: Bool = false
     var errorMessage: String? = nil
     
@@ -37,6 +44,7 @@ struct ParentSignUpScreen: View {
             
             // Decorative elements
             DecorativeElementsSignUp()
+                .zIndex(0)
             
             // Main content
             ScrollView {
@@ -60,105 +68,141 @@ struct ParentSignUpScreen: View {
                     Spacer().frame(height: 32)
                     
                     // Full Name field
-                    TextField(
-                        "",
-                        text: $fullName,
-                        prompt: Text("Full Name")
-                            .foregroundColor(Color.white.opacity(0.6))
-                    )
-                        .foregroundColor(Color.white)
-                        .frame(height: 60)
-                        .padding(.horizontal, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField(
+                            "",
+                            text: $fullName,
+                            prompt: Text("Full Name")
+                                .foregroundColor(Color.white.opacity(0.6))
                         )
-                        .textInputAutocapitalization(.words)
+                            .foregroundColor(Color.white)
+                            .frame(height: 60)
+                            .padding(.horizontal, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(fullNameError != nil ? Color.red : Color.white.opacity(0.5), lineWidth: 1)
+                            )
+                            .textInputAutocapitalization(.words)
+                        
+                        if let error = fullNameError {
+                            Text(error)
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
+                                .padding(.leading, 4)
+                        }
+                    }
                     
                     Spacer().frame(height: 16)
                     
                     // Email field
-                    TextField(
-                        "",
-                        text: $email,
-                        prompt: Text("Email")
-                            .foregroundColor(Color.white.opacity(0.6))
-                    )
-                        .foregroundColor(Color.white)
-                        .frame(height: 60)
-                        .padding(.horizontal, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField(
+                            "",
+                            text: $email,
+                            prompt: Text("Email")
+                                .foregroundColor(Color.white.opacity(0.6))
                         )
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
+                            .foregroundColor(Color.white)
+                            .frame(height: 60)
+                            .padding(.horizontal, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(emailError != nil ? Color.red : Color.white.opacity(0.5), lineWidth: 1)
+                            )
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                        
+                        if let error = emailError {
+                            Text(error)
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
+                                .padding(.leading, 4)
+                        }
+                    }
                     
                     Spacer().frame(height: 16)
                     
                     // Password field
-                    HStack {
-                        if passwordVisible {
-                            TextField(
-                                "",
-                                text: $password,
-                                prompt: Text("Password")
-                                    .foregroundColor(Color.white.opacity(0.6))
-                            )
-                        } else {
-                            SecureField(
-                                "",
-                                text: $password,
-                                prompt: Text("Password")
-                                    .foregroundColor(Color.white.opacity(0.6))
-                            )
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            if passwordVisible {
+                                TextField(
+                                    "",
+                                    text: $password,
+                                    prompt: Text("Password")
+                                        .foregroundColor(Color.white.opacity(0.6))
+                                )
+                            } else {
+                                SecureField(
+                                    "",
+                                    text: $password,
+                                    prompt: Text("Password")
+                                        .foregroundColor(Color.white.opacity(0.6))
+                                )
+                            }
+                            
+                            Button(action: { passwordVisible.toggle() }) {
+                                Text(passwordVisible ? "👁️" : "👁️‍🗨️")
+                                    .font(.system(size: 18))
+                            }
                         }
+                        .foregroundColor(.white)
+                        .frame(height: 60)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(passwordError != nil ? Color.red : Color.white.opacity(0.5), lineWidth: 1)
+                        )
                         
-                        Button(action: { passwordVisible.toggle() }) {
-                            Text(passwordVisible ? "👁️" : "👁️‍🗨️")
-                                .font(.system(size: 18))
+                        if let error = passwordError {
+                            Text(error)
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
+                                .padding(.leading, 4)
                         }
                     }
-                    .foregroundColor(.white)
-                    .frame(height: 60)
-                    .padding(.horizontal, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.5), lineWidth: 1)
-                    )
                     
                     Spacer().frame(height: 16)
                     
                     // Confirm Password field
-                    HStack {
-                        if confirmPasswordVisible {
-                            TextField(
-                                "",
-                                text: $confirmPassword,
-                                prompt: Text("Confirm Password")
-                                    .foregroundColor(Color.white.opacity(0.6))
-                            )
-                        } else {
-                            SecureField(
-                                "",
-                                text: $confirmPassword,
-                                prompt: Text("Confirm Password")
-                                    .foregroundColor(Color.white.opacity(0.6))
-                            )
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            if confirmPasswordVisible {
+                                TextField(
+                                    "",
+                                    text: $confirmPassword,
+                                    prompt: Text("Confirm Password")
+                                        .foregroundColor(Color.white.opacity(0.6))
+                                )
+                            } else {
+                                SecureField(
+                                    "",
+                                    text: $confirmPassword,
+                                    prompt: Text("Confirm Password")
+                                        .foregroundColor(Color.white.opacity(0.6))
+                                )
+                            }
+                            
+                            Button(action: { confirmPasswordVisible.toggle() }) {
+                                Text(confirmPasswordVisible ? "👁️" : "👁️‍🗨️")
+                                    .font(.system(size: 18))
+                            }
                         }
+                        .foregroundColor(.white)
+                        .frame(height: 60)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(confirmPasswordError != nil ? Color.red : Color.white.opacity(0.5), lineWidth: 1)
+                        )
                         
-                        Button(action: { confirmPasswordVisible.toggle() }) {
-                            Text(confirmPasswordVisible ? "👁️" : "👁️‍🗨️")
-                                .font(.system(size: 18))
+                        if let error = confirmPasswordError {
+                            Text(error)
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
+                                .padding(.leading, 4)
                         }
                     }
-                    .foregroundColor(.white)
-                    .frame(height: 60)
-                    .padding(.horizontal, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.5), lineWidth: 1)
-                    )
                     
                     Spacer().frame(height: 32)
                     
@@ -175,7 +219,53 @@ struct ParentSignUpScreen: View {
                     // Sign up button
                     Button(action: {
                         guard !isLoading else { return }
-                        onSignUpClick(fullName, email, password, confirmPassword)
+                        
+                        // Clear all previous errors
+                        fullNameError = nil
+                        emailError = nil
+                        passwordError = nil
+                        confirmPasswordError = nil
+                        
+                        // Validate each field
+                        var hasError = false
+                        
+                        // Validate full name
+                        if fullName.trimmingCharacters(in: .whitespaces).isEmpty {
+                            fullNameError = "Full name cannot be blank"
+                            hasError = true
+                        }
+                        
+                        // Validate email
+                        if email.trimmingCharacters(in: .whitespaces).isEmpty {
+                            emailError = "Email cannot be blank"
+                            hasError = true
+                        } else if !isValidEmail(email) {
+                            emailError = "Please enter a valid email address"
+                            hasError = true
+                        }
+                        
+                        // Validate password
+                        if password.isEmpty {
+                            passwordError = "Password cannot be blank"
+                            hasError = true
+                        } else if password.count < 6 {
+                            passwordError = "Password must be at least 6 characters"
+                            hasError = true
+                        }
+                        
+                        // Validate confirm password
+                        if confirmPassword.isEmpty {
+                            confirmPasswordError = "Confirm password cannot be blank"
+                            hasError = true
+                        } else if password != confirmPassword {
+                            confirmPasswordError = "Passwords do not match"
+                            hasError = true
+                        }
+                        
+                        // Only proceed if there are no errors
+                        if !hasError {
+                            onSignUpClick(fullName, email, password, confirmPassword)
+                        }
                     }) {
                         HStack {
                             if isLoading {
@@ -213,7 +303,48 @@ struct ParentSignUpScreen: View {
                 }
                 .padding(.horizontal, 20)
             }
+            .zIndex(1)
+            
+            // Back Button (Top Left) - Above everything
+            VStack {
+                HStack {
+                    Button(action: onBackToWelcome) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                            Text("Back")
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.3))
+                                .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 2)
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                        )
+                    }
+                    .padding(.leading, 20)
+                    .padding(.top, 50)
+                    
+                    Spacer()
+                }
+                Spacer()
+            }
+            .zIndex(10)
         }
+    }
+    
+    // Helper function for email validation
+    private func isValidEmail(_ email: String) -> Bool {
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+        return emailPredicate.evaluate(with: email)
     }
 }
 

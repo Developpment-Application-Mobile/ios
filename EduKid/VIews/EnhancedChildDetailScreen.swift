@@ -11,7 +11,7 @@ import SwiftUI
 struct EnhancedChildDetailScreen: View {
     let child: Child
     
-    @State private var selectedTab = 0
+
     @State private var quizzes: [AIQuizResponse] = []
     @State private var localPuzzles: [LocalPuzzle] = []
     @State private var serverPuzzles: [PuzzleResponse] = []
@@ -27,7 +27,7 @@ struct EnhancedChildDetailScreen: View {
     @State private var reportError: String?
     @EnvironmentObject var authVM: AuthViewModel
     
-    let tabs = ["Overview", "Quiz Results", "Puzzle Results", "Game Results"]
+
     
     var onBackClick: () -> Void = {}
     var onAssignQuizClick: () -> Void = {}
@@ -138,32 +138,7 @@ struct EnhancedChildDetailScreen: View {
                             .clipShape(Circle())
                     }
                     
-                    Text(child.name)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    
                     Spacer()
-                    
-                    // Generate Report Button
-                    Button(action: generateReport) {
-                        if isGeneratingReport {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .frame(width: 24, height: 24)
-                                .padding(10)
-                                .background(Color.gray)
-                                .clipShape(Circle())
-                        } else {
-                            Image(systemName: "doc.text.magnifyingglass")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .padding(10)
-                                .background(Color.blue)
-                                .clipShape(Circle())
-                                .shadow(radius: 5)
-                        }
-                    }
-                    .disabled(isGeneratingReport)
                     
                     // Edit Button
                     Button(action: onEditClick) {
@@ -224,39 +199,7 @@ struct EnhancedChildDetailScreen: View {
                 
                 Spacer().frame(height: 16)
                 
-                // Tabs
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(0..<tabs.count, id: \.self) { index in
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    selectedTab = index
-                                }
-                            }) {
-                                Text(tabs[index])
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(selectedTab == index ? Color(red: 0.4, green: 0.2, blue: 0.8) : .white)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        ZStack {
-                                            if selectedTab == index {
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(Color.white)
-                                                    .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
-                                            } else {
-                                                RoundedRectangle(cornerRadius: 12)
-                                                    .fill(Color.white.opacity(0.1))
-                                            }
-                                        }
-                                    )
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-                }
-                .background(Color.black.opacity(0.1))
+
                 
                 // Content Area
                 if isLoading {
@@ -272,58 +215,35 @@ struct EnhancedChildDetailScreen: View {
                     }
                     Spacer()
                 } else {
-                    Group {
-                        if selectedTab == 0 {
-                            OverviewTabView(
-                                child: child,
-                                quizzesCompleted: completedQuizzes.count,
-                                puzzlesCompleted: completedPuzzles.count + completedServerPuzzles.count,
-                                gamesPlayed: games.count,
-                                totalCompleted: totalCompleted,
-                                averageQuizScore: averageQuizScore,
-                                averagePuzzleScore: averagePuzzleScore,
-                                averageGameScore: averageGameScore,
-                                totalScore: calculatedTotalScore,
-                                onSchedule: { showActivityScheduler = true },
-                                onQR: onGenerateQRClick,
-                                onShop: { showGiftManagement = true }
-                            )
-                        } else if selectedTab == 1 {
-                            QuizResultsTabView(quizzes: completedQuizzes) { quiz in
-                                selectedQuiz = quiz
-                                showQuizDetail = true
-                            }
-                        } else if selectedTab == 2 {
-                            PuzzleResultsTabView(
-                                localPuzzles: completedPuzzles,
-                                serverPuzzles: completedServerPuzzles,
-                                childId: child.id,
-                                onDelete: { loadAllData() }
-                            )
-                        } else if selectedTab == 3 {
-                            GameResultsTabView(games: games)
-                        }
-                    }
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    ))
+                    OverviewTabView(
+                        child: child,
+                        quizzesCompleted: completedQuizzes.count,
+                        puzzlesCompleted: completedPuzzles.count + completedServerPuzzles.count,
+                        gamesPlayed: games.count,
+                        totalCompleted: totalCompleted,
+                        averageQuizScore: averageQuizScore,
+                        averagePuzzleScore: averagePuzzleScore,
+                        averageGameScore: averageGameScore,
+                        totalScore: calculatedTotalScore,
+                        onQR: onGenerateQRClick,
+                        onGenerateReport: generateReport,
+                        isGeneratingReport: isGeneratingReport,
+                        completedQuizzes: completedQuizzes,
+                        completedLocalPuzzles: completedPuzzles,
+                        completedServerPuzzles: completedServerPuzzles,
+                        games: games,
+                        onQuizTap: { quiz in
+                            selectedQuiz = quiz
+                            showQuizDetail = true
+                        },
+                        onPuzzleDelete: { loadAllData() }
+                    )
                 }
             }
         }
         .sheet(isPresented: $showQuizDetail) {
             if let quiz = selectedQuiz {
                 ParentQuizDetailView(quiz: quiz, child: child)
-            }
-        }
-        .sheet(isPresented: $showActivityScheduler) {
-            NavigationStack {
-                ParentActivitySchedulerScreen(child: child)
-            }
-        }
-        .sheet(isPresented: $showGiftManagement) {
-            if let parentId = AuthService.shared.getParentId() {
-                GiftManagementView(childId: child.id, parentId: parentId)
             }
         }
         // ⭐ FIXED: Pass childId instead of report
@@ -416,6 +336,55 @@ struct ActionButton: View {
     }
 }
 
+// MARK: - Large Action Button (for 2-column layout)
+struct LargeActionButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    color.opacity(0.8),
+                                    color.opacity(0.6)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 70, height: 70)
+                        .shadow(color: color.opacity(0.4), radius: 8, x: 0, y: 4)
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: 30))
+                        .foregroundColor(.white)
+                }
+                
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .frame(height: 36)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.white.opacity(0.08))
+            )
+        }
+    }
+}
+
+
+
 // MARK: - Overview Tab View
 struct OverviewTabView: View {
     let child: Child
@@ -428,9 +397,21 @@ struct OverviewTabView: View {
     let averageGameScore: Int
     let totalScore: Int
     
-    let onSchedule: () -> Void
     let onQR: () -> Void
-    let onShop: () -> Void
+    let onGenerateReport: () -> Void
+    var isGeneratingReport: Bool = false
+    
+    // Results data
+    var completedQuizzes: [AIQuizResponse] = []
+    var completedLocalPuzzles: [LocalPuzzle] = []
+    var completedServerPuzzles: [PuzzleResponse] = []
+    var games: [[String: Any]] = []
+    var onQuizTap: (AIQuizResponse) -> Void = { _ in }
+    var onPuzzleDelete: () -> Void = {}
+    
+    // State for results popup
+    @State private var showResultsSheet = false
+    @State private var selectedResultsTab = 0
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -444,10 +425,21 @@ struct OverviewTabView: View {
                         Spacer()
                     }
                     
-                    HStack(spacing: 16) {
-                        ActionButton(title: "Schedule", icon: "calendar.badge.clock", action: onSchedule)
-                        ActionButton(title: "QR Code", icon: "qrcode", action: onQR)
-                        ActionButton(title: "Shop", icon: "gift.fill", action: onShop)
+                    // QR Code and Results Buttons Side by Side
+                    HStack(spacing: 12) {
+                        LargeActionButton(
+                            title: "QR Code",
+                            icon: "qrcode",
+                            color: Color.blue,
+                            action: onQR
+                        )
+                        
+                        LargeActionButton(
+                            title: "Results",
+                            icon: "list.bullet.clipboard",
+                            color: Color.green,
+                            action: { showResultsSheet = true }
+                        )
                     }
                 }
                 .padding(20)
@@ -545,10 +537,500 @@ struct OverviewTabView: View {
                                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
                         )
                 )
+                
+                // Report Section
+                VStack(spacing: 16) {
+                    HStack {
+                        Text("Report")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                        Spacer()
+                    }
+                    
+                    Button(action: onGenerateReport) {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [Color.blue, Color.cyan]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 56, height: 56)
+                                    .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                                
+                                if isGeneratingReport {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Image(systemName: "doc.text.magnifyingglass")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Generate Report")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                                
+                                Text(isGeneratingReport ? "Generating..." : "View detailed report")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.08))
+                        )
+                    }
+                    .disabled(isGeneratingReport)
+                }
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.white.opacity(0.12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                )
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
+        .sheet(isPresented: $showResultsSheet) {
+            ResultsPopupView(
+                completedQuizzes: completedQuizzes,
+                completedLocalPuzzles: completedLocalPuzzles,
+                completedServerPuzzles: completedServerPuzzles,
+                games: games,
+                child: child,
+                onQuizTap: onQuizTap,
+                onPuzzleDelete: onPuzzleDelete
+            )
+        }
+    }
+}
+
+// MARK: - Results Popup View
+struct ResultsPopupView: View {
+    let completedQuizzes: [AIQuizResponse]
+    let completedLocalPuzzles: [LocalPuzzle]
+    let completedServerPuzzles: [PuzzleResponse]
+    let games: [[String: Any]]
+    let child: Child
+    let onQuizTap: (AIQuizResponse) -> Void
+    let onPuzzleDelete: () -> Void
+    
+    @State private var selectedTab = 0
+    @State private var selectedQuiz: AIQuizResponse?
+    @State private var showQuizDetail = false
+    @Environment(\.dismiss) var dismiss
+    
+    let tabs = ["Quizzes", "Puzzles", "Games"]
+    
+    var body: some View {
+        ZStack {
+            // Background gradient
+            RadialGradient(
+                gradient: Gradient(colors: [
+                    Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.6),
+                    Color(red: 0.153, green: 0.125, blue: 0.322)
+                ]),
+                center: .init(x: 0.3, y: 0.3),
+                startRadius: 50,
+                endRadius: 400
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text("Results")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+                
+                // Professional Tabs with Better Design
+                HStack(spacing: 12) {
+                    ForEach(0..<tabs.count, id: \.self) { index in
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                selectedTab = index
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: tabIcon(for: index))
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text(tabs[index])
+                                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                            }
+                            .foregroundColor(selectedTab == index ? .white : .white.opacity(0.7))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(
+                                        selectedTab == index ?
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                tabColor(for: index).opacity(0.8),
+                                                tabColor(for: index).opacity(0.6)
+                                            ]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ) :
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color.white.opacity(0.15),
+                                                Color.white.opacity(0.1)
+                                            ]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(
+                                        selectedTab == index ? tabColor(for: index).opacity(0.5) : Color.white.opacity(0.2),
+                                        lineWidth: selectedTab == index ? 2 : 1
+                                    )
+                            )
+                            .shadow(
+                                color: selectedTab == index ? tabColor(for: index).opacity(0.3) : Color.clear,
+                                radius: selectedTab == index ? 8 : 0,
+                                x: 0,
+                                y: selectedTab == index ? 4 : 0
+                            )
+                            .scaleEffect(selectedTab == index ? 1.02 : 1.0)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(Color.white.opacity(0.08))
+                
+                // Content
+                TabView(selection: $selectedTab) {
+                    // Quiz Results
+                    QuizResultsTabView(quizzes: completedQuizzes, onQuizTap: { quiz in
+                        selectedQuiz = quiz
+                        showQuizDetail = true
+                    })
+                        .tag(0)
+                    
+                    // Puzzle Results
+                    PuzzleResultsTabView(
+                        localPuzzles: completedLocalPuzzles,
+                        serverPuzzles: completedServerPuzzles,
+                        childId: child.id,
+                        onDelete: onPuzzleDelete
+                    )
+                    .tag(1)
+                    
+                    // Game Results
+                    GameResultsTabView(games: games)
+                        .tag(2)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+            }
+        }
+        .sheet(isPresented: $showQuizDetail) {
+            if let quiz = selectedQuiz {
+                ParentQuizDetailView(quiz: quiz, child: child)
+            }
+        }
+    }
+    
+    func tabIcon(for index: Int) -> String {
+        switch index {
+        case 0: return "doc.text.fill"
+        case 1: return "puzzlepiece.fill"
+        case 2: return "gamecontroller.fill"
+        default: return "circle"
+        }
+    }
+    
+    func tabColor(for index: Int) -> Color {
+        switch index {
+        case 0: return .blue
+        case 1: return .purple
+        case 2: return .orange
+        default: return .gray
+        }
+    }
+}
+
+// MARK: - Results Section Helper Views
+struct ResultsSectionHeader: View {
+    let title: String
+    let icon: String
+    let count: Int
+    let color: Color
+    @Binding var isExpanded: Bool
+    
+    var body: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isExpanded.toggle()
+            }
+        }) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [color, color.opacity(0.7)]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: 18))
+                        .foregroundColor(.white)
+                }
+                
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Text("\(count)")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(color.opacity(0.3))
+                    )
+                
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.white.opacity(0.08))
+            )
+        }
+    }
+}
+
+struct EmptyResultsRowView: View {
+    let message: String
+    
+    var body: some View {
+        HStack {
+            Spacer()
+            Text(message)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white.opacity(0.5))
+            Spacer()
+        }
+        .padding(.vertical, 16)
+    }
+}
+
+struct CompactQuizResultCard: View {
+    let quiz: AIQuizResponse
+    
+    var scoreColor: Color {
+        if quiz.score >= 80 { return .green }
+        else if quiz.score >= 60 { return .orange }
+        else { return .red }
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(quiz.meaningfulTitle)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                Text(quiz.subject.capitalized)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            
+            Spacer()
+            
+            Text("\(quiz.score)%")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(scoreColor.opacity(0.3))
+                )
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.05))
+        )
+    }
+}
+
+struct CompactPuzzleResultCard: View {
+    let puzzle: LocalPuzzle
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(puzzle.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                Text(puzzle.difficulty.rawValue.capitalized)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            
+            Spacer()
+            
+            Text("\(puzzle.score) pts")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.purple.opacity(0.3))
+                )
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.05))
+        )
+    }
+}
+
+struct CompactServerPuzzleResultCard: View {
+    let puzzle: PuzzleResponse
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(puzzle.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                Text(puzzle.difficulty.capitalized)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            
+            Spacer()
+            
+            Text("\(puzzle.score) pts")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.purple.opacity(0.3))
+                )
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.05))
+        )
+    }
+}
+
+struct CompactGameResultCard: View {
+    let game: [String: Any]
+    let index: Int
+    
+    var gameType: String { (game["type"] as? String) ?? "game" }
+    
+    var gameName: String {
+        // First try to get the name from the game data
+        if let name = game["name"] as? String, !name.isEmpty {
+            return name
+        }
+        // Otherwise translate the game type
+        switch gameType {
+        case "memory": return "Memory Match"
+        case "color": return "Color Match"
+        case "shape": return "Shape Match"
+        case "sequence": return "Number Sequence"
+        case "puzzle": return "Puzzle"
+        default: return "Game"
+        }
+    }
+    
+    var gameScore: Int {
+        game["score"] as? Int ?? 0
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(gameName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                if let date = game["date"] as? String {
+                    Text(date)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+            }
+            
+            Spacer()
+            
+            Text("\(gameScore) pts")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.orange.opacity(0.3))
+                )
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.05))
+        )
     }
 }
 
@@ -665,11 +1147,19 @@ struct QuizResultsTabView: View {
         } else {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 16) {
-                    ForEach(quizzes) { quiz in
+                    ForEach(quizzes.prefix(10)) { quiz in
                         Button(action: { onQuizTap(quiz) }) {
                             EnhancedAIQuizResultCardForParent(quiz: quiz)
                         }
                         .buttonStyle(ScaleButtonStyle())
+                    }
+                    
+                    // Show count if there are more than 10
+                    if quizzes.count > 10 {
+                        Text("Showing 10 of \(quizzes.count) quizzes")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.white.opacity(0.6))
+                            .padding(.top, 8)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -699,6 +1189,15 @@ struct EnhancedAIQuizResultCardForParent: View {
         if quiz.score >= 80 { return "🎉" }
         else if quiz.score >= 60 { return "👍" }
         else { return "💪" }
+    }
+    
+    // Calculate actual answered count from questions
+    var actualAnsweredCount: Int {
+        if quiz.answered > 0 {
+            return quiz.answered
+        }
+        // Fallback: count questions with userAnswerIndex
+        return quiz.questions.filter { $0.userAnswerIndex != nil }.count
     }
     
     var body: some View {
@@ -758,7 +1257,7 @@ struct EnhancedAIQuizResultCardForParent: View {
             
             HStack(spacing: 20) {
                 QuizStatLabel(icon: "questionmark.circle.fill", value: "\(quiz.questions.count)", label: "questions")
-                QuizStatLabel(icon: "checkmark.circle.fill", value: "\(quiz.answered)", label: "answered")
+                QuizStatLabel(icon: "checkmark.circle.fill", value: "\(actualAnsweredCount)", label: "answered")
                 
                 if let date = quiz.createdAt {
                     QuizStatLabel(icon: "calendar", value: formatDate(date), label: "completed")
@@ -821,44 +1320,104 @@ struct PuzzleResultsTabView: View {
     @State private var puzzleToDelete: String?
     @State private var showDeleteAlert = false
     @State private var isLocalPuzzle = false
+    @State private var puzzleGames: [[String: Any]] = []
+    
+    // Combine all puzzles and limit to 10
+    var allPuzzles: [(id: String, isLocal: Bool, index: Int)] {
+        var combined: [(id: String, isLocal: Bool, index: Int)] = []
+        
+        // Add local puzzles
+        for (index, puzzle) in localPuzzles.enumerated() {
+            combined.append((id: puzzle.id, isLocal: true, index: index))
+        }
+        
+        // Add server puzzles
+        for (index, puzzle) in serverPuzzles.enumerated() {
+            combined.append((id: puzzle.id, isLocal: false, index: index))
+        }
+        
+        // Add puzzle games
+        for (index, _) in puzzleGames.enumerated() {
+            combined.append((id: "game_\(index)", isLocal: false, index: index))
+        }
+        
+        return Array(combined.prefix(10))
+    }
+    
+    var totalPuzzleCount: Int {
+        localPuzzles.count + serverPuzzles.count + puzzleGames.count
+    }
     
     var body: some View {
-        if localPuzzles.isEmpty && serverPuzzles.isEmpty {
-            EmptyResultsView(emoji: "🧩", message: "No puzzles completed yet", subtitle: "Complete a puzzle to see results here")
-        } else {
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 16) {
-                    ForEach(localPuzzles) { puzzle in
-                        LocalPuzzleResultCardWithDelete(puzzle: puzzle) {
-                            puzzleToDelete = puzzle.id
-                            isLocalPuzzle = true
-                            showDeleteAlert = true
+        Group {
+            if localPuzzles.isEmpty && serverPuzzles.isEmpty && puzzleGames.isEmpty {
+                EmptyResultsView(emoji: "🧩", message: "No puzzles completed yet", subtitle: "Complete a puzzle to see results here")
+            } else {
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 16) {
+                        // Local Puzzles (limited)
+                        ForEach(localPuzzles.prefix(10)) { puzzle in
+                            LocalPuzzleResultCardWithDelete(puzzle: puzzle) {
+                                puzzleToDelete = puzzle.id
+                                isLocalPuzzle = true
+                                showDeleteAlert = true
+                            }
+                            .transition(.scale.combined(with: .opacity))
                         }
-                        .transition(.scale.combined(with: .opacity))
-                    }
-                    ForEach(serverPuzzles) { puzzle in
-                        ServerPuzzleResultCardWithDelete(puzzle: puzzle) {
-                            puzzleToDelete = puzzle.id
-                            isLocalPuzzle = false
-                            showDeleteAlert = true
+                        
+                        // Server Puzzles (limited to remaining slots)
+                        let remainingSlots = max(0, 10 - localPuzzles.prefix(10).count)
+                        ForEach(serverPuzzles.prefix(remainingSlots)) { puzzle in
+                            ServerPuzzleResultCardWithDelete(puzzle: puzzle) {
+                                puzzleToDelete = puzzle.id
+                                isLocalPuzzle = false
+                                showDeleteAlert = true
+                            }
+                            .transition(.scale.combined(with: .opacity))
                         }
-                        .transition(.scale.combined(with: .opacity))
+                        
+                        // Puzzle Games (limited to remaining slots)
+                        let remainingForGames = max(0, 10 - localPuzzles.prefix(10).count - serverPuzzles.prefix(remainingSlots).count)
+                        ForEach(puzzleGames.prefix(remainingForGames).indices, id: \.self) { index in
+                            PuzzleGameResultCard(game: puzzleGames[index])
+                        }
+                        
+                        // Show count if there are more than 10
+                        if totalPuzzleCount > 10 {
+                            Text("Showing 10 of \(totalPuzzleCount) puzzles")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.white.opacity(0.6))
+                                .padding(.top, 8)
+                        }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .alert("Delete Puzzle", isPresented: $showDeleteAlert) {
+                    Button("Cancel", role: .cancel) {
+                        puzzleToDelete = nil
+                    }
+                    Button("Delete", role: .destructive) {
+                        if let id = puzzleToDelete {
+                            deletePuzzle(id: id, isLocal: isLocalPuzzle)
+                        }
+                    }
+                } message: {
+                    Text("Are you sure you want to delete this puzzle?")
+                }
             }
-            .alert("Delete Puzzle", isPresented: $showDeleteAlert) {
-                Button("Cancel", role: .cancel) {
-                    puzzleToDelete = nil
-                }
-                Button("Delete", role: .destructive) {
-                    if let id = puzzleToDelete {
-                        deletePuzzle(id: id, isLocal: isLocalPuzzle)
-                    }
-                }
-            } message: {
-                Text("Are you sure you want to delete this puzzle?")
+        }
+        .onAppear {
+            loadPuzzleGames()
+        }
+    }
+    
+    private func loadPuzzleGames() {
+        // Load puzzle games from UserDefaults
+        if let allGames = UserDefaults.standard.array(forKey: "child_\(childId)_games") as? [[String: Any]] {
+            puzzleGames = allGames.filter { game in
+                let gameType = (game["type"] as? String) ?? ""
+                return gameType == "puzzle"
             }
         }
     }
@@ -1065,18 +1624,128 @@ struct ServerPuzzleResultCardWithDelete: View {
     }
 }
 
+// MARK: - Puzzle Game Result Card
+struct PuzzleGameResultCard: View {
+    let game: [String: Any]
+    
+    var gameTitle: String {
+        if let name = game["name"] as? String, !name.isEmpty {
+            return name
+        }
+        return "Puzzle Game"
+    }
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.purple, Color.blue]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 64, height: 64)
+                    .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
+                
+                Image(systemName: "puzzlepiece.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(.white)
+            }
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(gameTitle)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                
+                if let dateString = game["date"] as? String {
+                    Text(formatDate(dateString))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                
+                HStack(spacing: 12) {
+                    if let attempts = game["attempts"] as? Int {
+                        Label("\(attempts) tries", systemImage: "arrow.counterclockwise")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            if let score = game["score"] as? Int {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.yellow, Color.orange]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 48, height: 48)
+                        .shadow(color: Color.yellow.opacity(0.3), radius: 6, x: 0, y: 3)
+                    
+                    Text("\(score)")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+    
+    private func formatDate(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        if let date = formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateFormat = "MMM d, HH:mm"
+            return displayFormatter.string(from: date)
+        }
+        return "Recent"
+    }
+}
+
 // MARK: - Game Results Tab View
 struct GameResultsTabView: View {
     let games: [[String: Any]]
     
+    // Filter out puzzle type games - they should appear in Puzzle Results tab
+    var filteredGames: [[String: Any]] {
+        games.filter { game in
+            let gameType = (game["type"] as? String) ?? ""
+            return gameType != "puzzle"
+        }
+    }
+    
     var body: some View {
-        if games.isEmpty {
+        if filteredGames.isEmpty {
             EmptyResultsView(emoji: "🎮", message: "No games played yet", subtitle: "Play a game to see results here")
         } else {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 16) {
-                    ForEach(games.indices, id: \.self) { index in
-                        GameResultCard(game: games[index])
+                    ForEach(filteredGames.prefix(10).indices, id: \.self) { index in
+                        GameResultCard(game: filteredGames[index])
+                    }
+                    
+                    // Show count if there are more than 10
+                    if filteredGames.count > 10 {
+                        Text("Showing 10 of \(filteredGames.count) games")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.white.opacity(0.6))
+                            .padding(.top, 8)
                     }
                 }
                 .padding(.horizontal, 20)

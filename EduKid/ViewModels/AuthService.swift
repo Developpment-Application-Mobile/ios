@@ -883,7 +883,7 @@ class AuthService {
         }
         
         var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
+        request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
@@ -891,25 +891,100 @@ class AuthService {
         let body = ["currentPassword": currentPassword, "newPassword": newPassword]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        if let raw = String(data: data, encoding: .utf8) {
-            print("CHANGE PASSWORD RAW RESPONSE: \(raw)")
-        }
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AuthError.invalidResponse
-        }
-        
-        if httpResponse.statusCode != 200 && httpResponse.statusCode != 201 {
-            // Try to decode error message
-            if let errorData = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                throw AuthError.serverError(errorData.message ?? errorData.error ?? "Password change failed")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let raw = String(data: data, encoding: .utf8) {
+                print("CHANGE PASSWORD RAW RESPONSE: \(raw)")
             }
-            throw AuthError.serverError("Password change failed with status code: \(httpResponse.statusCode)")
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AuthError.serverError("Invalid server response. Please try again.")
+            }
+            
+            print("📡 Change Password Status Code: \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode != 200 && httpResponse.statusCode != 201 {
+                // Try to decode error message from server
+                if let errorData = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                    let errorMsg = errorData.message ?? errorData.error ?? "Password change failed"
+                    print("❌ Server Error Message: \(errorMsg)")
+                    
+                    // Check for specific error messages from backend
+                    if errorMsg.lowercased().contains("incorrect") || 
+                       errorMsg.lowercased().contains("wrong") ||
+                       errorMsg.lowercased().contains("invalid password") ||
+                       errorMsg.lowercased().contains("current password") {
+                        throw AuthError.serverError("Incorrect current password")
+                    }
+                    
+                    throw AuthError.serverError(errorMsg)
+                }
+                
+                // Try to parse as simple JSON with message field
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let message = json["message"] as? String {
+                        print("❌ JSON Error Message: \(message)")
+                        
+                        if message.lowercased().contains("incorrect") || 
+                           message.lowercased().contains("wrong") ||
+                           message.lowercased().contains("current password") {
+                            throw AuthError.serverError("Incorrect current password")
+                        }
+                        
+                        throw AuthError.serverError(message)
+                    }
+                    
+                    if let error = json["error"] as? String {
+                        print("❌ JSON Error: \(error)")
+                        
+                        if error.lowercased().contains("incorrect") || 
+                           error.lowercased().contains("current password") {
+                            throw AuthError.serverError("Incorrect current password")
+                        }
+                        
+                        throw AuthError.serverError(error)
+                    }
+                }
+                
+                // Provide user-friendly error messages based on status code
+                switch httpResponse.statusCode {
+                case 400:
+                    throw AuthError.serverError("Invalid password format. Please check your passwords and try again.")
+                case 401:
+                    throw AuthError.serverError("Incorrect current password")
+                case 403:
+                    throw AuthError.serverError("You don't have permission to change this password.")
+                case 404:
+                    throw AuthError.serverError("Password change feature is currently unavailable. Please contact support.")
+                case 500...599:
+                    throw AuthError.serverError("Server error. Please try again later.")
+                default:
+                    throw AuthError.serverError("Failed to change password. Please try again.")
+                }
+            }
+            
+            print("✅ Password changed successfully")
+            
+        } catch let error as AuthError {
+            throw error
+        } catch {
+            print("❌ Network Error: \(error.localizedDescription)")
+            
+            if error.localizedDescription.contains("Cannot PUT") || 
+               error.localizedDescription.contains("Cannot POST") ||
+               error.localizedDescription.contains("404") ||
+               error.localizedDescription.contains("Not Found") {
+                throw AuthError.serverError("Password change feature is currently unavailable. Please contact support.")
+            }
+            
+            if error.localizedDescription.contains("network") || 
+               error.localizedDescription.contains("connection") {
+                throw AuthError.serverError("Network error. Please check your connection and try again.")
+            }
+            
+            throw AuthError.serverError("Failed to change password. Please try again.")
         }
-        
-        print("✅ Password changed successfully")
     }
     
     func deleteAccount() async throws {

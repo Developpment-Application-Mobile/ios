@@ -55,8 +55,8 @@ struct ShopView: View {
             
             // Tabs
             HStack(spacing: 20) {
-                TabButton(title: "Shop 🎁", isSelected: selectedTab == 0) { selectedTab = 0 }
-                TabButton(title: "My Gifts 🎒", isSelected: selectedTab == 1) { selectedTab = 1 }
+                ShopTabButton(icon: "cart.fill", title: "Shop", isSelected: selectedTab == 0) { selectedTab = 0 }
+                ShopTabButton(icon: "bag.fill", title: "My Gifts", isSelected: selectedTab == 1) { selectedTab = 1 }
             }
             .padding(.horizontal)
             
@@ -387,3 +387,59 @@ struct InventoryItemCard: View {
         }, perform: {})
     }
 }
+
+// MARK: - Shop Tab Button
+struct ShopTabButton: View {
+    let icon: String
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                action()
+            }
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : .white.opacity(0.7))
+                
+                Text(title)
+                    .font(.system(size: 16, weight: isSelected ? .bold : .semibold))
+                    .foregroundColor(isSelected ? .white : .white.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(
+                Group {
+                    if isSelected {
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(red: 0.686, green: 0.494, blue: 0.906),
+                                Color(red: 0.553, green: 0.373, blue: 0.825)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    } else {
+                        Color.white.opacity(0.15)
+                    }
+                }
+            )
+            .cornerRadius(16)
+            .shadow(
+                color: isSelected ? Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.4) : .clear,
+                radius: isSelected ? 8 : 0,
+                x: 0,
+                y: isSelected ? 4 : 0
+            )
+            .scaleEffect(isSelected ? 1.0 : 0.95)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+

@@ -466,67 +466,43 @@ struct ParentQuizListScreen: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with child info
-            VStack(spacing: 16) {
-                // Child Avatar Row
-                HStack(spacing: 16) {
-                    Image(child.avatarEmoji)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 60, height: 60)
-                        .background(Color.white.opacity(0.2))
-                        .clipShape(Circle())
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(child.name)'s Quizzes")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        Text("Age \(child.age) • Level \(child.level)")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.7))
+            // Action Buttons Row
+            HStack(spacing: 12) {
+                // Smart Generate Quiz Button
+                Button(action: { showGenerateQuiz = true }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.title3)
+                        Text("Smart Quiz")
+                            .font(.system(size: 14, weight: .bold))
                     }
-                    
-                    Spacer()
+                    .foregroundColor(Color(hex: "272052"))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
                 }
                 
-                // Action Buttons Row
-                HStack(spacing: 12) {
-                    // Smart Generate Quiz Button
-                    Button(action: { showGenerateQuiz = true }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "brain.head.profile")
-                                .font(.title3)
-                            Text("Smart Quiz")
-                                .font(.system(size: 14, weight: .bold))
-                        }
-                        .foregroundColor(Color(hex: "272052"))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.white)
-                        .cornerRadius(16)
-                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                // Create Custom Quiz Button
+                Button(action: { showCreateCustomQuiz = true }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                        Text("Custom Quiz")
+                            .font(.system(size: 14, weight: .bold))
                     }
-                    
-                    // Create Custom Quiz Button
-                    Button(action: { showCreateCustomQuiz = true }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title3)
-                            Text("Custom Quiz")
-                                .font(.system(size: 14, weight: .bold))
-                        }
-                        .foregroundColor(Color(hex: "272052"))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.9))
-                        .cornerRadius(16)
-                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                    }
+                    .foregroundColor(Color(hex: "272052"))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.9))
+                    .cornerRadius(16)
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
             
             // Quiz Count with Performance Insight
             HStack {

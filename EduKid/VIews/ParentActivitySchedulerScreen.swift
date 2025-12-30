@@ -33,66 +33,6 @@ struct ParentActivitySchedulerScreen: View {
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("📅 Activity Scheduler")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        Text("Schedule activities for \(child.name)")
-                            .font(.system(size: 14))
-                            .foregroundColor(.white.opacity(0.85))
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 60)
-                .padding(.bottom, 20)
-                
-                // Child Info Card
-                HStack(spacing: 16) {
-                    Image(child.avatarEmoji)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 60, height: 60)
-                        .background(Color.white.opacity(0.2))
-                        .clipShape(Circle())
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(child.name)
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        Text("Age \(child.age) • Level \(child.level)")
-                            .font(.system(size: 14))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(spacing: 4) {
-                        Text("\(scheduledActivities.count)")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        Text("Scheduled")
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                }
-                .padding(20)
-                .background(Color.white.opacity(0.15))
-                .cornerRadius(20)
-                .padding(.horizontal, 20)
-                
                 Spacer().frame(height: 20)
                 
                 // Create Activity Button

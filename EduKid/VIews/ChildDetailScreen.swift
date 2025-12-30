@@ -731,13 +731,26 @@ struct ParentQuizDetailView: View {
         quiz.questions.count
     }
     
+    var answeredQuestions: Int {
+        quiz.questions.filter { $0.userAnswerIndex != nil }.count
+    }
+    
     var correctAnswers: Int {
-        // Since we don't have individual answer tracking, use the score
-        Int(Double(quiz.score) / 100.0 * Double(totalQuestions))
+        quiz.questions.filter { question in
+            guard let userAnswer = question.userAnswerIndex else { return false }
+            return userAnswer == question.correctAnswerIndex
+        }.count
     }
     
     var incorrectAnswers: Int {
-        totalQuestions - correctAnswers
+        quiz.questions.filter { question in
+            guard let userAnswer = question.userAnswerIndex else { return false }
+            return userAnswer != question.correctAnswerIndex
+        }.count
+    }
+    
+    var unansweredQuestions: Int {
+        totalQuestions - answeredQuestions
     }
     
     var body: some View {
@@ -886,6 +899,18 @@ struct ParentQuizDetailView: View {
                                 .font(.subheadline.bold())
                                 .foregroundColor(.red)
                         }
+                        
+                        if unansweredQuestions > 0 {
+                            HStack {
+                                Text("Unanswered")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.7))
+                                Spacer()
+                                Text("\(unansweredQuestions)")
+                                    .font(.subheadline.bold())
+                                    .foregroundColor(.gray)
+                            }
+                        }
                     }
                     .padding(24)
                     .background(Color.white.opacity(0.15))
@@ -934,33 +959,89 @@ struct ParentQuestionCard: View {
     
     let letters = ["A", "B", "C", "D"]
     
+    // Check if user answered this question
+    var userAnswered: Bool {
+        question.userAnswerIndex != nil
+    }
+    
+    // Check if user's answer was correct
+    var isCorrect: Bool {
+        guard let userAnswer = question.userAnswerIndex else { return false }
+        return userAnswer == question.correctAnswerIndex
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Question
-            HStack(alignment: .top, spacing: 8) {
-                Text("\(questionNumber).")
-                    .font(.headline)
-                    .foregroundColor(.white)
+            // Question Header with Status
+            HStack(alignment: .top, spacing: 12) {
+                // Question Number Badge
+                ZStack {
+                    Circle()
+                        .fill(
+                            userAnswered ?
+                            (isCorrect ? Color.green.opacity(0.3) : Color.red.opacity(0.3)) :
+                            Color.white.opacity(0.2)
+                        )
+                        .frame(width: 36, height: 36)
+                    
+                    Text("\(questionNumber)")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                }
                 
-                Text(question.questionText)
-                    .font(.body)
-                    .foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(question.questionText)
+                        .font(.body)
+                        .foregroundColor(.white)
+                    
+                    // Status Badge
+                    if userAnswered {
+                        HStack(spacing: 6) {
+                            Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .font(.system(size: 14))
+                            Text(isCorrect ? "Correct" : "Incorrect")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(isCorrect ? .green : .red)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(isCorrect ? Color.green.opacity(0.2) : Color.red.opacity(0.2))
+                        )
+                    } else {
+                        HStack(spacing: 6) {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 14))
+                            Text("Not Answered")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color.gray.opacity(0.2))
+                        )
+                    }
+                }
             }
             
             Divider()
                 .background(Color.white.opacity(0.3))
             
             // Options
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 ForEach(Array(question.options.enumerated()), id: \.offset) { index, option in
-                    HStack {
+                    HStack(spacing: 12) {
+                        // Option Letter Badge
                         ZStack {
                             Circle()
-                                .fill(index == question.correctAnswerIndex ? Color.green.opacity(0.3) : Color.white.opacity(0.2))
-                                .frame(width: 30, height: 30)
+                                .fill(optionBackgroundColor(for: index))
+                                .frame(width: 36, height: 36)
                             
                             Text(letters[index])
-                                .font(.headline)
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.white)
                         }
                         
@@ -970,12 +1051,52 @@ struct ParentQuestionCard: View {
                         
                         Spacer()
                         
-                        if index == question.correctAnswerIndex {
-                            Image(systemName: "checkmark.circle.fill")
+                        // Show icons for correct answer and user's answer
+                        HStack(spacing: 8) {
+                            // User's answer indicator
+                            if let userAnswer = question.userAnswerIndex, userAnswer == index {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 12))
+                                    Text("Your answer")
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .foregroundColor(isCorrect ? .green : .red)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(isCorrect ? Color.green.opacity(0.2) : Color.red.opacity(0.2))
+                                )
+                            }
+                            
+                            // Correct answer indicator
+                            if index == question.correctAnswerIndex {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 12))
+                                    Text("Correct")
+                                        .font(.system(size: 11, weight: .medium))
+                                }
                                 .foregroundColor(.green)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.green.opacity(0.2))
+                                )
+                            }
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(optionCardBackground(for: index))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(optionBorderColor(for: index), lineWidth: 2)
+                    )
                 }
             }
             
@@ -995,13 +1116,50 @@ struct ParentQuestionCard: View {
                         .foregroundColor(.white.opacity(0.9))
                 }
                 .padding(12)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(8)
+                .background(Color.yellow.opacity(0.15))
+                .cornerRadius(12)
             }
         }
         .padding(20)
-        .background(Color.white.opacity(0.15))
-        .cornerRadius(16)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+    
+    // Helper functions for styling
+    private func optionBackgroundColor(for index: Int) -> Color {
+        if index == question.correctAnswerIndex {
+            return Color.green.opacity(0.4)
+        } else if let userAnswer = question.userAnswerIndex, userAnswer == index, !isCorrect {
+            return Color.red.opacity(0.4)
+        } else {
+            return Color.white.opacity(0.2)
+        }
+    }
+    
+    private func optionCardBackground(for index: Int) -> Color {
+        if index == question.correctAnswerIndex {
+            return Color.green.opacity(0.1)
+        } else if let userAnswer = question.userAnswerIndex, userAnswer == index, !isCorrect {
+            return Color.red.opacity(0.1)
+        } else {
+            return Color.white.opacity(0.05)
+        }
+    }
+    
+    private func optionBorderColor(for index: Int) -> Color {
+        if index == question.correctAnswerIndex {
+            return Color.green.opacity(0.5)
+        } else if let userAnswer = question.userAnswerIndex, userAnswer == index, !isCorrect {
+            return Color.red.opacity(0.5)
+        } else {
+            return Color.clear
+        }
     }
 }
 

@@ -105,6 +105,7 @@ struct MainNavigationView: View {
                     authVM.signUp(fullName: fullName, email: email, password: password, confirmPassword: confirmPassword)
                 },
                 onSignInClick: { authVM.authState = .parentSignIn },
+                onBackToWelcome: { authVM.authState = .welcome },
                 isLoading: authVM.isLoading,
                 errorMessage: authVM.errorMessage
             )

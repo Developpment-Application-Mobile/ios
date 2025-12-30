@@ -61,6 +61,7 @@ struct ChildDashboardScreen: View {
     @State private var serverPuzzles: [PuzzleResponse] = []
     @State private var games: [[String: Any]] = []
     @State private var inventory: [Gift] = [] // Add inventory state
+    @State private var showMenu = false // Menu visibility state
     
     // Calculate total earnings (Gross) for passing to Shop
     var grossTotalScore: Int {
@@ -107,25 +108,87 @@ struct ChildDashboardScreen: View {
                 )
                 .ignoresSafeArea()
                 
+                // Hamburger Menu Button (Top Left)
+                VStack {
+                    HStack {
+                        Button(action: { showMenu.toggle() }) {
+                            VStack(spacing: 4) {
+                                Rectangle()
+                                    .fill(Color.white)
+                                    .frame(width: 20, height: 2)
+                                Rectangle()
+                                    .fill(Color.white)
+                                    .frame(width: 20, height: 2)
+                                Rectangle()
+                                    .fill(Color.white)
+                                    .frame(width: 20, height: 2)
+                            }
+                            .padding(12)
+                            .background(Color.white.opacity(0.2))
+                            .cornerRadius(8)
+                        }
+                        .padding(.leading, 20)
+                        .padding(.top, 10)
+                        
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .zIndex(2)
+                
                 ScrollView {
                     VStack(spacing: 24) {
                         Spacer().frame(height: 40)
                         
-                        ChildInfoCardView(child: child, totalScore: calculatedTotalScore)
+                        ChildInfoCardView(
+                            child: child, 
+                            totalScore: calculatedTotalScore
+                        )
                             .padding(.horizontal, 20)
                         
-                        // Tab Selector
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                TabButton(title: "📅 My Tasks", isSelected: selectedMainTab == 0) { selectedMainTab = 0 }
-                                TabButton(title: "📝 Quizzes", isSelected: selectedMainTab == 1) { selectedMainTab = 1 }
-                                TabButton(title: "🧩 Puzzles", isSelected: selectedMainTab == 2) { selectedMainTab = 2 }
-                                TabButton(title: "🎮 Games", isSelected: selectedMainTab == 3) { selectedMainTab = 3 }
-                                TabButton(title: "🗺️ Quests", isSelected: selectedMainTab == 4) { selectedMainTab = 4 }
-                                TabButton(title: "🛍️ Shop", isSelected: selectedMainTab == 5) { selectedMainTab = 5 }
-                            }
-                            .padding(.horizontal, 20)
+                        // Compact Professional Tab Grid (No Icons)
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8)
+                        ], spacing: 12) {
+                            CompactTabButton(
+                                title: "My Tasks",
+                                color: Color.purple,
+                                isSelected: selectedMainTab == 0
+                            ) { selectedMainTab = 0 }
+                            
+                            CompactTabButton(
+                                title: "Quizzes",
+                                color: Color.purple,
+                                isSelected: selectedMainTab == 1
+                            ) { selectedMainTab = 1 }
+                            
+                            CompactTabButton(
+                                title: "Puzzles",
+                                color: Color.purple,
+                                isSelected: selectedMainTab == 2
+                            ) { selectedMainTab = 2 }
+                            
+                            CompactTabButton(
+                                title: "More Games",
+                                color: Color.purple,
+                                isSelected: selectedMainTab == 3
+                            ) { selectedMainTab = 3 }
+                            
+                            CompactTabButton(
+                                title: "Quests",
+                                color: Color.purple,
+                                isSelected: selectedMainTab == 4
+                            ) { selectedMainTab = 4 }
+                            
+                            CompactTabButton(
+                                title: "Shop",
+                                color: Color.purple,
+                                isSelected: selectedMainTab == 5
+                            ) { selectedMainTab = 5 }
                         }
+                        .padding(.horizontal, 20)
                         
                         // Tab Content
                         Group {
@@ -167,20 +230,7 @@ struct ChildDashboardScreen: View {
                         }
                         .padding(.horizontal, 20)
                         
-                        // Logout Button
-                        Button(action: { authVM.signOutChild() }) {
-                            HStack {
-                                Image(systemName: "arrow.uturn.left.circle.fill")
-                                Text("Logout")
-                            }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 60)
-                            .background(Color.red.opacity(0.7))
-                            .cornerRadius(16)
-                        }
-                        .padding(.horizontal, 20)
+                        // Hidden Logout Button (tap 5 times on child's name to logout)
                         
                         Spacer().frame(height: 40)
                     }
@@ -189,6 +239,249 @@ struct ChildDashboardScreen: View {
                 if isLoading {
                     Color.black.opacity(0.3).ignoresSafeArea()
                     ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(1.5)
+                }
+                
+                // Slide-out Menu
+                if showMenu {
+                    ZStack(alignment: .leading) {
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                            .onTapGesture { 
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    showMenu = false
+                                }
+                            }
+                        
+                        VStack(alignment: .leading, spacing: 0) {
+                            // Menu Header with Gradient
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Spacer()
+                                    Button(action: { 
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            showMenu = false
+                                        }
+                                    }) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.white.opacity(0.2))
+                                                .frame(width: 36, height: 36)
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundColor(.white)
+                                        }
+                                    }
+                                }
+                                .padding(.top, 50)
+                                .padding(.horizontal, 20)
+                                
+                                Text("Menu")
+                                    .font(.system(size: 32, weight: .black, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 20)
+                                
+                                Rectangle()
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color.white.opacity(0.6),
+                                                Color.white.opacity(0.1)
+                                            ]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: 60, height: 4)
+                                    .cornerRadius(2)
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 8)
+                            }
+                            .padding(.bottom, 30)
+                            
+                            // Navigation Menu Items
+                            ScrollView(showsIndicators: false) {
+                                VStack(spacing: 12) {
+                                    MenuNavigationItem(
+                                        title: "My Tasks",
+                                        color: .blue,
+                                        isSelected: selectedMainTab == 0
+                                    ) {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            selectedMainTab = 0
+                                            showMenu = false
+                                        }
+                                    }
+                                    
+                                    MenuNavigationItem(
+                                        title: "Quizzes",
+                                        color: .green,
+                                        isSelected: selectedMainTab == 1
+                                    ) {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            selectedMainTab = 1
+                                            showMenu = false
+                                        }
+                                    }
+                                    
+                                    MenuNavigationItem(
+                                        title: "Puzzles",
+                                        color: .orange,
+                                        isSelected: selectedMainTab == 2
+                                    ) {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            selectedMainTab = 2
+                                            showMenu = false
+                                        }
+                                    }
+                                    
+                                    MenuNavigationItem(
+                                        title: "More Games",
+                                        color: .purple,
+                                        isSelected: selectedMainTab == 3
+                                    ) {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            selectedMainTab = 3
+                                            showMenu = false
+                                        }
+                                    }
+                                    
+                                    MenuNavigationItem(
+                                        title: "Quests",
+                                        color: .red,
+                                        isSelected: selectedMainTab == 4
+                                    ) {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            selectedMainTab = 4
+                                            showMenu = false
+                                        }
+                                    }
+                                    
+                                    MenuNavigationItem(
+                                        title: "Shop",
+                                        color: .pink,
+                                        isSelected: selectedMainTab == 5
+                                    ) {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                            selectedMainTab = 5
+                                            showMenu = false
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                            }
+                            
+                            Spacer()
+                            
+                            // Logout Button - Professional Design
+                            VStack(spacing: 16) {
+                                Button(action: { 
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                        showMenu = false
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                        authVM.signOutChild()
+                                    }
+                                }) {
+                                    HStack(spacing: 16) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(
+                                                    LinearGradient(
+                                                        gradient: Gradient(colors: [
+                                                            Color.red.opacity(0.3),
+                                                            Color.red.opacity(0.1)
+                                                        ]),
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    )
+                                                )
+                                                .frame(width: 50, height: 50)
+                                            
+                                            Image(systemName: "arrow.uturn.left")
+                                                .font(.system(size: 20, weight: .semibold))
+                                                .foregroundColor(.red)
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Logout")
+                                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                                .foregroundColor(.white)
+                                            
+                                            Text("Exit your session")
+                                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                                .foregroundColor(.white.opacity(0.7))
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundColor(.white.opacity(0.5))
+                                    }
+                                    .padding(20)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .fill(
+                                                LinearGradient(
+                                                    gradient: Gradient(colors: [
+                                                        Color.white.opacity(0.25),
+                                                        Color.white.opacity(0.15)
+                                                    ]),
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                    )
+                                    .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                
+                                // App Version Info
+                                Text("EduKid ")
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.4))
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 50)
+                        }
+                        .frame(width: 280)
+                        .frame(maxHeight: .infinity)
+                        .background(
+                            ZStack {
+                                // Base gradient
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color(red: 0.153, green: 0.125, blue: 0.322),
+                                        Color(red: 0.1, green: 0.08, blue: 0.25)
+                                    ]),
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                                
+                                // Overlay gradient for depth
+                                RadialGradient(
+                                    gradient: Gradient(colors: [
+                                        Color(red: 0.686, green: 0.494, blue: 0.906).opacity(0.3),
+                                        Color.clear
+                                    ]),
+                                    center: .topLeading,
+                                    startRadius: 50,
+                                    endRadius: 300
+                                )
+                            }
+                        )
+                        .shadow(color: Color.black.opacity(0.4), radius: 30, x: 10, y: 0)
+                        .edgesIgnoringSafeArea(.vertical)
+                        .offset(x: showMenu ? 0 : -280)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showMenu)
+                    }
+                    .zIndex(10)
                 }
             }
             .navigationBarHidden(true)
@@ -289,21 +582,68 @@ struct ChildDashboardScreen: View {
     }
 }
 
-// MARK: - Tab Button
-struct TabButton: View {
+// MARK: - Compact Tab Button (No Icons, Smaller Size)
+struct CompactTabButton: View {
     let title: String
+    let color: Color
     let isSelected: Bool
     let action: () -> Void
     
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                action()
+            }
+        }) {
             Text(title)
-                .font(.subheadline.bold())
-                .foregroundColor(.white)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.9))
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(isSelected ? Color.white.opacity(0.25) : Color.clear)
+                .frame(height: 60)
+                .background(
+                    Group {
+                        if isSelected {
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    color.opacity(0.9),
+                                    color.opacity(0.7)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        } else {
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.white.opacity(0.25),
+                                    Color.white.opacity(0.15)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        }
+                    }
+                )
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            isSelected ? color.opacity(0.6) : Color.white.opacity(0.2),
+                            lineWidth: isSelected ? 2 : 1
+                        )
+                )
+                .shadow(
+                    color: isSelected ? color.opacity(0.3) : Color.black.opacity(0.1),
+                    radius: isSelected ? 8 : 3,
+                    x: 0,
+                    y: isSelected ? 4 : 2
+                )
+                .scaleEffect(isSelected ? 1.0 : 0.96)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -496,7 +836,7 @@ struct ChildGamesContent: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("🎮 Fun Games")
+            Text(" Fun Games")
                 .font(.title2.bold())
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -661,5 +1001,71 @@ struct ChildGameHistoryRow: View {
         .padding(12)
         .background(Color.white.opacity(0.1))
         .cornerRadius(10)
+    }
+}
+
+
+// MARK: - Menu Navigation Item
+struct MenuNavigationItem: View {
+    let title: String
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                // Color indicator bar on left
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(isSelected ? color : color.opacity(0.3))
+                    .frame(width: 4, height: 24)
+                
+                Text(title)
+                    .font(.system(size: 16, weight: isSelected ? .bold : .semibold, design: .rounded))
+                    .foregroundColor(isSelected ? .white : .white.opacity(0.8))
+                
+                Spacer()
+                
+                if isSelected {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 8, height: 8)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        isSelected ?
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0.25),
+                                Color.white.opacity(0.15)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ) :
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0.1),
+                                Color.white.opacity(0.05)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        isSelected ? color.opacity(0.3) : Color.white.opacity(0.1),
+                        lineWidth: isSelected ? 1.5 : 1
+                    )
+            )
+            .scaleEffect(isSelected ? 1.0 : 0.98)
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
