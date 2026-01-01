@@ -108,9 +108,9 @@ struct ChildDashboardScreen: View {
                 )
                 .ignoresSafeArea()
                 
-                // Hamburger Menu Button (Top Left)
+                // Hamburger Menu Button with Section Name (Top Left)
                 VStack {
-                    HStack {
+                    HStack(spacing: 12) {
                         Button(action: { showMenu.toggle() }) {
                             VStack(spacing: 4) {
                                 Rectangle()
@@ -127,11 +127,17 @@ struct ChildDashboardScreen: View {
                             .background(Color.white.opacity(0.2))
                             .cornerRadius(8)
                         }
-                        .padding(.leading, 20)
-                        .padding(.top, 10)
+                        
+                        // Section Name
+                        Text(getSectionName())
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
                         
                         Spacer()
                     }
+                    .padding(.leading, 20)
+                    .padding(.top, 10)
+                    
                     Spacer()
                 }
                 .zIndex(2)
@@ -146,51 +152,7 @@ struct ChildDashboardScreen: View {
                         )
                             .padding(.horizontal, 20)
                         
-                        // Compact Professional Tab Grid (No Icons)
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 8),
-                            GridItem(.flexible(), spacing: 8),
-                            GridItem(.flexible(), spacing: 8)
-                        ], spacing: 12) {
-                            CompactTabButton(
-                                title: "My Tasks",
-                                color: Color.purple,
-                                isSelected: selectedMainTab == 0
-                            ) { selectedMainTab = 0 }
-                            
-                            CompactTabButton(
-                                title: "Quizzes",
-                                color: Color.purple,
-                                isSelected: selectedMainTab == 1
-                            ) { selectedMainTab = 1 }
-                            
-                            CompactTabButton(
-                                title: "Puzzles",
-                                color: Color.purple,
-                                isSelected: selectedMainTab == 2
-                            ) { selectedMainTab = 2 }
-                            
-                            CompactTabButton(
-                                title: "More Games",
-                                color: Color.purple,
-                                isSelected: selectedMainTab == 3
-                            ) { selectedMainTab = 3 }
-                            
-                            CompactTabButton(
-                                title: "Quests",
-                                color: Color.purple,
-                                isSelected: selectedMainTab == 4
-                            ) { selectedMainTab = 4 }
-                            
-                            CompactTabButton(
-                                title: "Shop",
-                                color: Color.purple,
-                                isSelected: selectedMainTab == 5
-                            ) { selectedMainTab = 5 }
-                        }
-                        .padding(.horizontal, 20)
-                        
-                        // Tab Content
+                        // Tab Content (No Tab Grid - Direct Content)
                         Group {
                             switch selectedMainTab {
                             case 0:
@@ -506,6 +468,18 @@ struct ChildDashboardScreen: View {
                     EmojiMatchGame(child: child) { _ in selectedGame = nil }
                 }
             }
+        }
+    }
+    
+    private func getSectionName() -> String {
+        switch selectedMainTab {
+        case 0: return "My Tasks"
+        case 1: return "Quizzes"
+        case 2: return "Puzzles"
+        case 3: return "More Games"
+        case 4: return "Quests"
+        case 5: return "Shop"
+        default: return "Dashboard"
         }
     }
     

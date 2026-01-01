@@ -17,7 +17,7 @@ struct ChildReviewView: View {
     @State private var isGeneratingPDF = false
     @State private var selectedTab = 0
     
-    let tabs = ["Overview", "Activity History"]
+    // Removed tabs - only showing Overview now
     
     var body: some View {
         ZStack {
@@ -121,41 +121,11 @@ struct ChildReviewView: View {
                 .padding()
             } else if let report = report, let child = child {
                 VStack(spacing: 0) {
-                    // Tab Selector
-                    HStack(spacing: 0) {
-                        ForEach(0..<tabs.count, id: \.self) { index in
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3)) {
-                                    selectedTab = index
-                                }
-                            }) {
-                                VStack(spacing: 8) {
-                                    Text(tabs[index])
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(selectedTab == index ? Color(red: 0.55, green: 0.35, blue: 0.95) : .secondary)
-                                    
-                                    Rectangle()
-                                        .fill(selectedTab == index ?
-                                              LinearGradient(
-                                                colors: [Color(red: 0.55, green: 0.35, blue: 0.95), Color(red: 0.45, green: 0.50, blue: 0.98)],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                              ) : LinearGradient(colors: [.clear, .clear], startPoint: .leading, endPoint: .trailing))
-                                        .frame(height: 3)
-                                        .cornerRadius(1.5)
-                                }
-                                .frame(maxWidth: .infinity)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .background(Color.white.opacity(0.8))
+                    // Removed tab selector - only showing Overview
                     
                     ScrollView(showsIndicators: false) {
-                        if selectedTab == 0 {
-                            // Overview Tab
-                            VStack(spacing: 24) {
+                        // Overview Content (removed tab condition)
+                        VStack(spacing: 24) {
                                 // Premium Header Card with REAL child name
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 28)
@@ -322,18 +292,6 @@ struct ChildReviewView: View {
                                 .padding(.bottom, 32)
                             }
                             .padding(.vertical, 20)
-                        } else {
-                            // ⭐ FIXED: Show real activity history
-                            RealActivityHistoryView(
-                                child: child,
-                                report: report,
-                                quizzes: quizzes,
-                                localPuzzles: localPuzzles,
-                                serverPuzzles: serverPuzzles,
-                                games: games
-                            )
-                            .padding(.vertical, 20)
-                        }
                     }
                 }
             }

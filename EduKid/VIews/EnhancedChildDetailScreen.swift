@@ -530,6 +530,73 @@ struct OverviewTabView: View {
                         )
                 )
                 
+                // Report Section (moved here, right after Quick Actions)
+                VStack(spacing: 16) {
+                    HStack {
+                        Text("Report")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                        Spacer()
+                    }
+                    
+                    Button(action: onGenerateReport) {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [Color.blue, Color.cyan]),
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 56, height: 56)
+                                    .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                                
+                                if isGeneratingReport {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Image(systemName: "doc.text.magnifyingglass")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Generate Report")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                                
+                                Text(isGeneratingReport ? "Generating..." : "View detailed report")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.08))
+                        )
+                    }
+                    .disabled(isGeneratingReport)
+                }
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.white.opacity(0.12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                )
+                
                 // Overall Performance Card
                 VStack(spacing: 16) {
                     HStack {
@@ -605,73 +672,6 @@ struct OverviewTabView: View {
                             gradient: [Color.orange, Color.red]
                         )
                     }
-                }
-                .padding(20)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.white.opacity(0.12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
-                )
-                
-                // Report Section
-                VStack(spacing: 16) {
-                    HStack {
-                        Text("Report")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                        Spacer()
-                    }
-                    
-                    Button(action: onGenerateReport) {
-                        HStack(spacing: 16) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [Color.blue, Color.cyan]),
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 56, height: 56)
-                                    .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                                
-                                if isGeneratingReport {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Image(systemName: "doc.text.magnifyingglass")
-                                        .font(.system(size: 24))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Generate Report")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                                
-                                Text(isGeneratingReport ? "Generating..." : "View detailed report")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.7))
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.08))
-                        )
-                    }
-                    .disabled(isGeneratingReport)
                 }
                 .padding(20)
                 .background(
@@ -1197,7 +1197,7 @@ struct ActivityRow: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 4) {
-                Text(avgScore > 0 ? "\(avgScore)%" : "N/A")
+                Text(avgScore > 0 ? "\(min(avgScore, 100))%" : "N/A")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.white)
                 
