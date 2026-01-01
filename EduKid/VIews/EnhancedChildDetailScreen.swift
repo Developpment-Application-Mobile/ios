@@ -16,6 +16,8 @@ struct EnhancedChildDetailScreen: View {
     @State private var localPuzzles: [LocalPuzzle] = []
     @State private var serverPuzzles: [PuzzleResponse] = []
     @State private var games: [[String: Any]] = []
+    @State private var inventory: [Gift] = []
+    @State private var netScore: Int = 0
     @State private var isLoading = false
     @State private var selectedQuiz: AIQuizResponse?
     @State private var showQuizDetail = false
@@ -78,10 +80,6 @@ struct EnhancedChildDetailScreen: View {
         serverPuzzles.filter { $0.isCompleted }
     }
     
-    var totalCompleted: Int {
-        completedQuizzes.count + completedPuzzles.count + completedServerPuzzles.count + games.count
-    }
-    
     var averageQuizScore: Int {
         guard !completedQuizzes.isEmpty else { return 0 }
         return completedQuizzes.reduce(0) { $0 + $1.score } / completedQuizzes.count
@@ -104,12 +102,28 @@ struct EnhancedChildDetailScreen: View {
     }
     
     var calculatedTotalScore: Int {
-        let quizScore = completedQuizzes.reduce(0) { $0 + $1.score }
-        let localPuzzleScore = completedPuzzles.reduce(0) { $0 + $1.score }
-        let serverPuzzleScore = completedServerPuzzles.reduce(0) { $0 + $1.score }
-        let gameScore = games.compactMap { $0["score"] as? Int }.reduce(0, +)
-        
-        return quizScore + localPuzzleScore + serverPuzzleScore + gameScore
+        let stats = ScoreCalculationService.shared.calculateChildStats(
+            quizzes: quizzes,
+            localPuzzles: localPuzzles,
+            serverPuzzles: serverPuzzles,
+            games: games
+        )
+        return stats.totalScore
+    }
+    
+    var displayScore: Int {
+        // Return NET score if inventory is loaded, otherwise gross score
+        return netScore > 0 ? netScore : calculatedTotalScore
+    }
+    
+    var totalCompleted: Int {
+        let stats = ScoreCalculationService.shared.calculateChildStats(
+            quizzes: quizzes,
+            localPuzzles: localPuzzles,
+            serverPuzzles: serverPuzzles,
+            games: games
+        )
+        return stats.totalCompleted
     }
     
     var body: some View {
@@ -184,7 +198,7 @@ struct EnhancedChildDetailScreen: View {
                             .foregroundColor(.white.opacity(0.8))
                         
                         HStack(spacing: 8) {
-                            Label("\(calculatedTotalScore) pts", systemImage: "star.fill")
+                            Label("\(displayScore) pts", systemImage: "star.fill")
                                 .font(.caption.bold())
                                 .foregroundColor(.yellow)
                         }
@@ -224,7 +238,7 @@ struct EnhancedChildDetailScreen: View {
                         averageQuizScore: averageQuizScore,
                         averagePuzzleScore: averagePuzzleScore,
                         averageGameScore: averageGameScore,
-                        totalScore: calculatedTotalScore,
+                        totalScore: displayScore,
                         onQR: onGenerateQRClick,
                         onGenerateReport: generateReport,
                         isGeneratingReport: isGeneratingReport,
@@ -275,7 +289,23 @@ struct EnhancedChildDetailScreen: View {
             do {
                 let fetchedQuizzes = try await AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
                 await MainActor.run {
-                    self.quizzes = fetchedQuizzes
+                    // Check if any quiz has a date
+                    let hasAnyDates = fetchedQuizzes.contains { $0.createdAt != nil }
+                    
+                    if hasAnyDates {
+                        // Sort by createdAt descending (newest first)
+                        self.quizzes = fetchedQuizzes.sorted { quiz1, quiz2 in
+                            if let date1 = quiz1.createdAt, let date2 = quiz2.createdAt {
+                                return date1 > date2
+                            }
+                            if quiz1.createdAt != nil { return true }
+                            if quiz2.createdAt != nil { return false }
+                            return false
+                        }
+                    } else {
+                        // If no dates, reverse the array (assuming API returns oldest first)
+                        self.quizzes = Array(fetchedQuizzes.reversed())
+                    }
                 }
             } catch {
                 print("Error loading quizzes: \(error)")
@@ -285,10 +315,58 @@ struct EnhancedChildDetailScreen: View {
             do {
                 let fetchedPuzzles = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
                 await MainActor.run {
-                    self.serverPuzzles = fetchedPuzzles
+                    // Check if any puzzle has a date
+                    let hasAnyDates = fetchedPuzzles.contains { $0.createdAt != nil }
+                    
+                    if hasAnyDates {
+                        // Sort by createdAt descending (newest first)
+                        self.serverPuzzles = fetchedPuzzles.sorted { puzzle1, puzzle2 in
+                            if let date1 = puzzle1.createdAt, let date2 = puzzle2.createdAt {
+                                return date1 > date2
+                            }
+                            if puzzle1.createdAt != nil { return true }
+                            if puzzle2.createdAt != nil { return false }
+                            return false
+                        }
+                    } else {
+                        // If no dates, reverse the array (assuming API returns oldest first)
+                        self.serverPuzzles = Array(fetchedPuzzles.reversed())
+                    }
                 }
             } catch {
                 print("Error loading puzzles: \(error)")
+            }
+            
+            // 3. Load inventory and calculate NET score
+            do {
+                if let token = AuthService.shared.getToken() {
+                    let baseURL = "https://preterrestrial-georgann-recappable.ngrok-free.dev"
+                    let pUrl = URL(string: "\(baseURL)/parents/\(parentId)")!
+                    var req = URLRequest(url: pUrl)
+                    req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                    req.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
+                    let (d, _) = try await URLSession.shared.data(for: req)
+                    
+                    if let json = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                       let childrenArr = json["children"] as? [[String: Any]] {
+                        if let childDict = childrenArr.first(where: { ($0["_id"] as? String) == child.id || ($0["id"] as? String) == child.id }) {
+                            if let invArr = childDict["inventory"] as? [[String: Any]] {
+                                let data = try JSONSerialization.data(withJSONObject: invArr)
+                                let loadedInventory = try JSONDecoder().decode([Gift].self, from: data)
+                                
+                                await MainActor.run {
+                                    self.inventory = loadedInventory
+                                    // Calculate NET score
+                                    let grossScore = self.calculatedTotalScore
+                                    let totalSpent = loadedInventory.reduce(0) { $0 + $1.cost }
+                                    self.netScore = max(0, grossScore - totalSpent)
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch {
+                print("Error loading inventory: \(error)")
             }
             
             await MainActor.run {

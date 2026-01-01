@@ -177,32 +177,33 @@ struct ChildScheduledActivitiesView: View {
     
     @ViewBuilder
     private func puzzleView(for puzzleType: ScheduledActivity.PuzzleType) -> some View {
-        // Create a temporary puzzle with the scheduled difficulty
-        let tempPuzzle = LocalPuzzle(
-            id: UUID().uuidString,
-            childId: child.id,
-            title: "Scheduled Puzzle",
-            type: .pattern,
-            difficulty: puzzleType == .easy ? .easy : .medium,
-            gridSize: puzzleType == .easy ? 3 : 4,
-            pieces: [],
-            hint: "Complete the puzzle!",
-            solution: "",
-            puzzleImage: .lion,
-            customImagePath: nil,
-            isCompleted: false,
-            attempts: 0,
-            timeSpent: 0,
-            score: 0,
-            createdAt: Date(),
-            completedAt: nil
-        )
-        
-        ImagePuzzlePlayScreen(puzzle: tempPuzzle, child: child) {
-            if let activity = selectedActivity {
-                markActivityCompleted(activity)
+        if puzzleType.isLocal {
+            // Load local puzzle
+            if let localPuzzle = LocalPuzzleManager.shared.getAllPuzzles(for: child.id)
+                .first(where: { $0.id == puzzleType.id }) {
+                ImagePuzzlePlayScreen(puzzle: localPuzzle, child: child) {
+                    if let activity = selectedActivity {
+                        markActivityCompleted(activity)
+                    }
+                    showPuzzleScreen = false
+                }
+            } else {
+                // Fallback if puzzle not found
+                Text("Puzzle not found")
+                    .foregroundColor(.white)
             }
-            showPuzzleScreen = false
+        } else {
+            // Load server puzzle
+            ServerPuzzleLoader(
+                child: child,
+                puzzleId: puzzleType.id,
+                onComplete: {
+                    if let activity = selectedActivity {
+                        markActivityCompleted(activity)
+                    }
+                    showPuzzleScreen = false
+                }
+            )
         }
     }
     
@@ -396,6 +397,83 @@ struct ChildCompletedActivityCard: View {
         .padding(16)
         .background(Color.white.opacity(0.1))
         .cornerRadius(12)
+    }
+}
+
+// MARK: - Server Puzzle Loader
+struct ServerPuzzleLoader: View {
+    let child: Child
+    let puzzleId: String
+    let onComplete: () -> Void
+    
+    @State private var puzzle: PuzzleResponse?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    
+    var body: some View {
+        ZStack {
+            if isLoading {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.5)
+            } else if let error = errorMessage {
+                VStack(spacing: 16) {
+                    Text("❌")
+                        .font(.system(size: 60))
+                    Text("Error loading puzzle")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                    
+                    Button("Close") {
+                        onComplete()
+                    }
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(Color.white.opacity(0.2))
+                    .cornerRadius(12)
+                }
+                .padding()
+            } else if let puzzle = puzzle {
+                PuzzlePlayScreen(puzzle: puzzle, child: child, onComplete: onComplete)
+            }
+        }
+        .onAppear {
+            loadPuzzle()
+        }
+    }
+    
+    private func loadPuzzle() {
+        Task {
+            do {
+                guard let parentId = AuthService.shared.getParentId() else {
+                    await MainActor.run {
+                        errorMessage = "Authentication error"
+                        isLoading = false
+                    }
+                    return
+                }
+                
+                let fetchedPuzzle = try await PuzzleService.shared.getPuzzle(
+                    parentId: parentId,
+                    kidId: child.id,
+                    puzzleId: puzzleId
+                )
+                
+                await MainActor.run {
+                    puzzle = fetchedPuzzle
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    isLoading = false
+                }
+            }
+        }
     }
 }
 

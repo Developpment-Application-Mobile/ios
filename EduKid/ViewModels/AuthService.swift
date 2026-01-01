@@ -394,68 +394,123 @@ class AuthService {
         let requestBody = SignInRequest(email: email, password: password)
         request.httpBody = try JSONEncoder().encode(requestBody)
         
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AuthError.invalidResponse
-        }
-        
-        if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                let token = json["token"] as? String ??
-                json["accessToken"] as? String ??
-                json["access_token"] as? String ??
-                (json["data"] as? [String: Any])?["token"] as? String
-                
-                var userDict = json["user"] as? [String: Any]
-                if userDict == nil { userDict = (json["data"] as? [String: Any])?["user"] as? [String: Any] }
-                if userDict == nil { userDict = json }
-                
-                var userId: String? = userDict?["id"] as? String
-                if userId == nil { userId = userDict?["_id"] as? String }
-                if userId == nil { userId = userDict?["userId"] as? String }
-                if userId == nil { userId = userDict?["parentId"] as? String }
-                
-                let user = UserResponse(
-                    id: userId,
-                    name: userDict?["name"] as? String,
-                    email: userDict?["email"] as? String,
-                    profileImageUrl: userDict?["profileImageUrl"] as? String ?? userDict?["profile_image_url"] as? String
-                )
-                
-                print("SIGN IN: Extracted token: \(token != nil ? "YES" : "NO")")
-                print("SIGN IN: User ID: \(user.id ?? "NONE")")
-                print("SIGN IN: User Name: \(user.name ?? "NONE")")
-                print("SIGN IN: User Email: \(user.email ?? "NONE")")
-                
-                if user.id == nil, let token = token {
-                    if let decodedId = decodeJWTForUserId(token) {
-                        print("SIGN IN: Extracted user ID from JWT: \(decodedId)")
-                        let updatedUser = UserResponse(
-                            id: decodedId,
-                            name: user.name,
-                            email: user.email,
-                            profileImageUrl: user.profileImageUrl
-                        )
-                        if let id = updatedUser.id {
-                            saveParentId(id)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AuthError.invalidResponse
+            }
+            
+            if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    let token = json["token"] as? String ??
+                    json["accessToken"] as? String ??
+                    json["access_token"] as? String ??
+                    (json["data"] as? [String: Any])?["token"] as? String
+                    
+                    var userDict = json["user"] as? [String: Any]
+                    if userDict == nil { userDict = (json["data"] as? [String: Any])?["user"] as? [String: Any] }
+                    if userDict == nil { userDict = json }
+                    
+                    var userId: String? = userDict?["id"] as? String
+                    if userId == nil { userId = userDict?["_id"] as? String }
+                    if userId == nil { userId = userDict?["userId"] as? String }
+                    if userId == nil { userId = userDict?["parentId"] as? String }
+                    
+                    let user = UserResponse(
+                        id: userId,
+                        name: userDict?["name"] as? String,
+                        email: userDict?["email"] as? String,
+                        profileImageUrl: userDict?["profileImageUrl"] as? String ?? userDict?["profile_image_url"] as? String
+                    )
+                    
+                    print("SIGN IN: Extracted token: \(token != nil ? "YES" : "NO")")
+                    print("SIGN IN: User ID: \(user.id ?? "NONE")")
+                    print("SIGN IN: User Name: \(user.name ?? "NONE")")
+                    print("SIGN IN: User Email: \(user.email ?? "NONE")")
+                    
+                    if user.id == nil, let token = token {
+                        if let decodedId = decodeJWTForUserId(token) {
+                            print("SIGN IN: Extracted user ID from JWT: \(decodedId)")
+                            let updatedUser = UserResponse(
+                                id: decodedId,
+                                name: user.name,
+                                email: user.email,
+                                profileImageUrl: user.profileImageUrl
+                            )
+                            if let id = updatedUser.id {
+                                saveParentId(id)
+                            }
+                            return SignInResponse(token: token, user: updatedUser, message: nil)
                         }
-                        return SignInResponse(token: token, user: updatedUser, message: nil)
                     }
+                    
+                    if let id = user.id {
+                        saveParentId(id)
+                    }
+                    
+                    return SignInResponse(token: token, user: user, message: nil)
+                }
+                throw AuthError.serverError("Failed to decode response")
+            } else {
+                // Try to decode error message from server
+                if let errorData = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                    let errorMsg = errorData.message ?? errorData.error ?? "Sign in failed"
+                    
+                    // Check for specific error patterns and provide clearer messages
+                    if errorMsg.lowercased().contains("invalid credentials") ||
+                       errorMsg.lowercased().contains("unauthorized") {
+                        // Check if it's likely a password issue (401 typically means wrong password)
+                        if httpResponse.statusCode == 401 {
+                            throw AuthError.serverError("Incorrect email or password")
+                        }
+                    }
+                    
+                    if errorMsg.lowercased().contains("email") && errorMsg.lowercased().contains("not found") {
+                        throw AuthError.serverError("Email not found. Please check your email or sign up.")
+                    }
+                    
+                    if errorMsg.lowercased().contains("password") {
+                        throw AuthError.serverError("Incorrect password")
+                    }
+                    
+                    throw AuthError.serverError(errorMsg)
                 }
                 
-                if let id = user.id {
-                    saveParentId(id)
+                // Try to parse as simple JSON
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let message = json["message"] as? String {
+                    
+                    if message.lowercased().contains("invalid credentials") ||
+                       message.lowercased().contains("unauthorized") {
+                        throw AuthError.serverError("Incorrect email or password")
+                    }
+                    
+                    if message.lowercased().contains("email") && message.lowercased().contains("not found") {
+                        throw AuthError.serverError("Email not found. Please check your email or sign up.")
+                    }
+                    
+                    if message.lowercased().contains("password") {
+                        throw AuthError.serverError("Incorrect password")
+                    }
+                    
+                    throw AuthError.serverError(message)
                 }
                 
-                return SignInResponse(token: token, user: user, message: nil)
+                // Fallback based on status code
+                if httpResponse.statusCode == 401 {
+                    throw AuthError.serverError("Incorrect email or password")
+                } else if httpResponse.statusCode == 404 {
+                    throw AuthError.serverError("Email not found. Please check your email or sign up.")
+                }
+                
+                throw AuthError.serverError("Sign in failed. Please try again.")
             }
-            throw AuthError.serverError("Failed to decode response")
-        } else {
-            if let errorData = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                throw AuthError.serverError(errorData.message ?? errorData.error ?? "Sign in failed")
-            }
-            throw AuthError.serverError("Sign in failed with status code: \(httpResponse.statusCode)")
+        } catch let error as AuthError {
+            throw error
+        } catch {
+            print("❌ Sign In Network Error: \(error.localizedDescription)")
+            throw AuthError.serverError("Network error. Please check your connection and try again.")
         }
     }
     

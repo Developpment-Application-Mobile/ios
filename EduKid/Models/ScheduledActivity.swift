@@ -86,22 +86,17 @@ struct ScheduledActivity: Identifiable, Codable {
     }
     
     // MARK: - Puzzle Types
-    enum PuzzleType: String, Codable {
-        case easy = "Easy (3x3)"
-        case medium = "Medium (4x4)"
+    struct PuzzleType: Codable, Equatable {
+        let id: String
+        let title: String
+        let description: String
+        let isLocal: Bool
         
-        var icon: String {
-            switch self {
-            case .easy: return "square.grid.3x3.fill"
-            case .medium: return "square.grid.4x4.fill"
-            }
-        }
-        
-        var description: String {
-            switch self {
-            case .easy: return "3x3 puzzle grid"
-            case .medium: return "4x4 puzzle grid"
-            }
+        init(id: String, title: String, description: String, isLocal: Bool) {
+            self.id = id
+            self.title = title
+            self.description = description
+            self.isLocal = isLocal
         }
     }
 }

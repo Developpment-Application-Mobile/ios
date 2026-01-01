@@ -38,9 +38,12 @@ struct ChildPuzzleContentView: View {
     
     var pendingLocalPuzzles: [LocalPuzzle] { localPuzzles.filter { !$0.isCompleted } }
     var completedLocalPuzzles: [LocalPuzzle] { localPuzzles.filter { $0.isCompleted } }
-    // FIXED: Filter out AI puzzles with images
+    // Show all pending server puzzles including AI-generated image puzzles
     var pendingServerPuzzles: [PuzzleResponse] {
-        serverPuzzles.filter { !$0.isCompleted && $0.type.lowercased() != "image" }
+        serverPuzzles.filter { !$0.isCompleted }
+    }
+    var completedServerPuzzles: [PuzzleResponse] {
+        serverPuzzles.filter { $0.isCompleted }
     }
     
     var body: some View {
@@ -70,11 +73,14 @@ struct ChildPuzzleContentView: View {
                                 }
                             }
                         }
-                        if !completedLocalPuzzles.isEmpty {
+                        if !completedLocalPuzzles.isEmpty || !completedServerPuzzles.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
                                 ChildSectionHeader(title: "Completed ⭐", icon: "checkmark.circle.fill")
                                 ForEach(completedLocalPuzzles) { puzzle in
                                     ChildCompletedPuzzleCard(puzzle: puzzle)
+                                }
+                                ForEach(completedServerPuzzles) { puzzle in
+                                    ChildCompletedServerPuzzleCard(puzzle: puzzle)
                                 }
                             }
                         }
@@ -107,7 +113,22 @@ struct ChildPuzzleContentView: View {
             do {
                 guard let parentId = AuthService.shared.getParentId() else { return }
                 let fetched = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
-                await MainActor.run { serverPuzzles = fetched; isLoading = false }
+                await MainActor.run {
+                    // Check if any puzzle has a date
+                    let hasAnyDates = fetched.contains { $0.createdAt != nil }
+                    
+                    if hasAnyDates {
+                        // Sort by createdAt descending (newest first)
+                        serverPuzzles = fetched.sorted { 
+                            guard let date1 = $0.createdAt, let date2 = $1.createdAt else { return false }
+                            return date1 > date2
+                        }
+                    } else {
+                        // If no dates, reverse the array (assuming API returns oldest first)
+                        serverPuzzles = Array(fetched.reversed())
+                    }
+                    isLoading = false 
+                }
             } catch {
                 await MainActor.run { isLoading = false }
             }
@@ -200,7 +221,45 @@ struct ChildServerPuzzleCard: View {
             HStack(spacing: 16) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 16).fill(puzzle.puzzleType.color.opacity(0.3)).frame(width: 80, height: 80)
-                    Image(systemName: puzzle.puzzleType.icon).font(.system(size: 36)).foregroundColor(puzzle.puzzleType.color)
+                    
+                    // Show image preview for image-type puzzles
+                    if puzzle.type.lowercased() == "image", 
+                       let imageUrl = puzzle.imageUrl,
+                       let url = URL(string: imageUrl) {
+                        CachedAsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                        } placeholder: {
+                            Image(systemName: puzzle.puzzleType.icon)
+                                .font(.system(size: 36))
+                                .foregroundColor(puzzle.puzzleType.color)
+                        }
+                    } else {
+                        Image(systemName: puzzle.puzzleType.icon)
+                            .font(.system(size: 36))
+                            .foregroundColor(puzzle.puzzleType.color)
+                    }
+                    
+                    // AI badge for adaptive puzzles
+                    if puzzle.title.contains("IMAGE PUZZLE") {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Text("AI")
+                                    .font(.caption2.bold())
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.purple)
+                                    .cornerRadius(4)
+                                    .padding(4)
+                            }
+                            Spacer()
+                        }
+                    }
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     Text(puzzle.title).font(.headline.bold()).foregroundColor(.white)
@@ -236,6 +295,61 @@ struct ChildCompletedPuzzleCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 } else {
                     Text(puzzle.puzzleImage.emoji).font(.system(size: 32))
+                }
+                
+                Circle().fill(Color.green).frame(width: 20, height: 20)
+                    .overlay(Image(systemName: "checkmark").font(.caption.bold()).foregroundColor(.white)).offset(x: 22, y: -22)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(puzzle.title).font(.subheadline.bold()).foregroundColor(.white)
+                HStack(spacing: 8) {
+                    Label("\(puzzle.attempts) tries", systemImage: "hand.tap")
+                    Label(formatTime(puzzle.timeSpent), systemImage: "clock")
+                }
+                .font(.caption).foregroundColor(.white.opacity(0.6))
+            }
+            Spacer()
+            VStack(spacing: 4) {
+                Text("⭐").font(.title3)
+                Text("\(puzzle.score)").font(.headline.bold()).foregroundColor(.yellow)
+            }
+        }
+        .padding(12).background(Color.white.opacity(0.1)).cornerRadius(16)
+    }
+    
+    private func formatTime(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+// MARK: - Child Completed Server Puzzle Card
+struct ChildCompletedServerPuzzleCard: View {
+    let puzzle: PuzzleResponse
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12).fill(puzzle.puzzleType.color.opacity(0.5)).frame(width: 60, height: 60)
+                
+                // Show image preview for image-type puzzles
+                if puzzle.type.lowercased() == "image", 
+                   let imageUrl = puzzle.imageUrl,
+                   let url = URL(string: imageUrl) {
+                    CachedAsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 60, height: 60)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    } placeholder: {
+                        Image(systemName: puzzle.puzzleType.icon)
+                            .font(.system(size: 32))
+                            .foregroundColor(puzzle.puzzleType.color)
+                    }
+                } else {
+                    Image(systemName: puzzle.puzzleType.icon)
+                        .font(.system(size: 32))
+                        .foregroundColor(puzzle.puzzleType.color)
                 }
                 
                 Circle().fill(Color.green).frame(width: 20, height: 20)

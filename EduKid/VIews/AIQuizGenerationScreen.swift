@@ -512,7 +512,7 @@ struct ParentQuizListScreen: View {
                         .foregroundColor(.white.opacity(0.6))
                     
                     if !quizzes.isEmpty {
-                        let completedCount = quizzes.filter { $0.answered > 0 }.count
+                        let completedCount = quizzes.filter { $0.answered > 0 || $0.isAnswered }.count
                         Text("\(completedCount) completed")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.5))
@@ -622,11 +622,44 @@ struct ParentQuizListScreen: View {
                     kidId: child.id
                 )
                 await MainActor.run {
-                    quizzes = fetchedQuizzes.sorted { q1, q2 in
-                        guard let date1 = q1.createdAt, let date2 = q2.createdAt else { return false }
-                        return date1 > date2
+                    // Check if any quiz has a date
+                    let hasAnyDates = fetchedQuizzes.contains { $0.createdAt != nil && !($0.createdAt?.isEmpty ?? true) }
+                    
+                    if hasAnyDates {
+                        // Sort by createdAt (newest first), handling nil values
+                        quizzes = fetchedQuizzes.sorted { q1, q2 in
+                            let date1 = q1.createdAt ?? ""
+                            let date2 = q2.createdAt ?? ""
+                            
+                            // If both have dates, compare them (descending order - newest first)
+                            if !date1.isEmpty && !date2.isEmpty {
+                                return date1 > date2
+                            }
+                            
+                            // If only q1 has a date, it comes first
+                            if !date1.isEmpty && date2.isEmpty {
+                                return true
+                            }
+                            
+                            // If only q2 has a date, it comes first
+                            if date1.isEmpty && !date2.isEmpty {
+                                return false
+                            }
+                            
+                            // If neither has a date, maintain original order
+                            return false
+                        }
+                    } else {
+                        // If no dates, reverse the array (assuming API returns oldest first)
+                        quizzes = Array(fetchedQuizzes.reversed())
                     }
                     isLoading = false
+                    
+                    // Debug: Print the order
+                    print("📋 Quiz Order (newest first):")
+                    for (index, quiz) in quizzes.enumerated() {
+                        print("  \(index + 1). \(quiz.meaningfulTitle) - Created: \(quiz.createdAt ?? "NO DATE")")
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -687,7 +720,7 @@ struct EnhancedAIQuizCard: View {
                         Text(quiz.meaningfulTitle)
                             .font(.headline)
                             .foregroundColor(.white)
-                            .lineLimit(1)
+                            .lineLimit(2)
                         
                         if isRecent {
                             Text("NEW")
@@ -726,7 +759,7 @@ struct EnhancedAIQuizCard: View {
             .padding(16)
             
             // Score bar if answered
-            if quiz.answered > 0 {
+            if quiz.answered > 0 || quiz.isAnswered {
                 VStack(spacing: 8) {
                     Divider()
                         .background(Color.white.opacity(0.2))
@@ -737,7 +770,7 @@ struct EnhancedAIQuizCard: View {
                                 .font(.caption2)
                                 .foregroundColor(.white.opacity(0.6))
                             
-                            Text("\(quiz.score)/\(quiz.questions.count) correct")
+                            Text("\(quiz.score)% correct")
                                 .font(.caption.bold())
                                 .foregroundColor(.white.opacity(0.8))
                         }

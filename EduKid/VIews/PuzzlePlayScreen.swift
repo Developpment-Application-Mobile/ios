@@ -21,6 +21,9 @@ struct PuzzlePlayScreen: View {
     @State private var showResult = false
     @State private var isCorrect = false
     @State private var finalScore = 0
+    @State private var mainImage: UIImage?  // Shared image for all pieces
+    @State private var showingPreview = true  // Show complete image first
+    @State private var previewCountdown = 5  // 5 second countdown
     
     private var gridSize: Int { puzzle.gridSize }
     private var totalPieces: Int { gridSize * gridSize }
@@ -111,7 +114,10 @@ struct PuzzlePlayScreen: View {
                                                 isSelected: selectedIndex == displayIndex,
                                                 puzzleType: puzzle.puzzleType,
                                                 gridSize: gridSize,
-                                                pieceSize: pieceSize
+                                                pieceSize: pieceSize,
+                                                mainImageUrl: puzzle.imageUrl,
+                                                displayPosition: displayIndex,
+                                                sharedImage: mainImage  // Pass shared image
                                             ) {
                                                 handleTap(at: displayIndex)
                                                 PuzzleSoundManager.shared.playPiecePlaced()
@@ -156,10 +162,46 @@ struct PuzzlePlayScreen: View {
                 }
                 .padding(.bottom, 40)
             }
+            
+            // Preview Overlay - Show complete image for 5 seconds
+            if showingPreview, let image = mainImage {
+                ZStack {
+                    Color.black.opacity(0.7)
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: 20) {
+                        Text("🎯")
+                            .font(.system(size: 60))
+                        
+                        Text("Remember this!")
+                            .font(.title.bold())
+                            .foregroundColor(.white)
+                        
+                        // Show complete image
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 300, height: 300)
+                            .cornerRadius(20)
+                            .shadow(radius: 20)
+                        
+                        Text("Puzzle will shuffle in...")
+                            .font(.headline)
+                            .foregroundColor(.white.opacity(0.8))
+                        
+                        Text("\(previewCountdown)")
+                            .font(.system(size: 72, weight: .bold, design: .rounded))
+                            .foregroundColor(.yellow)
+                            .animation(.spring(), value: previewCountdown)
+                    }
+                }
+                .transition(.opacity)
+            }
         }
         .onAppear {
             setupPuzzle()
-            startTimer()
+            loadMainImage()  // Load image once for all pieces
+            startPreviewCountdown()  // Start preview countdown
         }
         .onDisappear {
             timer?.invalidate()
@@ -208,14 +250,33 @@ struct PuzzlePlayScreen: View {
             ))
         }
         
-        // Shuffle if not already shuffled
-        if pieces.allSatisfy({ $0.currentPosition == $0.correctPosition }) {
-            let shuffled = Array(0..<totalPieces).shuffled()
-            for (index, newPos) in shuffled.enumerated() {
+        // Start with pieces in correct order for preview
+        // They will be shuffled after preview countdown
+        for index in 0..<pieces.count {
+            pieces[index].currentPosition = pieces[index].correctPosition
+        }
+    }
+    
+    private func shufflePieces() {
+        // Shuffle pieces after preview
+        let shuffled = Array(0..<totalPieces).shuffled()
+        for (index, newPos) in shuffled.enumerated() {
+            if index < pieces.count {
+                pieces[index].currentPosition = newPos
+            }
+        }
+        
+        // Ensure at least some pieces are out of place
+        var correctCount = pieces.filter { $0.currentPosition == $0.correctPosition }.count
+        while correctCount == totalPieces {
+            // Re-shuffle if all pieces ended up correct
+            let reshuffled = Array(0..<totalPieces).shuffled()
+            for (index, newPos) in reshuffled.enumerated() {
                 if index < pieces.count {
                     pieces[index].currentPosition = newPos
                 }
             }
+            correctCount = pieces.filter { $0.currentPosition == $0.correctPosition }.count
         }
     }
     
@@ -223,6 +284,47 @@ struct PuzzlePlayScreen: View {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             timeElapsed += 1
         }
+    }
+    
+    private func startPreviewCountdown() {
+        // Start countdown timer
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if showingPreview {
+                previewCountdown -= 1
+                
+                if previewCountdown <= 0 {
+                    // End preview, shuffle pieces, start game timer
+                    timer?.invalidate()
+                    
+                    // Shuffle pieces
+                    shufflePieces()
+                    
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                        showingPreview = false
+                    }
+                    
+                    // Small delay before starting game timer
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        timeElapsed = 0
+                        startTimer()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func loadMainImage() {
+        guard puzzle.puzzleType == .image,
+              let imageUrlString = puzzle.imageUrl,
+              let url = URL(string: imageUrlString) else { return }
+        
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            if let data = data, let image = UIImage(data: data) {
+                DispatchQueue.main.async {
+                    self.mainImage = image
+                }
+            }
+        }.resume()
     }
     
     private func handleTap(at displayIndex: Int) {
@@ -342,38 +444,119 @@ struct ImprovedPuzzlePieceView: View {
     let puzzleType: PuzzleType
     let gridSize: Int
     let pieceSize: CGFloat
+    let mainImageUrl: String?
+    let displayPosition: Int
+    let sharedImage: UIImage?  // Shared loaded image
     let onTap: () -> Void
     
     var body: some View {
+        let row = displayPosition / gridSize
+        let col = displayPosition % gridSize
+        let extend = pieceSize * 0.15  // Extension for tabs
+        let fullSize = pieceSize + extend * 2
+        
         Button(action: onTap) {
             ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(
-                        LinearGradient(
-                            colors: isSelected ? [.yellow, .orange] : [.white, Color.white.opacity(0.9)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                // Drop shadow
+                JigsawPieceShape(row: row, col: col, totalRows: gridSize, totalCols: gridSize, extend: extend)
+                    .fill(Color.black.opacity(0.15))
+                    .offset(x: 0, y: 2)
+                    .blur(radius: isSelected ? 8 : 4)
+                
+                // Main piece
+                ZStack {
+                    // Background gradient
+                    JigsawPieceShape(row: row, col: col, totalRows: gridSize, totalCols: gridSize, extend: extend)
+                        .fill(
+                            LinearGradient(
+                                colors: isSelected ? [.yellow, .orange] : [.white, Color.white.opacity(0.9)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .shadow(
-                        color: isSelected ? .yellow.opacity(0.6) : .black.opacity(0.2),
-                        radius: isSelected ? 12 : 6
-                    )
+                    
+                    // Content - cropped image
+                    if puzzleType == .image, let image = sharedImage {
+                        if let croppedImage = cropImage(image, pieceId: piece.correctPosition) {
+                            Image(uiImage: croppedImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: pieceSize, height: pieceSize)
+                                .offset(x: extend, y: extend)
+                                .clipShape(JigsawPieceShape(row: row, col: col, totalRows: gridSize, totalCols: gridSize, extend: extend))
+                        }
+                    } else if puzzleType == .image {
+                        // Loading
+                        ZStack {
+                            Color.gray.opacity(0.2)
+                            ProgressView()
+                        }
+                        .frame(width: pieceSize, height: pieceSize)
+                        .offset(x: extend, y: extend)
+                        .clipShape(JigsawPieceShape(row: row, col: col, totalRows: gridSize, totalCols: gridSize, extend: extend))
+                    } else {
+                        PieceContentView(piece: piece, puzzleType: puzzleType, size: pieceSize)
+                            .offset(x: extend, y: extend)
+                            .clipShape(JigsawPieceShape(row: row, col: col, totalRows: gridSize, totalCols: gridSize, extend: extend))
+                    }
+                    
+                    // Inner shadow for depth
+                    JigsawPieceShape(row: row, col: col, totalRows: gridSize, totalCols: gridSize, extend: extend)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.3), Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                        .blendMode(.overlay)
+                    
+                    // Bottom-right edge highlight
+                    JigsawPieceShape(row: row, col: col, totalRows: gridSize, totalCols: gridSize, extend: extend)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.clear, Color.black.opacity(0.15)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                }
                 
-                PieceContentView(piece: piece, puzzleType: puzzleType, size: pieceSize)
-                    .padding(6)
-                
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        isSelected ? Color.yellow : Color.black.opacity(0.1),
-                        lineWidth: isSelected ? 4 : 2
-                    )
+                // Selection glow
+                if isSelected {
+                    JigsawPieceShape(row: row, col: col, totalRows: gridSize, totalCols: gridSize, extend: extend)
+                        .stroke(Color.yellow, lineWidth: 3)
+                        .shadow(color: .yellow.opacity(0.8), radius: 8)
+                }
             }
-            .frame(width: pieceSize, height: pieceSize)
+            .frame(width: fullSize, height: fullSize)
+            .contentShape(JigsawPieceShape(row: row, col: col, totalRows: gridSize, totalCols: gridSize, extend: extend))
             .scaleEffect(isSelected ? 1.05 : 1.0)
             .zIndex(isSelected ? 100 : 0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
         }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func cropImage(_ image: UIImage, pieceId: Int) -> UIImage? {
+        guard let cgImage = image.cgImage else { return nil }
+        
+        let row = pieceId / gridSize
+        let col = pieceId % gridSize
+        
+        let width = CGFloat(cgImage.width) / CGFloat(gridSize)
+        let height = CGFloat(cgImage.height) / CGFloat(gridSize)
+        
+        let x = CGFloat(col) * width
+        let y = CGFloat(row) * height
+        
+        let cropRect = CGRect(x: x, y: y, width: width, height: height)
+        
+        guard let croppedCGImage = cgImage.cropping(to: cropRect) else { return nil }
+        
+        return UIImage(cgImage: croppedCGImage, scale: image.scale, orientation: image.imageOrientation)
     }
 }
 
@@ -386,22 +569,19 @@ struct PieceContentView: View {
     var body: some View {
         Group {
             if let imageUrl = piece.imageUrl, !imageUrl.isEmpty, let url = URL(string: imageUrl) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .empty:
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipped()
+                } placeholder: {
+                    ZStack {
+                        Color.gray.opacity(0.2)
                         ProgressView()
-                            .frame(width: size, height: size)
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: size, height: size)
-                            .clipped()
-                    case .failure:
-                        FallbackContent(piece: piece, puzzleType: puzzleType, size: size)
-                    @unknown default:
-                        FallbackContent(piece: piece, puzzleType: puzzleType, size: size)
+                            .progressViewStyle(CircularProgressViewStyle(tint: .gray))
                     }
+                    .frame(width: size, height: size)
                 }
             } else if piece.isEmoji {
                 Text(piece.content)
@@ -411,6 +591,75 @@ struct PieceContentView: View {
                 FallbackContent(piece: piece, puzzleType: puzzleType, size: size)
             }
         }
+    }
+}
+
+// MARK: - Cropped Image Piece View (for AI puzzles)
+struct CroppedImagePieceView: View {
+    let mainImageUrl: String
+    let pieceId: Int
+    let gridSize: Int
+    let size: CGFloat
+    
+    @State private var loadedImage: UIImage?
+    
+    var body: some View {
+        ZStack {
+            if let uiImage = loadedImage {
+                let row = pieceId / gridSize
+                let col = pieceId % gridSize
+                
+                // Crop the UIImage
+                if let croppedImage = cropImage(uiImage, row: row, col: col) {
+                    Image(uiImage: croppedImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipped()
+                } else {
+                    Color.gray.opacity(0.2)
+                        .frame(width: size, height: size)
+                }
+            } else {
+                ZStack {
+                    Color.gray.opacity(0.2)
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .gray))
+                }
+                .frame(width: size, height: size)
+                .onAppear {
+                    loadImage()
+                }
+            }
+        }
+    }
+    
+    private func loadImage() {
+        guard let url = URL(string: mainImageUrl) else { return }
+        
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            if let data = data, let image = UIImage(data: data) {
+                DispatchQueue.main.async {
+                    self.loadedImage = image
+                }
+            }
+        }.resume()
+    }
+    
+    private func cropImage(_ image: UIImage, row: Int, col: Int) -> UIImage? {
+        guard let cgImage = image.cgImage else { return nil }
+        
+        let width = CGFloat(cgImage.width) / CGFloat(gridSize)
+        let height = CGFloat(cgImage.height) / CGFloat(gridSize)
+        
+        let x = CGFloat(col) * width
+        let y = CGFloat(row) * height
+        
+        let cropRect = CGRect(x: x, y: y, width: width, height: height)
+        
+        guard let croppedCGImage = cgImage.cropping(to: cropRect) else { return nil }
+        
+        return UIImage(cgImage: croppedCGImage, scale: image.scale, orientation: image.imageOrientation)
     }
 }
 
@@ -467,3 +716,4 @@ struct StatPill: View {
         .cornerRadius(20)
     }
 }
+

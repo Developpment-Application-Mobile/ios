@@ -137,55 +137,81 @@ struct ScheduledActivityCard: View {
     @State private var currentTime = Date()
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
+    private var activityIcon: String {
+        switch activity.activityType {
+        case .quiz:
+            return "doc.text.fill"
+        case .game:
+            return "gamecontroller.fill"
+        case .puzzle:
+            return "puzzlepiece.fill"
+        }
+    }
+    
+    private var activityColor: Color {
+        switch activity.activityType {
+        case .quiz:
+            return .blue
+        case .game:
+            return .orange
+        case .puzzle:
+            return .purple
+        }
+    }
+    
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 16) {
-                // Activity Icon
-                ZStack {
-                    Circle()
-                        .fill(activity.activityType.color.opacity(0.3))
-                        .frame(width: 60, height: 60)
-                    
-                    Image(systemName: activity.activityType.icon)
-                        .font(.title2)
-                        .foregroundColor(activity.activityType.color)
-                }
+        HStack(spacing: 16) {
+            // Activity Icon
+            ZStack {
+                Circle()
+                    .fill(activityColor.opacity(0.3))
+                    .frame(width: 60, height: 60)
                 
-                // Info
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(activity.title)
-                        .font(.headline)
-                        .foregroundColor(Color(hex: "272052"))
-                        .lineLimit(1)
-                    
-                    Text(activity.description)
-                        .font(.subheadline)
-                        .foregroundColor(Color(hex: "272052").opacity(0.7))
-                        .lineLimit(1)
-                    
-                    // Status
+                Image(systemName: activityIcon)
+                    .font(.title2)
+                    .foregroundColor(activityColor)
+            }
+            
+            // Info
+            VStack(alignment: .leading, spacing: 6) {
+                Text(activity.title)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                
+                Text(activity.description)
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.7))
+                    .lineLimit(1)
+                
+                // Scheduled time and status
+                HStack(spacing: 8) {
                     if activity.isAvailable {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                            Text("Available Now")
-                                .font(.caption.bold())
-                                .foregroundColor(.green)
-                        }
+                        Label("Available Now", systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.green)
                     } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock.fill")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                            Text(timeRemainingText)
-                                .font(.caption.bold())
-                                .foregroundColor(.orange)
-                        }
+                        Label(timeRemainingText, systemImage: "clock.fill")
+                            .font(.caption)
+                            .foregroundColor(.orange)
                     }
                 }
-                
-                Spacer()
+            }
+            
+            Spacer()
+            
+            // Status and Delete
+            VStack(spacing: 8) {
+                // Duration
+                VStack(spacing: 2) {
+                    Text(formattedDuration(activity.duration))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Text("Duration")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.6))
+                }
                 
                 // Delete Button
                 Button(action: onDelete) {
@@ -196,40 +222,14 @@ struct ScheduledActivityCard: View {
                         .clipShape(Circle())
                 }
             }
-            .padding(16)
-            
-            // Scheduled Time
-            Divider()
-                .background(Color.gray.opacity(0.3))
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Scheduled Time")
-                        .font(.caption2)
-                        .foregroundColor(Color(hex: "272052").opacity(0.6))
-                    
-                    Text(formattedDate(activity.scheduledTime))
-                        .font(.caption.bold())
-                        .foregroundColor(Color(hex: "272052"))
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Duration")
-                        .font(.caption2)
-                        .foregroundColor(Color(hex: "272052").opacity(0.6))
-                    
-                    Text(formattedDuration(activity.duration))
-                        .font(.caption.bold())
-                        .foregroundColor(Color(hex: "272052"))
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
         }
-        .background(Color.white.opacity(0.95))
-        .cornerRadius(20)
+        .padding(16)
+        .background(Color.white.opacity(0.12))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        )
         .onReceive(timer) { _ in
             currentTime = Date()
         }
@@ -262,7 +262,11 @@ struct ScheduledActivityCard: View {
         } else {
             let hours = minutes / 60
             let remainingMinutes = minutes % 60
-            return "\(hours)h \(remainingMinutes)m"
+            if remainingMinutes > 0 {
+                return "\(hours)h \(remainingMinutes)m"
+            } else {
+                return "\(hours) hour"
+            }
         }
     }
 }
@@ -294,17 +298,12 @@ struct CreateActivityScreen: View {
     @Environment(\.dismiss) var dismiss
     
     @State private var activityType: ScheduledActivity.ActivityType = .quiz
-    @State private var title = ""
-    @State private var description = ""
-    @State private var selectedHours = 0
-    @State private var selectedMinutes = 30
+    @State private var scheduledDate = Date().addingTimeInterval(3600) // 1 hour from now
     @State private var duration: TimeInterval = 900 // 15 minutes default
     
     // Quiz-specific states
     @State private var showQuizSelection = false
     @State private var selectedQuiz: AIQuizResponse?
-    @State private var availableQuizzes: [AIQuizResponse] = []
-    @State private var isLoadingQuizzes = false
     
     // Game-specific states
     @State private var showGameSelection = false
@@ -313,6 +312,28 @@ struct CreateActivityScreen: View {
     // Puzzle-specific states
     @State private var showPuzzleSelection = false
     @State private var selectedPuzzle: ScheduledActivity.PuzzleType?
+    
+    private var title: String {
+        if activityType == .quiz, let quiz = selectedQuiz {
+            return quiz.meaningfulTitle
+        } else if activityType == .game, let game = selectedGame {
+            return game.rawValue
+        } else if activityType == .puzzle, let puzzle = selectedPuzzle {
+            return puzzle.title
+        }
+        return ""
+    }
+    
+    private var description: String {
+        if activityType == .quiz, let quiz = selectedQuiz {
+            return "\(quiz.subject.capitalized) - \(quiz.difficulty.capitalized)"
+        } else if activityType == .game, let game = selectedGame {
+            return game.description
+        } else if activityType == .puzzle, let puzzle = selectedPuzzle {
+            return puzzle.description
+        }
+        return ""
+    }
     
     var body: some View {
         ZStack {
@@ -375,8 +396,14 @@ struct CreateActivityScreen: View {
                             Button(action: { showQuizSelection = true }) {
                                 HStack {
                                     if let quiz = selectedQuiz {
-                                        Text(quiz.meaningfulTitle)
-                                            .foregroundColor(Color(hex: "272052"))
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(quiz.meaningfulTitle)
+                                                .font(.headline)
+                                                .foregroundColor(Color(hex: "272052"))
+                                            Text("\(quiz.subject.capitalized) - \(quiz.difficulty.capitalized)")
+                                                .font(.caption)
+                                                .foregroundColor(Color(hex: "272052").opacity(0.7))
+                                        }
                                     } else {
                                         Text("Choose a quiz...")
                                             .foregroundColor(Color(hex: "272052").opacity(0.5))
@@ -405,8 +432,14 @@ struct CreateActivityScreen: View {
                             Button(action: { showGameSelection = true }) {
                                 HStack {
                                     if let game = selectedGame {
-                                        Text(game.rawValue)
-                                            .foregroundColor(Color(hex: "272052"))
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(game.rawValue)
+                                                .font(.headline)
+                                                .foregroundColor(Color(hex: "272052"))
+                                            Text(game.description)
+                                                .font(.caption)
+                                                .foregroundColor(Color(hex: "272052").opacity(0.7))
+                                        }
                                     } else {
                                         Text("Choose a game...")
                                             .foregroundColor(Color(hex: "272052").opacity(0.5))
@@ -435,8 +468,14 @@ struct CreateActivityScreen: View {
                             Button(action: { showPuzzleSelection = true }) {
                                 HStack {
                                     if let puzzle = selectedPuzzle {
-                                        Text(puzzle.rawValue)
-                                            .foregroundColor(Color(hex: "272052"))
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(puzzle.title)
+                                                .font(.headline)
+                                                .foregroundColor(Color(hex: "272052"))
+                                            Text(puzzle.description)
+                                                .font(.caption)
+                                                .foregroundColor(Color(hex: "272052").opacity(0.7))
+                                        }
                                     } else {
                                         Text("Choose a puzzle...")
                                             .foregroundColor(Color(hex: "272052").opacity(0.5))
@@ -455,66 +494,23 @@ struct CreateActivityScreen: View {
                         .padding(.horizontal, 20)
                     }
                     
-                    // Title Input
+                    // Date & Time Picker
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Title")
+                        Text("Schedule For")
                             .font(.headline)
                             .foregroundColor(.white)
                         
-                        TextField("Enter activity title", text: $title)
-                            .padding(16)
-                            .background(Color.white)
-                            .cornerRadius(16)
-                            .foregroundColor(Color(hex: "272052"))
-                    }
-                    .padding(.horizontal, 20)
-                    
-                    // Description Input
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Description")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        
-                        TextField("Enter activity description", text: $description)
-                            .padding(16)
-                            .background(Color.white)
-                            .cornerRadius(16)
-                            .foregroundColor(Color(hex: "272052"))
-                    }
-                    .padding(.horizontal, 20)
-                    
-                    // Time Delay Picker
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Available After")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        
-                        HStack(spacing: 16) {
-                            VStack {
-                                Picker("Hours", selection: $selectedHours) {
-                                    ForEach(0..<25) { hour in
-                                        Text("\(hour)h").tag(hour)
-                                    }
-                                }
-                                .pickerStyle(WheelPickerStyle())
-                                .frame(height: 120)
-                                .clipped()
-                            }
-                            
-                            VStack {
-                                Picker("Minutes", selection: $selectedMinutes) {
-                                    ForEach([0, 15, 30, 45], id: \.self) { minute in
-                                        Text("\(minute)m").tag(minute)
-                                    }
-                                }
-                                .pickerStyle(WheelPickerStyle())
-                                .frame(height: 120)
-                                .clipped()
-                            }
-                        }
+                        DatePicker(
+                            "",
+                            selection: $scheduledDate,
+                            in: Date()...,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                        .datePickerStyle(.graphical)
                         .padding(16)
                         .background(Color.white)
                         .cornerRadius(16)
+                        .colorScheme(.light)
                     }
                     .padding(.horizontal, 20)
                     
@@ -553,12 +549,10 @@ struct CreateActivityScreen: View {
                         .cornerRadius(30)
                         .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
                     }
-                    .disabled(title.isEmpty || 
-                             (activityType == .quiz && selectedQuiz == nil) ||
+                    .disabled((activityType == .quiz && selectedQuiz == nil) ||
                              (activityType == .game && selectedGame == nil) ||
                              (activityType == .puzzle && selectedPuzzle == nil))
-                    .opacity(title.isEmpty || 
-                            (activityType == .quiz && selectedQuiz == nil) ||
+                    .opacity((activityType == .quiz && selectedQuiz == nil) ||
                             (activityType == .game && selectedGame == nil) ||
                             (activityType == .puzzle && selectedPuzzle == nil) ? 0.5 : 1.0)
                     .padding(.horizontal, 20)
@@ -582,10 +576,6 @@ struct CreateActivityScreen: View {
                 selectedQuiz: $selectedQuiz,
                 onSelect: {
                     showQuizSelection = false
-                    if let quiz = selectedQuiz {
-                        title = quiz.meaningfulTitle
-                        description = "\(quiz.subject.capitalized) - \(quiz.difficulty.capitalized)"
-                    }
                 }
             )
         }
@@ -594,37 +584,28 @@ struct CreateActivityScreen: View {
                 selectedGame: $selectedGame,
                 onSelect: {
                     showGameSelection = false
-                    if let game = selectedGame {
-                        title = game.rawValue
-                        description = game.description
-                    }
                 }
             )
         }
         .sheet(isPresented: $showPuzzleSelection) {
             PuzzleSelectionSheet(
+                child: child,
                 selectedPuzzle: $selectedPuzzle,
                 onSelect: {
                     showPuzzleSelection = false
-                    if let puzzle = selectedPuzzle {
-                        title = puzzle.rawValue
-                        description = puzzle.description
-                    }
                 }
             )
         }
     }
     
     private func createActivity() {
-        let scheduledTime = Date().addingTimeInterval(TimeInterval(selectedHours * 3600 + selectedMinutes * 60))
-        
         let activity = ScheduledActivity(
             id: UUID().uuidString,
-            childId:child.id,
+            childId: child.id,
             activityType: activityType,
             title: title,
             description: description,
-            scheduledTime: scheduledTime,
+            scheduledTime: scheduledDate,
             duration: duration,
             isCompleted: false,
             quizData: selectedQuiz,
@@ -884,12 +865,40 @@ struct GameSelectionSheet: View {
 
 // MARK: - Puzzle Selection Sheet
 struct PuzzleSelectionSheet: View {
+    let child: Child
     @Binding var selectedPuzzle: ScheduledActivity.PuzzleType?
     let onSelect: () -> Void
     
     @Environment(\.dismiss) var dismiss
+    @State private var localPuzzles: [LocalPuzzle] = []
+    @State private var serverPuzzles: [PuzzleResponse] = []
+    @State private var isLoading = false
     
-    let allPuzzles: [ScheduledActivity.PuzzleType] = [.easy, .medium]
+    var allPuzzles: [(id: String, title: String, description: String, isLocal: Bool)] {
+        var puzzles: [(id: String, title: String, description: String, isLocal: Bool)] = []
+        
+        // Add local puzzles
+        for puzzle in localPuzzles {
+            puzzles.append((
+                id: puzzle.id,
+                title: puzzle.title,
+                description: "\(puzzle.difficulty.displayName) • \(puzzle.gridSize)x\(puzzle.gridSize) • Local",
+                isLocal: true
+            ))
+        }
+        
+        // Add server puzzles that aren't completed
+        for puzzle in serverPuzzles.filter({ !$0.isCompleted }) {
+            puzzles.append((
+                id: puzzle.id,
+                title: puzzle.title,
+                description: "\(puzzle.difficulty.capitalized) • \(puzzle.gridSize)x\(puzzle.gridSize) • AI Generated",
+                isLocal: false
+            ))
+        }
+        
+        return puzzles
+    }
     
     var body: some View {
         NavigationStack {
@@ -906,44 +915,68 @@ struct PuzzleSelectionSheet: View {
                 )
                 .ignoresSafeArea()
                 
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(allPuzzles, id: \.self) { puzzle in
-                            Button(action: {
-                                selectedPuzzle = puzzle
-                                onSelect()
-                            }) {
-                                HStack {
-                                    Image(systemName: puzzle.icon)
-                                        .font(.title2)
-                                        .foregroundColor(Color(hex: "272052"))
-                                        .frame(width: 40)
-                                    
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text(puzzle.rawValue)
-                                            .font(.headline)
-                                            .foregroundColor(Color(hex: "272052"))
-                                        
-                                        Text(puzzle.description)
-                                            .font(.subheadline)
-                                            .foregroundColor(Color(hex: "272052").opacity(0.7))
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    if selectedPuzzle == puzzle {
-                                        Image(systemName: "checkmark.circle.fill")
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
+                } else if allPuzzles.isEmpty {
+                    VStack(spacing: 16) {
+                        Text("🧩")
+                            .font(.system(size: 60))
+                        
+                        Text("No Puzzles Available")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("Create a puzzle first to schedule it")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(allPuzzles, id: \.id) { puzzle in
+                                Button(action: {
+                                    selectedPuzzle = ScheduledActivity.PuzzleType(
+                                        id: puzzle.id,
+                                        title: puzzle.title,
+                                        description: puzzle.description,
+                                        isLocal: puzzle.isLocal
+                                    )
+                                    onSelect()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "puzzlepiece.fill")
                                             .font(.title2)
-                                            .foregroundColor(.green)
+                                            .foregroundColor(Color(hex: "272052"))
+                                            .frame(width: 40)
+                                        
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text(puzzle.title)
+                                                .font(.headline)
+                                                .foregroundColor(Color(hex: "272052"))
+                                            
+                                            Text(puzzle.description)
+                                                .font(.subheadline)
+                                                .foregroundColor(Color(hex: "272052").opacity(0.7))
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        if selectedPuzzle?.id == puzzle.id {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.title2)
+                                                .foregroundColor(.green)
+                                        }
                                     }
+                                    .padding(16)
+                                    .background(Color.white)
+                                    .cornerRadius(16)
                                 }
-                                .padding(16)
-                                .background(Color.white)
-                                .cornerRadius(16)
                             }
                         }
+                        .padding(20)
                     }
-                    .padding(20)
                 }
             }
             .navigationTitle("Select Puzzle")
@@ -954,6 +987,35 @@ struct PuzzleSelectionSheet: View {
                         dismiss()
                     }
                     .foregroundColor(.white)
+                }
+            }
+            .onAppear {
+                loadPuzzles()
+            }
+        }
+    }
+    
+    private func loadPuzzles() {
+        isLoading = true
+        
+        // Load local puzzles
+        localPuzzles = LocalPuzzleManager.shared.getAllPuzzles(for: child.id)
+        
+        // Load server puzzles
+        Task {
+            do {
+                guard let parentId = AuthService.shared.getParentId() else { return }
+                let fetchedPuzzles = try await PuzzleService.shared.getPuzzles(
+                    parentId: parentId,
+                    kidId: child.id
+                )
+                await MainActor.run {
+                    serverPuzzles = fetchedPuzzles
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
                 }
             }
         }

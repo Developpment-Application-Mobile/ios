@@ -533,7 +533,23 @@ struct ChildDashboardScreen: View {
             let fetchedQuizzes = try await AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
             await MainActor.run {
                 print("✅ Loaded \(fetchedQuizzes.count) quizzes for child dashboard")
-                quizzes = fetchedQuizzes.sorted { ($0.createdAt ?? "") > ($1.createdAt ?? "") }
+                // Check if any quiz has a date
+                let hasAnyDates = fetchedQuizzes.contains { $0.createdAt != nil }
+                
+                if hasAnyDates {
+                    // Sort by createdAt descending (newest first) - handle nil dates
+                    quizzes = fetchedQuizzes.sorted { quiz1, quiz2 in
+                        if let date1 = quiz1.createdAt, let date2 = quiz2.createdAt {
+                            return date1 > date2
+                        }
+                        if quiz1.createdAt != nil { return true }
+                        if quiz2.createdAt != nil { return false }
+                        return false
+                    }
+                } else {
+                    // If no dates, reverse the array (assuming API returns oldest first)
+                    quizzes = Array(fetchedQuizzes.reversed())
+                }
             }
         } catch {
             print("❌ Error loading quizzes: \(error.localizedDescription)")
@@ -544,7 +560,23 @@ struct ChildDashboardScreen: View {
             let fetchedPuzzles = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
             await MainActor.run {
                 print("✅ Loaded \(fetchedPuzzles.count) puzzles for child dashboard")
-                serverPuzzles = fetchedPuzzles
+                // Check if any puzzle has a date
+                let hasAnyDates = fetchedPuzzles.contains { $0.createdAt != nil }
+                
+                if hasAnyDates {
+                    // Sort by createdAt descending (newest first) - handle nil dates
+                    serverPuzzles = fetchedPuzzles.sorted { puzzle1, puzzle2 in
+                        if let date1 = puzzle1.createdAt, let date2 = puzzle2.createdAt {
+                            return date1 > date2
+                        }
+                        if puzzle1.createdAt != nil { return true }
+                        if puzzle2.createdAt != nil { return false }
+                        return false
+                    }
+                } else {
+                    // If no dates, reverse the array (assuming API returns oldest first)
+                    serverPuzzles = Array(fetchedPuzzles.reversed())
+                }
             }
         } catch {
             print("❌ Error loading puzzles: \(error.localizedDescription)")
@@ -765,7 +797,7 @@ struct ChildQuizCard: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 // CHANGÉ: Utiliser meaningfulTitle
-                Text(quiz.meaningfulTitle).font(.title3.bold()).foregroundColor(.white)
+                Text(quiz.meaningfulTitle).font(.title3.bold()).foregroundColor(.white).lineLimit(2)
                 Text(quiz.subject.capitalized).font(.subheadline).foregroundColor(.white.opacity(0.8))
                 HStack(spacing: 12) {
                     Label("\(quiz.questions.count) questions", systemImage: "questionmark.circle.fill")
@@ -791,7 +823,7 @@ struct ChildCompletedQuizCard: View {
             Image(systemName: "checkmark.circle.fill").font(.title2).foregroundColor(.green)
             VStack(alignment: .leading, spacing: 4) {
                 // CHANGÉ: Utiliser meaningfulTitle
-                Text(quiz.meaningfulTitle).font(.subheadline.bold()).foregroundColor(.white)
+                Text(quiz.meaningfulTitle).font(.subheadline.bold()).foregroundColor(.white).lineLimit(2)
                 Text(quiz.subject.capitalized).font(.caption).foregroundColor(.white.opacity(0.7))
             }
             Spacer()

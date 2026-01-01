@@ -395,8 +395,39 @@ struct ChildReviewView: View {
             await MainActor.run {
                 self.report = generatedReport
                 self.child = child
-                self.quizzes = fetchedQuizzes.filter { $0.isAnswered || $0.answered > 0 }
-                self.serverPuzzles = fetchedPuzzles.filter { $0.isCompleted }
+                
+                // Check if any quiz or puzzle has a date
+                let quizzesHaveDates = fetchedQuizzes.contains { $0.createdAt != nil }
+                let puzzlesHaveDates = fetchedPuzzles.contains { $0.createdAt != nil }
+                
+                // Sort quizzes by createdAt descending (newest first)
+                if quizzesHaveDates {
+                    self.quizzes = fetchedQuizzes.filter { $0.isAnswered || $0.answered > 0 }.sorted { quiz1, quiz2 in
+                        if let date1 = quiz1.createdAt, let date2 = quiz2.createdAt {
+                            return date1 > date2
+                        }
+                        if quiz1.createdAt != nil { return true }
+                        if quiz2.createdAt != nil { return false }
+                        return false
+                    }
+                } else {
+                    self.quizzes = Array(fetchedQuizzes.filter { $0.isAnswered || $0.answered > 0 }.reversed())
+                }
+                
+                // Sort puzzles by createdAt descending (newest first)
+                if puzzlesHaveDates {
+                    self.serverPuzzles = fetchedPuzzles.filter { $0.isCompleted }.sorted { puzzle1, puzzle2 in
+                        if let date1 = puzzle1.createdAt, let date2 = puzzle2.createdAt {
+                            return date1 > date2
+                        }
+                        if puzzle1.createdAt != nil { return true }
+                        if puzzle2.createdAt != nil { return false }
+                        return false
+                    }
+                } else {
+                    self.serverPuzzles = Array(fetchedPuzzles.filter { $0.isCompleted }.reversed())
+                }
+                
                 self.localPuzzles = loadedLocalPuzzles.filter { $0.isCompleted }
                 self.games = loadedGames
                 self.isLoading = false

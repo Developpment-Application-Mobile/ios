@@ -12,6 +12,8 @@
 		042C83BB2ED0772B00F6E0A8 /* ProfileBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042C83BA2ED0771600F6E0A8 /* ProfileBadge.swift */; };
 		042C83BD2ED0773E00F6E0A8 /* EmptyQuizStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042C83BC2ED0773A00F6E0A8 /* EmptyQuizStateView.swift */; };
 		042C83BF2ED0775000F6E0A8 /* AnalyticsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042C83BE2ED0774B00F6E0A8 /* AnalyticsCard.swift */; };
+		045A74D92F058A21007ECFDF /* ImageCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 045A74D82F058A21007ECFDF /* ImageCacheManager.swift */; };
+		045A74DB2F070646007ECFDF /* ScoreCalculationService 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 045A74DA2F070646007ECFDF /* ScoreCalculationService 2.swift */; };
 		0478BB172EC7F59300AB6E6D /* EditParentProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB162EC7F59000AB6E6D /* EditParentProfileScreen.swift */; };
 		0478BB192EC7F62300AB6E6D /* EditChildProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */; };
 		0478BB212EC8F1F100AB6E6D /* QuizzManagementViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0478BB202EC8F1E200AB6E6D /* QuizzManagementViews.swift */; };
@@ -106,6 +108,8 @@
 		042C83BA2ED0771600F6E0A8 /* ProfileBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileBadge.swift; sourceTree = "<group>"; };
 		042C83BC2ED0773A00F6E0A8 /* EmptyQuizStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyQuizStateView.swift; sourceTree = "<group>"; };
 		042C83BE2ED0774B00F6E0A8 /* AnalyticsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsCard.swift; sourceTree = "<group>"; };
+		045A74D82F058A21007ECFDF /* ImageCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCacheManager.swift; sourceTree = "<group>"; };
+		045A74DA2F070646007ECFDF /* ScoreCalculationService 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ScoreCalculationService 2.swift"; sourceTree = "<group>"; };
 		0478BB162EC7F59000AB6E6D /* EditParentProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditParentProfileScreen.swift; sourceTree = "<group>"; };
 		0478BB182EC7F61300AB6E6D /* EditChildProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditChildProfileScreen.swift; sourceTree = "<group>"; };
 		0478BB202EC8F1E200AB6E6D /* QuizzManagementViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizzManagementViews.swift; sourceTree = "<group>"; };
@@ -246,6 +250,7 @@
 		595695B62EBA2FBA005DBD2D /* EduKid */ = {
 			isa = PBXGroup;
 			children = (
+				045A74D82F058A21007ECFDF /* ImageCacheManager.swift */,
 				04E2162C2EDC7CCD00375768 /* clapping.mp3 */,
 				595696062EBA5444005DBD2D /* Utils */,
 				595695E92EBA3253005DBD2D /* Services */,
@@ -373,6 +378,7 @@
 				048012042EED74C000C7653E /* QuestService.swift */,
 				04FB42DC2ED1D66600B2AC32 /* PuzzleService.swift */,
 				049625A52EC9ED1C00C83F87 /* AIQuizService.swift */,
+				045A74DA2F070646007ECFDF /* ScoreCalculationService 2.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -575,6 +581,7 @@
 				04D31C792EDDA7E100B9E05A /* ScheduledActivity.swift in Sources */,
 				048012002EED749200C7653E /* ShopView.swift in Sources */,
 				04D31C772EDDA73A00B9E05A /* ChildScheduledActivitiesView.swift in Sources */,
+				045A74DB2F070646007ECFDF /* ScoreCalculationService 2.swift in Sources */,
 				048012122EEEE5B600C7653E /* ChildReviewService.swift in Sources */,
 				59B85F8D2EBCEC24007264C5 /* QuizType.swift in Sources */,
 				59B8D3472EC3AFD2004374A1 /* AuthViewModel.swift in Sources */,
@@ -591,6 +598,7 @@
 				92A6C352C146D8C5DC71AFBC /* SoundEffectManager.swift in Sources */,
 				0480120C2EEDA64300C7653E /* ChildReviewModels.swift in Sources */,
 				849FD61A71CB9A20168F62BE /* CelebrationView.swift in Sources */,
+				045A74D92F058A21007ECFDF /* ImageCacheManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

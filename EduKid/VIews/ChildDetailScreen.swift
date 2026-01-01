@@ -232,8 +232,38 @@ struct ChildDetailScreen: View {
                 let (fetchedQuizzes, fetchedPuzzles) = try await (quizzesTask, puzzlesTask)
                 
                 await MainActor.run {
-                    quizzes = fetchedQuizzes
-                    serverPuzzles = fetchedPuzzles
+                    // Check if any quiz or puzzle has a date
+                    let quizzesHaveDates = fetchedQuizzes.contains { $0.createdAt != nil }
+                    let puzzlesHaveDates = fetchedPuzzles.contains { $0.createdAt != nil }
+                    
+                    // Sort quizzes
+                    if quizzesHaveDates {
+                        quizzes = fetchedQuizzes.sorted { quiz1, quiz2 in
+                            if let date1 = quiz1.createdAt, let date2 = quiz2.createdAt {
+                                return date1 > date2
+                            }
+                            if quiz1.createdAt != nil { return true }
+                            if quiz2.createdAt != nil { return false }
+                            return false
+                        }
+                    } else {
+                        quizzes = Array(fetchedQuizzes.reversed())
+                    }
+                    
+                    // Sort puzzles
+                    if puzzlesHaveDates {
+                        serverPuzzles = fetchedPuzzles.sorted { puzzle1, puzzle2 in
+                            if let date1 = puzzle1.createdAt, let date2 = puzzle2.createdAt {
+                                return date1 > date2
+                            }
+                            if puzzle1.createdAt != nil { return true }
+                            if puzzle2.createdAt != nil { return false }
+                            return false
+                        }
+                    } else {
+                        serverPuzzles = Array(fetchedPuzzles.reversed())
+                    }
+                    
                     isLoading = false
                 }
             } catch {

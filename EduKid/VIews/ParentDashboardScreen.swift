@@ -280,45 +280,55 @@ struct ChildCard: View {
     private func loadTotalCompleted() {
         isLoading = true
         Task {
-            var completed = 0
-            var score = 0
-            
-            // Compter les quizzes complétés
             if let parentId = AuthService.shared.getParentId() {
                 do {
-                    let quizzes = try await AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
-                    let completedQuizzes = quizzes.filter { $0.answered > 0 }
-                    completed += completedQuizzes.count
-                    score += completedQuizzes.reduce(0) { $0 + $1.score }
+                    let stats = try await ScoreCalculationService.shared.loadAndCalculateStats(
+                        for: child.id,
+                        parentId: parentId
+                    )
+                    
+                    // Load inventory to calculate NET score
+                    var inventory: [Gift] = []
+                    if let token = AuthService.shared.getToken() {
+                        let baseURL = "https://preterrestrial-georgann-recappable.ngrok-free.dev"
+                        let pUrl = URL(string: "\(baseURL)/parents/\(parentId)")!
+                        var req = URLRequest(url: pUrl)
+                        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                        req.setValue("ngrok-skip-browser-warning", forHTTPHeaderField: "ngrok-skip-browser-warning")
+                        let (d, _) = try await URLSession.shared.data(for: req)
+                        
+                        if let json = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                           let childrenArr = json["children"] as? [[String: Any]] {
+                            if let childDict = childrenArr.first(where: { ($0["_id"] as? String) == child.id || ($0["id"] as? String) == child.id }) {
+                                if let invArr = childDict["inventory"] as? [[String: Any]] {
+                                    let data = try JSONSerialization.data(withJSONObject: invArr)
+                                    inventory = try JSONDecoder().decode([Gift].self, from: data)
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Calculate NET score (gross - spent)
+                    let netScore = ScoreCalculationService.shared.calculateNetScore(
+                        grossScore: stats.totalScore,
+                        inventory: inventory
+                    )
+                    
+                    await MainActor.run {
+                        totalCompleted = stats.totalCompleted
+                        calculatedScore = netScore // Use NET score instead of gross
+                        isLoading = false
+                    }
                 } catch {
-                    print("Failed to load quizzes: \(error)")
+                    print("Failed to load stats: \(error)")
+                    await MainActor.run {
+                        isLoading = false
+                    }
                 }
-                
-                // Compter les puzzles complétés (local + server)
-                let localPuzzles = LocalPuzzleManager.shared.getAllPuzzles(for: child.id)
-                let completedLocalPuzzles = localPuzzles.filter { $0.isCompleted }
-                completed += completedLocalPuzzles.count
-                score += completedLocalPuzzles.reduce(0) { $0 + $1.score }
-                
-                do {
-                    let serverPuzzles = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
-                    let completedServerPuzzles = serverPuzzles.filter { $0.isCompleted }
-                    completed += completedServerPuzzles.count
-                    score += completedServerPuzzles.reduce(0) { $0 + $1.score }
-                } catch {
-                    print("Failed to load puzzles: \(error)")
+            } else {
+                await MainActor.run {
+                    isLoading = false
                 }
-            }
-            
-            // Compter les jeux complétés
-            let games = UserDefaults.standard.array(forKey: "child_\(child.id)_games") as? [[String: Any]] ?? []
-            completed += games.count
-            score += games.compactMap { $0["score"] as? Int }.reduce(0, +)
-            
-            await MainActor.run {
-                totalCompleted = completed
-                calculatedScore = score
-                isLoading = false
             }
         }
     }

@@ -231,7 +231,23 @@ struct ParentChildGamesScreen: View {
         do {
             let fetchedQuizzes = try await AIQuizService.shared.getQuizzes(parentId: parentId, kidId: child.id)
             await MainActor.run {
-                quizzes = fetchedQuizzes.sorted { ($0.createdAt ?? "") > ($1.createdAt ?? "") }
+                // Check if any quiz has a date
+                let hasAnyDates = fetchedQuizzes.contains { $0.createdAt != nil }
+                
+                if hasAnyDates {
+                    // Sort by createdAt descending (newest first) - handle nil dates
+                    quizzes = fetchedQuizzes.sorted { quiz1, quiz2 in
+                        if let date1 = quiz1.createdAt, let date2 = quiz2.createdAt {
+                            return date1 > date2
+                        }
+                        if quiz1.createdAt != nil { return true }
+                        if quiz2.createdAt != nil { return false }
+                        return false
+                    }
+                } else {
+                    // If no dates, reverse the array (assuming API returns oldest first)
+                    quizzes = Array(fetchedQuizzes.reversed())
+                }
             }
         } catch {
             print("❌ Error loading quizzes: \(error.localizedDescription)")
@@ -241,7 +257,23 @@ struct ParentChildGamesScreen: View {
         do {
             let fetchedPuzzles = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
             await MainActor.run {
-                serverPuzzles = fetchedPuzzles
+                // Check if any puzzle has a date
+                let hasAnyDates = fetchedPuzzles.contains { $0.createdAt != nil }
+                
+                if hasAnyDates {
+                    // Sort by createdAt descending (newest first) - handle nil dates
+                    serverPuzzles = fetchedPuzzles.sorted { puzzle1, puzzle2 in
+                        if let date1 = puzzle1.createdAt, let date2 = puzzle2.createdAt {
+                            return date1 > date2
+                        }
+                        if puzzle1.createdAt != nil { return true }
+                        if puzzle2.createdAt != nil { return false }
+                        return false
+                    }
+                } else {
+                    // If no dates, reverse the array (assuming API returns oldest first)
+                    serverPuzzles = Array(fetchedPuzzles.reversed())
+                }
             }
         } catch {
             print("❌ Error loading puzzles: \(error.localizedDescription)")
@@ -580,7 +612,7 @@ struct ParentQuizCard: View {
                 Text(quiz.meaningfulTitle)
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
-                    .lineLimit(1)
+                    .lineLimit(2)
                 
                 Text(quiz.subject.capitalized)
                     .font(.system(size: 14))

@@ -15,26 +15,16 @@ struct PuzzlePieceImageView: View {
     var body: some View {
         Group {
             if let imageUrl = piece.imageUrl, !imageUrl.isEmpty, let url = URL(string: imageUrl) {
-                // Load actual image from URL
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .empty:
-                        ProgressView()
-                            .frame(width: size, height: size)
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: size, height: size)
-                            .clipped()
-                    case .failure:
-                        // Fallback to content text
-                        ContentPlaceholder(content: piece.content, type: puzzleType)
-                            .frame(width: size, height: size)
-                    @unknown default:
-                        ContentPlaceholder(content: piece.content, type: puzzleType)
-                            .frame(width: size, height: size)
-                    }
+                // Load actual image from URL with caching
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipped()
+                } placeholder: {
+                    ProgressView()
+                        .frame(width: size, height: size)
                 }
             } else {
                 // Use content as text/emoji

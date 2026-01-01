@@ -155,9 +155,18 @@ struct ShopView: View {
                                 let data = try JSONSerialization.data(withJSONObject: invArr)
                                 self.inventory = try JSONDecoder().decode([Gift].self, from: data)
                                 
+                                print("📦 Loaded inventory: \(self.inventory.count) items")
+                                print("   Inventory IDs: \(self.inventory.map { $0.id })")
+                                
                                 // FILTER: Remove owned items from catalog
                                 let ownedIds = Set(self.inventory.map { $0.id })
+                                print("🛍️ Catalog before filter: \(self.catalog.count) items")
+                                print("   Catalog IDs: \(self.catalog.map { $0.id })")
+                                
                                 self.catalog = self.catalog.filter { !ownedIds.contains($0.id) }
+                                
+                                print("✅ Catalog after filter: \(self.catalog.count) items")
+                                print("   Remaining IDs: \(self.catalog.map { $0.id })")
                                 
                                 // STEP 3: Calculate Correct Balance (Gross - Spent)
                                 // initialPoints is "Total Lifetime Earnings" from Dashboard

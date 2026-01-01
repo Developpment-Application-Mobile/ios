@@ -344,9 +344,9 @@ struct ParentPuzzleListScreen: View {
     @State private var puzzleToDelete: (id: String, isLocal: Bool)?
     @State private var showDeleteAlert = false
     
-    // FIXED: Filter out AI puzzles with images
+    // Show all server puzzles including AI-generated image puzzles
     var displayServerPuzzles: [PuzzleResponse] {
-        serverPuzzles.filter { $0.type.lowercased() != "image" }
+        serverPuzzles
     }
     
     var body: some View {
@@ -429,7 +429,26 @@ struct ParentPuzzleListScreen: View {
             do {
                 guard let parentId = AuthService.shared.getParentId() else { return }
                 let fetched = try await PuzzleService.shared.getPuzzles(parentId: parentId, kidId: child.id)
-                await MainActor.run { serverPuzzles = fetched; isLoading = false }
+                await MainActor.run {
+                    // Check if any puzzle has a date
+                    let hasAnyDates = fetched.contains { $0.createdAt != nil }
+                    
+                    if hasAnyDates {
+                        // Sort by createdAt descending (newest first) - handle nil dates
+                        serverPuzzles = fetched.sorted { puzzle1, puzzle2 in
+                            if let date1 = puzzle1.createdAt, let date2 = puzzle2.createdAt {
+                                return date1 > date2
+                            }
+                            if puzzle1.createdAt != nil { return true }
+                            if puzzle2.createdAt != nil { return false }
+                            return false
+                        }
+                    } else {
+                        // If no dates, reverse the array (assuming API returns oldest first)
+                        serverPuzzles = Array(fetched.reversed())
+                    }
+                    isLoading = false 
+                }
             } catch {
                 print("Error loading server puzzles: \(error)")
                 await MainActor.run { isLoading = false }
@@ -537,9 +556,10 @@ struct ParentLocalPuzzleCardWithDelete: View {
     
     var body: some View {
         HStack(spacing: 16) {
+            // Icon/Image
             ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(puzzle.customImagePath != nil ? Color.gray.opacity(0.3) : puzzle.puzzleImage.backgroundColor)
+                Circle()
+                    .fill(puzzle.customImagePath != nil ? Color.gray.opacity(0.3) : puzzle.puzzleImage.backgroundColor.opacity(0.3))
                     .frame(width: 60, height: 60)
                 
                 if let imagePath = puzzle.customImagePath,
@@ -548,39 +568,71 @@ struct ParentLocalPuzzleCardWithDelete: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(Circle())
                 } else {
-                    Text(puzzle.puzzleImage.emoji).font(.system(size: 32))
+                    Text(puzzle.puzzleImage.emoji)
+                        .font(.system(size: 30))
                 }
             }
             
+            // Info
             VStack(alignment: .leading, spacing: 6) {
-                Text(puzzle.title).font(.subheadline.bold()).foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
+                Text(puzzle.title)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                
+                Text("\(puzzle.difficulty.displayName) • \(puzzle.gridSize)×\(puzzle.gridSize)")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.7))
+                
                 HStack(spacing: 8) {
-                    Label("\(puzzle.gridSize)×\(puzzle.gridSize)", systemImage: "square.grid.2x2")
-                    Label(puzzle.difficulty.displayName, systemImage: "star.fill")
+                    Label("\(puzzle.gridSize * puzzle.gridSize) pieces", systemImage: "puzzlepiece.fill")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
                 }
-                .font(.caption).foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
             }
             
             Spacer()
             
+            // Status/Score
             if puzzle.isCompleted {
-                VStack(spacing: 4) {
-                    Text("⭐").font(.title3)
-                    Text("\(puzzle.score)").font(.headline.bold()).foregroundColor(.yellow)
+                VStack(spacing: 2) {
+                    Text("\(puzzle.score)")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Text("Score")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
                 }
             } else {
-                Text("Pending").font(.caption.bold()).foregroundColor(.orange)
-                    .padding(.horizontal, 8).padding(.vertical, 4).background(Color.orange.opacity(0.2)).cornerRadius(6)
+                VStack(spacing: 4) {
+                    Image(systemName: "clock.fill")
+                        .font(.title3)
+                        .foregroundColor(.orange)
+                    Text("Pending")
+                        .font(.caption2.bold())
+                        .foregroundColor(.orange)
+                }
             }
             
+            // Delete Button
             Button(action: onDelete) {
-                Image(systemName: "trash").font(.system(size: 16)).foregroundColor(.red)
-                    .frame(width: 36, height: 36).background(Color.red.opacity(0.1)).clipShape(Circle())
+                Image(systemName: "trash.fill")
+                    .foregroundColor(.red.opacity(0.8))
+                    .padding(10)
+                    .background(Color.red.opacity(0.15))
+                    .clipShape(Circle())
             }
         }
-        .padding(16).background(Color.white.opacity(0.95)).cornerRadius(16)
+        .padding(16)
+        .background(Color.white.opacity(0.12))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        )
     }
 }
 
@@ -591,38 +643,110 @@ struct ParentServerPuzzleCardWithDelete: View {
     
     var body: some View {
         HStack(spacing: 16) {
+            // Icon/Image
             ZStack {
-                RoundedRectangle(cornerRadius: 12).fill(puzzle.puzzleType.color.opacity(0.3)).frame(width: 60, height: 60)
-                Image(systemName: puzzle.puzzleType.icon).font(.title3).foregroundColor(puzzle.puzzleType.color)
+                Circle()
+                    .fill(puzzle.puzzleType.color.opacity(0.3))
+                    .frame(width: 60, height: 60)
+                
+                // Show image preview for image-type puzzles
+                if puzzle.type.lowercased() == "image", 
+                   let imageUrl = puzzle.imageUrl,
+                   let url = URL(string: imageUrl) {
+                    CachedAsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 60, height: 60)
+                            .clipShape(Circle())
+                    } placeholder: {
+                        Image(systemName: puzzle.puzzleType.icon)
+                            .font(.title2)
+                            .foregroundColor(puzzle.puzzleType.color)
+                    }
+                } else {
+                    Image(systemName: puzzle.puzzleType.icon)
+                        .font(.title2)
+                        .foregroundColor(puzzle.puzzleType.color)
+                }
+                
+                // AI badge for adaptive puzzles
+                if puzzle.title.contains("IMAGE PUZZLE") {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Text("AI")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(Color.purple)
+                                .cornerRadius(4)
+                        }
+                        Spacer()
+                    }
+                    .frame(width: 60, height: 60)
+                }
             }
             
+            // Info
             VStack(alignment: .leading, spacing: 6) {
-                Text(puzzle.title).font(.subheadline.bold()).foregroundColor(Color(red: 0.18, green: 0.18, blue: 0.18))
+                Text(puzzle.title)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                
+                Text("\(puzzle.difficulty.capitalized) • \(puzzle.gridSize)×\(puzzle.gridSize)")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.7))
+                
                 HStack(spacing: 8) {
-                    Label("\(puzzle.gridSize)×\(puzzle.gridSize)", systemImage: "square.grid.2x2")
-                    Label(puzzle.difficulty, systemImage: "star.fill")
+                    Label("\(puzzle.gridSize * puzzle.gridSize) pieces", systemImage: "puzzlepiece.fill")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
                 }
-                .font(.caption).foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
             }
             
             Spacer()
             
+            // Status/Score
             if puzzle.isCompleted {
-                VStack(spacing: 4) {
-                    Text("⭐").font(.title3)
-                    Text("\(puzzle.score)").font(.headline.bold()).foregroundColor(.yellow)
+                VStack(spacing: 2) {
+                    Text("\(puzzle.score)")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Text("Score")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
                 }
             } else {
-                Text("Pending").font(.caption.bold()).foregroundColor(.orange)
-                    .padding(.horizontal, 8).padding(.vertical, 4).background(Color.orange.opacity(0.2)).cornerRadius(6)
+                VStack(spacing: 4) {
+                    Image(systemName: "clock.fill")
+                        .font(.title3)
+                        .foregroundColor(.orange)
+                    Text("Pending")
+                        .font(.caption2.bold())
+                        .foregroundColor(.orange)
+                }
             }
             
+            // Delete Button
             Button(action: onDelete) {
-                Image(systemName: "trash").font(.system(size: 16)).foregroundColor(.red)
-                    .frame(width: 36, height: 36).background(Color.red.opacity(0.1)).clipShape(Circle())
+                Image(systemName: "trash.fill")
+                    .foregroundColor(.red.opacity(0.8))
+                    .padding(10)
+                    .background(Color.red.opacity(0.15))
+                    .clipShape(Circle())
             }
         }
-        .padding(16).background(Color.white.opacity(0.95)).cornerRadius(16)
+        .padding(16)
+        .background(Color.white.opacity(0.12))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        )
     }
 }
 
